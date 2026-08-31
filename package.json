@@ -1,0 +1,16 @@
+{
+  "name": "memora-platform",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "build": "npm run build -w packages/shared && npm run build -w packages/template-engine && npm run build -w apps/api && npm run build -w apps/web",
+    "db:generate": "npm run prisma:generate -w apps/api",
+    "db:migrate": "npm run prisma:migrate -w apps/api",
+    "db:seed": "npm run prisma:seed -w apps/api",
+    "test": "npm run test -w packages/template-engine && npm run test -w apps/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

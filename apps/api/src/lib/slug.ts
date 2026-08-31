@@ -1,0 +1,2 @@
+import {db} from './db.js';
+export async function uniqueSlug(base:string){const clean=base.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,60)||'surprise';let slug=clean;let i=2;const reserved=new Set(['api','admin','login','register','r','dashboard','settings']);if(reserved.has(slug)) slug=`${slug}-gift`;while(await db.publishedSite.findUnique({where:{slug}})){slug=`${clean}-${i++}`}return slug}

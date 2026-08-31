@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: memora-api
+    env: docker
+    dockerfilePath: ./apps/api/Dockerfile
+  - type: web
+    name: memora-web
+    env: docker
+    dockerfilePath: ./apps/web/Dockerfile
