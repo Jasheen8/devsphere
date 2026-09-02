@@ -220,6 +220,31 @@ r.patch("/:id", auth, async (req, res) => {
 });
 
 /* =========================================================
+   GET ALL USER PROJECTS
+   ========================================================= */
+
+r.get("/", auth, async (req, res) => {
+  const u = (req as any).user;
+
+  const projects = await db.project.findMany({
+    where: {
+      userId: u.id,
+    },
+    include: {
+      template: true,
+      website: true,
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+  });
+
+  return res.json({
+    items: projects,
+  });
+});
+
+/* =========================================================
    GET SINGLE PROJECT
    ========================================================= */
 
