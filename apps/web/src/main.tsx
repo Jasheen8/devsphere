@@ -46,21 +46,52 @@ type Template = {
   };
 };
 function Nav() {
+  const [user, setUser] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    api("/auth/me")
+      .then((data) => {
+        setUser(data.user);
+      })
+      .catch(() => {
+        setUser(null);
+      });
+  }, []);
+
+  const userInitial =
+    user?.name?.trim()?.charAt(0)?.toUpperCase() ||
+    user?.email?.trim()?.charAt(0)?.toUpperCase() ||
+    "U";
+
   return (
-    <header className="nav">
-      <div className="nav-inner">
-        <Link className="brand" to="/">
-          <span className="brand-mark">D</span> Devsphere
-        </Link>
-        <nav className="nav-links">
-          <Link to="/templates">Templates</Link>
-          <Link to="/dashboard">My Websites</Link>
-          <Link to="/login" className="btn btn-primary">
-            Login
-          </Link>
-        </nav>
+    <nav className="site-nav">
+      <div className="nav-brand">
+        <span className="brand-mark">D</span>
+        <span>Devsphere</span>
       </div>
-    </header>
+
+      <div className="nav-links">
+        <a href="/templates">Templates</a>
+        <a href="/dashboard">My Websites</a>
+
+        {user ? (
+          <button
+            type="button"
+            className="nav-user"
+            title={user.name || user.email}
+            onClick={() => {
+              window.location.href = "/dashboard";
+            }}
+          >
+            {userInitial}
+          </button>
+        ) : (
+          <a href="/login" className="nav-login">
+            Login
+          </a>
+        )}
+      </div>
+    </nav>
   );
 }
 function Home() {
@@ -238,6 +269,8 @@ function Templates() {
     <>
       <Nav />
       <div className="container">
+        <BackButton label="Back" />
+
         <section className="section">
           <span className="pill">Template gallery</span>
           <h2>Find the feeling you want to share.</h2>
@@ -281,7 +314,7 @@ function TemplatePreview() {
     if (!id) return;
 
     api(`/templates/${id}`)
-      .then((x) => setTemplate(x.template))
+      .then((x) => setT(x.template))
       .catch((error) => {
         console.error("Failed to load template:", error);
       });
@@ -298,6 +331,7 @@ function TemplatePreview() {
     <>
       <Nav />
       <div className="container section">
+        <BackButton label="Back to Templates" />
         <div className="section-head">
           <div>
             <span className="pill">{t.category.name}</span>
@@ -350,6 +384,7 @@ function Auth() {
   return (
     <div className="login-shell">
       <div className="auth-card">
+        <BackButton label="Back to Home" />
         <Link className="brand" to="/">
           <span className="brand-mark">D</span> Devsphere
         </Link>
@@ -423,6 +458,7 @@ function Dashboard() {
     <>
       <Nav />
       <div className="container section">
+        <BackButton label="Back" />
         <div className="section-head">
           <div>
             <span className="pill">Your workspace</span>
@@ -443,73 +479,111 @@ function Dashboard() {
               </div>
               <div className="actions">
                 {p.status === "DRAFT" && (
+                  <div className="project-actions">
+                    <button
+                      type="button"
+                      className="delete-draft-btn"
+                      onClick={async () => {
+                        const confirmed = window.confirm(
+                          "Delete this draft website? This action cannot be undone.",
+                        );
+
+                        if (!confirmed) return;
+
+                        try {
+                          await api(`/projects/${p.id}`, {
+                            method: "DELETE",
+                          });
+
+                          setProjects((current) =>
+                            current.filter((item) => item.id !== p.id),
+                          );
+                        } catch (error: any) {
+                          alert(error.message || "Unable to delete draft.");
+                        }
+                      }}
+                    >
+                      Delete Draft
+                    </button>
+
+                    <button
+                      type="button"
+                      className="continue-editing-btn"
+                      onClick={() => nav(`/edit/${p.id}`)}
+                    >
+                      Continue Editing
+                    </button>
+                  </div>
+                )}
+
+                {p.status === "FINALIZED" && (
                   <button
-                    className="btn btn-soft"
-                    onClick={() => nav(`/edit/${p.id}`)}
+                    className="btn btn-primary"
+                    onClick={() => nav(`/checkout/${p.id}`)}
                   >
-                    Continue Editing
+                    Complete Payment
                   </button>
                 )}
-                {p.website && (
-  <>
-    <a
-      className="btn btn-primary"
-      href={`/r/${p.website.slug}`}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      View Website
-    </a>
 
-    <button
-      className="btn btn-soft"
-      onClick={async () => {
-        const url =
-          `${window.location.origin}/r/${p.website.slug}`;
+                {p.status === "PUBLISHED" && p.website && (
+                  <>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => nav(`/published/${p.id}`)}
+                    >
+                      Manage Website
+                    </button>
 
-        try {
-          await navigator.clipboard.writeText(url);
-          alert("Website link copied ✓");
-        } catch {
-          prompt(
-            "Copy your website link:",
-            url,
-          );
-        }
-      }}
-    >
-      Copy Link
-    </button>
+                    <a
+                      className="btn btn-soft"
+                      href={`/r/${p.website.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View Website
+                    </a>
 
-    <button
-      className="btn btn-soft"
-      onClick={async () => {
-        const url =
-          `${window.location.origin}/r/${p.website.slug}`;
+                    <button
+                      className="btn btn-soft"
+                      onClick={async () => {
+                        const url = `${window.location.origin}/r/${p.website.slug}`;
 
-        if (navigator.share) {
-          try {
-            await navigator.share({
-              title:
-                p.name ||
-                "My Devsphere Website",
-              text:
-                "Here's my special website ❤️",
-              url,
-            });
-          } catch {
-            // User cancelled share.
-          }
-        } else {
-          await navigator.clipboard.writeText(url);
-          alert("Website link copied ✓");
-        }
-      }}
-    >
-      Share
-    </button>
-  </>
-)}
+                        try {
+                          await navigator.clipboard.writeText(url);
+                          alert("Website link copied ✓");
+                        } catch {
+                          prompt("Copy your website link:", url);
+                        }
+                      }}
+                    >
+                      Copy Link
+                    </button>
+
+                    <button
+                      className="btn btn-soft"
+                      onClick={async () => {
+                        const url = `${window.location.origin}/r/${p.website.slug}`;
+
+                        if (navigator.share) {
+                          try {
+                            await navigator.share({
+                              title: p.name || "My Devsphere Website",
+                              text: "Here's my special website ❤️",
+                              url,
+                            });
+                          } catch {
+                            // User cancelled share.
+                          }
+                        } else {
+                          await navigator.clipboard.writeText(url);
+                          alert("Website link copied ✓");
+                        }
+                      }}
+                    >
+                      Share
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))}
@@ -1031,17 +1105,17 @@ function Editor() {
   if (!project) return <div className="container section">Loading editor…</div>;
   const schema = project.template.schema as TemplateDefinition;
   async function finalize() {
-  try {
-    await api(`/projects/${project.id}/finalize`, {
-      method: "POST",
-    });
+    try {
+      await api(`/projects/${project.id}/finalize`, {
+        method: "POST",
+      });
 
-    nav(`/checkout/${project.id}`);
-  } catch (e: any) {
-    console.error("Finalize failed:", e);
-    alert(e.message || "Could not finalize the project.");
+      nav(`/checkout/${project.id}`);
+    } catch (e: any) {
+      console.error("Finalize failed:", e);
+      alert(e.message || "Could not finalize the project.");
+    }
   }
-}
   return (
     <div className="editor">
       <aside className={`editor-panel ${open ? "open" : ""}`}>
@@ -1099,14 +1173,17 @@ function Editor() {
         </p>
       </aside>
       <main className="preview">
-        <div className="toolbar">
-          <button
-            className="btn btn-soft drawer-toggle"
-            onClick={() => setOpen(true)}
-          >
-            Edit
-          </button>
-          <span className="muted">Live preview</span>
+        <div className="toolbar editor-preview-toolbar">
+          <BackButton label="Back to My Websites" />
+          <div className="editor-preview-actions">
+            <button
+              className="btn btn-soft drawer-toggle"
+              onClick={() => setOpen(true)}
+            >
+              Edit
+            </button>
+            <span className="muted">Live preview</span>
+          </div>
         </div>
         <div className="preview-frame">
           <TemplateRenderer
@@ -1126,7 +1203,7 @@ function Create() {
   const [name, setName] = useState("");
   const nav = useNavigate();
   useEffect(() => {
-    api(`/templates/${id}`).then((x) => setTemplate(x.template));
+    api(`/templates/${id}`).then((x) => setT(x.template));
   }, [id]);
   async function create() {
     try {
@@ -1158,6 +1235,7 @@ function Create() {
   if (!template) return <div className="container section">Loading…</div>;
   return (
     <div className="container section">
+      <BackButton label="Back to Templates" />
       <div className="auth-card">
         <span className="pill">{template.category.name}</span>
         <h2>Start your {template.name}</h2>
@@ -1312,200 +1390,164 @@ function Checkout() {
      ========================================================= */
 
   async function pay() {
-  if (!id) {
-    alert("Project not found.");
-    return;
-  }
-
-  if (!birthdayPlan?.id) {
-    alert("Pricing plan is not available. Run db seed and try again.");
-    return;
-  }
-
-  setLoading("birthday");
-  setCheckoutError("");
-
-  try {
-    const order = await api("/payments/create-order", {
-      method: "POST",
-      body: JSON.stringify({
-        projectId: id,
-        planId: birthdayPlan.id,
-        revealMethod,
-        scannerStyle:
-          revealMethod === "QR"
-            ? scannerStyle
-            : null,
-      }),
-    });
-
-    /*
-     * Make sure Razorpay is loaded
-     */
-    if (!(window as any).Razorpay) {
-  await new Promise<void>((resolve, reject) => {
-    const src =
-      "https://checkout.razorpay.com/v1/checkout.js";
-
-    const existing = document.querySelector(
-      `script[src="${src}"]`,
-    ) as HTMLScriptElement | null;
-
-    // Script already exists and Razorpay is available
-    if ((window as any).Razorpay) {
-      resolve();
+    if (!id) {
+      alert("Project not found.");
       return;
     }
 
-    // Script exists but is still loading
-    if (existing) {
-      const checkLoaded = () => {
-        if ((window as any).Razorpay) {
-          resolve();
-        } else {
-          reject(
-            new Error(
-              "Razorpay script loaded but Razorpay is unavailable.",
-            ),
-          );
-        }
-      };
-
-      existing.addEventListener(
-        "load",
-        checkLoaded,
-        { once: true },
-      );
-
-      existing.addEventListener(
-        "error",
-        () =>
-          reject(
-            new Error(
-              "Unable to load Razorpay.",
-            ),
-          ),
-        { once: true },
-      );
-
-      // Important: handle script that finished loading
-      // before our listener was attached.
-      setTimeout(() => {
-        if ((window as any).Razorpay) {
-          resolve();
-        }
-      }, 100);
-
+    if (!birthdayPlan?.id) {
+      alert("Pricing plan is not available. Run db seed and try again.");
       return;
     }
 
-    // No script yet — create it
-    const script = document.createElement("script");
+    setLoading("birthday");
+    setCheckoutError("");
 
-    script.src = src;
-    script.async = true;
+    try {
+      const order = await api("/payments/create-order", {
+        method: "POST",
+        body: JSON.stringify({
+          projectId: id,
+          planId: birthdayPlan.id,
+          revealMethod,
+          scannerStyle: revealMethod === "QR" ? scannerStyle : null,
+        }),
+      });
 
-    script.onload = () => {
-      if ((window as any).Razorpay) {
-        resolve();
-      } else {
-        reject(
-          new Error(
-            "Razorpay loaded but the SDK is unavailable.",
-          ),
-        );
+      /*
+       * Make sure Razorpay is loaded
+       */
+      if (!(window as any).Razorpay) {
+        await new Promise<void>((resolve, reject) => {
+          const src = "https://checkout.razorpay.com/v1/checkout.js";
+
+          const existing = document.querySelector(
+            `script[src="${src}"]`,
+          ) as HTMLScriptElement | null;
+
+          // Script already exists and Razorpay is available
+          if ((window as any).Razorpay) {
+            resolve();
+            return;
+          }
+
+          // Script exists but is still loading
+          if (existing) {
+            const checkLoaded = () => {
+              if ((window as any).Razorpay) {
+                resolve();
+              } else {
+                reject(
+                  new Error(
+                    "Razorpay script loaded but Razorpay is unavailable.",
+                  ),
+                );
+              }
+            };
+
+            existing.addEventListener("load", checkLoaded, { once: true });
+
+            existing.addEventListener(
+              "error",
+              () => reject(new Error("Unable to load Razorpay.")),
+              { once: true },
+            );
+
+            // Important: handle script that finished loading
+            // before our listener was attached.
+            setTimeout(() => {
+              if ((window as any).Razorpay) {
+                resolve();
+              }
+            }, 100);
+
+            return;
+          }
+
+          // No script yet — create it
+          const script = document.createElement("script");
+
+          script.src = src;
+          script.async = true;
+
+          script.onload = () => {
+            if ((window as any).Razorpay) {
+              resolve();
+            } else {
+              reject(new Error("Razorpay loaded but the SDK is unavailable."));
+            }
+          };
+
+          script.onerror = () => {
+            reject(new Error("Unable to load Razorpay."));
+          };
+
+          document.body.appendChild(script);
+        });
       }
-    };
 
-    script.onerror = () => {
-      reject(
-        new Error(
-          "Unable to load Razorpay.",
-        ),
-      );
-    };
+      /*
+       * Razorpay checkout
+       */
+      const razorpay = new (window as any).Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
 
-    document.body.appendChild(script);
-  });
-}
+        // DEVSPHERE branding
+        name: "Devsphere",
 
-    /*
-     * Razorpay checkout
-     */
-    const razorpay = new (window as any).Razorpay({
-      key: order.keyId,
-      amount: order.amount,
-      currency: order.currency,
+        description: `Birthday Website — ₹${birthdayPrice}`,
 
-      // DEVSPHERE branding
-      name: "Devsphere",
+        order_id: order.providerOrderId,
 
-      description: `Birthday Website — ₹${birthdayPrice}`,
+        handler: async (response: any) => {
+          try {
+            /*
+             * Verify payment
+             */
+            await api("/payments/verify", {
+              method: "POST",
+              body: JSON.stringify({
+                orderId: order.orderId,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
 
-      order_id: order.providerOrderId,
-
-      handler: async (response: any) => {
-        try {
-          /*
-           * Verify payment
-           */
-          await api("/payments/verify", {
-            method: "POST",
-            body: JSON.stringify({
-              orderId: order.orderId,
-              razorpayOrderId:
-                response.razorpay_order_id,
-              razorpayPaymentId:
-                response.razorpay_payment_id,
-              razorpaySignature:
-                response.razorpay_signature,
-            }),
-          });
-
-          /*
-           * Publish website
-           */
-          const published = await api(
-            `/projects/${id}/publish`,
-            {
+            /*
+             * Publish website
+             */
+            const published = await api(`/projects/${id}/publish`, {
               method: "POST",
               body: JSON.stringify({}),
-            },
-          );
+            });
 
-          nav(
-            `/published/${id}?url=${encodeURIComponent(
-              published.url,
-            )}`,
-          );
-        } catch (error: any) {
-          console.error(
-            "Payment verification/publication failed:",
-            error,
-          );
+            nav(`/published/${id}?url=${encodeURIComponent(published.url)}`);
+          } catch (error: any) {
+            console.error("Payment verification/publication failed:", error);
 
-          setCheckoutError(
-            error?.message ||
-              "Payment succeeded, but website publication failed.",
-          );
-        }
-      },
-    });
+            setCheckoutError(
+              error?.message ||
+                "Payment succeeded, but website publication failed.",
+            );
+          }
+        },
+      });
 
-    razorpay.open();
-  } catch (e: any) {
-    console.error("Payment error:", e);
+      razorpay.open();
+    } catch (e: any) {
+      console.error("Payment error:", e);
 
-    const message =
-      e?.message ||
-      "Payment could not be started.";
+      const message = e?.message || "Payment could not be started.";
 
-    setCheckoutError(message);
-    alert(message);
-  } finally {
-    setLoading("");
+      setCheckoutError(message);
+      alert(message);
+    } finally {
+      setLoading("");
+    }
   }
-}
 
   /* =========================================================
      CHECKOUT UI
@@ -1516,6 +1558,7 @@ function Checkout() {
       <Nav />
 
       <div className="container section">
+        <BackButton label="Back to Editor" />
         <div className="section-head">
           <div>
             <span className="pill">Birthday Website</span>
@@ -1578,121 +1621,81 @@ function Checkout() {
            =================================================== */}
 
         {revealMethod === "QR" && (
-  <div className="scanner-style-section">
+          <div className="scanner-style-section">
+            <div className="scanner-style-heading">
+              <h3>Choose your Magical Scanner</h3>
 
-    <div className="scanner-style-heading">
-      <h3>
-        Choose your Magical Scanner
-      </h3>
+              <p className="muted">
+                Choose how your birthday website link will appear when you share
+                it.
+              </p>
+            </div>
 
-      <p className="muted">
-        Choose how your birthday website link
-        will appear when you share it.
-      </p>
-    </div>
-
-
-    <div className="scanner-style-grid">
-
-      {/* =================================================
+            <div className="scanner-style-grid">
+              {/* =================================================
           HEART SCANNER
          ================================================= */}
 
-      <button
-        type="button"
-        className={`scanner-style-card ${
-          scannerStyle === "HEART"
-            ? "is-selected"
-            : ""
-        }`}
-        onClick={() =>
-          setScannerStyle("HEART")
-        }
-      >
+              <button
+                type="button"
+                className={`scanner-style-card ${
+                  scannerStyle === "HEART" ? "is-selected" : ""
+                }`}
+                onClick={() => setScannerStyle("HEART")}
+              >
+                <div className="scanner-image-preview scanner-heart-preview">
+                  <div className="fake-heart-qr">
+                    <span className="qr-corner qr-corner-1" />
+                    <span className="qr-corner qr-corner-2" />
+                    <span className="qr-corner qr-corner-3" />
 
-        <div className="scanner-image-preview scanner-heart-preview">
-          <div className="fake-heart-qr">
-            <span className="qr-corner qr-corner-1" />
-            <span className="qr-corner qr-corner-2" />
-            <span className="qr-corner qr-corner-3" />
+                    <div className="qr-heart">♥</div>
+                  </div>
+                </div>
 
-            <div className="qr-heart">
-              ♥
-            </div>
-          </div>
-        </div>
+                <strong>Heart Scanner</strong>
 
-        <strong>
-          Heart Scanner
-        </strong>
+                <span>Heart-shaped QR design</span>
+              </button>
 
-        <span>
-          Heart-shaped QR design
-        </span>
-
-      </button>
-
-
-      {/* =================================================
+              {/* =================================================
           SQUARE SCANNER
          ================================================= */}
 
-      <button
-        type="button"
-        className={`scanner-style-card ${
-          scannerStyle === "SQUARE"
-            ? "is-selected"
-            : ""
-        }`}
-        onClick={() =>
-          setScannerStyle("SQUARE")
-        }
-      >
+              <button
+                type="button"
+                className={`scanner-style-card ${
+                  scannerStyle === "SQUARE" ? "is-selected" : ""
+                }`}
+                onClick={() => setScannerStyle("SQUARE")}
+              >
+                <div className="scanner-image-preview scanner-square-preview">
+                  <div className="fake-square-qr">
+                    <span className="qr-square-corner qr-sq-1" />
+                    <span className="qr-square-corner qr-sq-2" />
+                    <span className="qr-square-corner qr-sq-3" />
 
-        <div className="scanner-image-preview scanner-square-preview">
-          <div className="fake-square-qr">
+                    <div className="qr-random-pattern">
+                      ▪ ▪ ▪ ▪<br />
+                      ▪ ▪ ▪ ▪<br />
+                      ▪ ▪ ▪ ▪<br />▪ ▪ ▪ ▪
+                    </div>
+                  </div>
+                </div>
 
-            <span className="qr-square-corner qr-sq-1" />
-            <span className="qr-square-corner qr-sq-2" />
-            <span className="qr-square-corner qr-sq-3" />
+                <strong>Square Scanner</strong>
 
-            <div className="qr-random-pattern">
-              ▪ ▪ ▪ ▪<br />
-              ▪ ▪ ▪ ▪<br />
-              ▪ ▪ ▪ ▪<br />
-              ▪ ▪ ▪ ▪
+                <span>Classic square QR design</span>
+              </button>
             </div>
 
+            <div className="scanner-style-price">
+              <span>Magical Scanner</span>
+
+              <strong>₹119</strong>
+            </div>
           </div>
-        </div>
-
-        <strong>
-          Square Scanner
-        </strong>
-
-        <span>
-          Classic square QR design
-        </span>
-
-      </button>
-
-    </div>
-
-
-    <div className="scanner-style-price">
-
-      <span>
-        Magical Scanner
-      </span>
-
-      <strong>
-        ₹119
-      </strong>
-
-    </div>
-
-  </div>
-)}
+        )}
 
         {/* ===================================================
             THREE PRICE OPTIONS
@@ -1965,27 +1968,18 @@ function RoutePublished() {
   const { id } = useParams<{ id: string }>();
 
   const [project, setProject] = useState<any>();
-  const [method, setMethod] =
-    useState<
-      "NORMAL" |
-      "QR" |
-      "PIN" |
-      "LETTER" |
-      "GIFT" |
-      "PUZZLE"
-    >("NORMAL");
+  const [method, setMethod] = useState<
+    "NORMAL" | "QR" | "PIN" | "LETTER" | "GIFT" | "PUZZLE"
+  >("NORMAL");
 
   const [pin, setPin] = useState("");
-  const [puzzleQuestion, setPuzzleQuestion] =
-    useState("");
-  const [puzzleAnswer, setPuzzleAnswer] =
-    useState("");
+  const [puzzleQuestion, setPuzzleQuestion] = useState("");
+  const [puzzleAnswer, setPuzzleAnswer] = useState("");
 
   const [status, setStatus] = useState("");
   const [sharing, setSharing] = useState(false);
 
-  const qrRef =
-    React.useRef<HTMLDivElement | null>(null);
+  const qrRef = React.useRef<HTMLDivElement | null>(null);
 
   const nav = useNavigate();
 
@@ -1999,29 +1993,19 @@ function RoutePublished() {
         setProject(p);
 
         const savedMethod = String(
-          p?.website?.revealMethod ??
-            p?.revealMethod ??
-            "NORMAL",
+          p?.website?.revealMethod ?? p?.revealMethod ?? "NORMAL",
         ).toUpperCase();
 
         if (
-          [
-            "NORMAL",
-            "QR",
-            "PIN",
-            "LETTER",
-            "GIFT",
-            "PUZZLE",
-          ].includes(savedMethod)
+          ["NORMAL", "QR", "PIN", "LETTER", "GIFT", "PUZZLE"].includes(
+            savedMethod,
+          )
         ) {
           setMethod(savedMethod as any);
         }
       })
       .catch((error) => {
-        console.error(
-          "Failed to load published project:",
-          error,
-        );
+        console.error("Failed to load published project:", error);
       });
   }, [id]);
 
@@ -2031,14 +2015,14 @@ function RoutePublished() {
         <Nav />
 
         <div className="container section">
+          <BackButton label="Back to My Websites" />
           Loading your published website…
         </div>
       </>
     );
   }
 
-  const website =
-    project.website;
+  const website = project.website;
 
   if (!website) {
     return (
@@ -2046,12 +2030,13 @@ function RoutePublished() {
         <Nav />
 
         <div className="container section">
+          <BackButton label="Back to My Websites" />
           <div className="card" style={{ padding: 30 }}>
             <h2>Website not published yet</h2>
 
             <p className="muted">
-              Your payment may be complete, but
-              the website still needs to be published.
+              Your payment may be complete, but the website still needs to be
+              published.
             </p>
           </div>
         </div>
@@ -2059,29 +2044,19 @@ function RoutePublished() {
     );
   }
 
-  const publicUrl =
-    `${window.location.origin}/r/${website.slug}`;
+  const publicUrl = `${window.location.origin}/r/${website.slug}`;
 
   const projectData =
-    project.data &&
-    typeof project.data === "object"
-      ? project.data
-      : {};
+    project.data && typeof project.data === "object" ? project.data : {};
 
   const packagePrice =
     projectData.packagePrice ||
-    (
-      project.orders?.length
-        ? project.orders[
-            project.orders.length - 1
-          ]?.amount
-        : 99
-    );
+    (project.orders?.length
+      ? project.orders[project.orders.length - 1]?.amount
+      : 99);
 
   const scannerStyle =
-    projectData.scannerStyle === "SQUARE"
-      ? "SQUARE"
-      : "HEART";
+    projectData.scannerStyle === "SQUARE" ? "SQUARE" : "HEART";
 
   const isSpecialReveal =
     packagePrice === 119 ||
@@ -2093,20 +2068,13 @@ function RoutePublished() {
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(
-        publicUrl,
-      );
+      await navigator.clipboard.writeText(publicUrl);
 
       setStatus("Link copied ✓");
 
-      setTimeout(
-        () => setStatus(""),
-        2200,
-      );
+      setTimeout(() => setStatus(""), 2200);
     } catch {
-      setStatus(
-        "Could not copy. Please copy the link manually.",
-      );
+      setStatus("Could not copy. Please copy the link manually.");
     }
   }
 
@@ -2114,33 +2082,22 @@ function RoutePublished() {
     try {
       setSharing(true);
 
-      if (
-        navigator.share
-      ) {
+      if (navigator.share) {
         await navigator.share({
-          title:
-            project.name ||
-            "My Devsphere Website",
-          text:
-            "Here's a special website made for you ❤️",
+          title: project.name || "My Devsphere Website",
+          text: "Here's a special website made for you ❤️",
           url: publicUrl,
         });
 
         setStatus("Shared ✓");
       } else {
-        await navigator.clipboard.writeText(
-          publicUrl,
-        );
+        await navigator.clipboard.writeText(publicUrl);
 
-        setStatus(
-          "Sharing isn't supported here. Link copied ✓",
-        );
+        setStatus("Sharing isn't supported here. Link copied ✓");
       }
     } catch (error: any) {
       if (error?.name !== "AbortError") {
-        setStatus(
-          "Unable to share right now.",
-        );
+        setStatus("Unable to share right now.");
       }
     } finally {
       setSharing(false);
@@ -2148,40 +2105,27 @@ function RoutePublished() {
   }
 
   function getQrSvgMarkup() {
-    const svg =
-      qrRef.current?.querySelector("svg");
+    const svg = qrRef.current?.querySelector("svg");
 
     if (!svg) {
       throw new Error("QR code is not ready.");
     }
 
-    return new XMLSerializer()
-      .serializeToString(svg);
+    return new XMLSerializer().serializeToString(svg);
   }
 
   function createScannerSvg() {
-    const qrMarkup =
-      getQrSvgMarkup();
+    const qrMarkup = getQrSvgMarkup();
 
-    const qrDataUrl =
-      `data:image/svg+xml;base64,${btoa(
-        unescape(
-          encodeURIComponent(qrMarkup),
-        ),
-      )}`;
+    const qrDataUrl = `data:image/svg+xml;base64,${btoa(
+      unescape(encodeURIComponent(qrMarkup)),
+    )}`;
 
-    const heart =
-      scannerStyle === "HEART";
+    const heart = scannerStyle === "HEART";
 
-    const frameColor =
-      heart
-        ? "#8f3044"
-        : "#2b211e";
+    const frameColor = heart ? "#8f3044" : "#2b211e";
 
-    const title =
-      heart
-        ? "♥ Scan My Surprise ♥"
-        : "Scan My Surprise";
+    const title = heart ? "♥ Scan My Surprise ♥" : "Scan My Surprise";
 
     return `
       <svg
@@ -2275,15 +2219,10 @@ function RoutePublished() {
     `;
   }
 
-  function downloadBlob(
-    blob: Blob,
-    filename: string,
-  ) {
-    const url =
-      URL.createObjectURL(blob);
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
 
-    const a =
-      document.createElement("a");
+    const a = document.createElement("a");
 
     a.href = url;
     a.download = filename;
@@ -2299,63 +2238,40 @@ function RoutePublished() {
 
   function downloadScanner() {
     try {
-      const svg =
-        createScannerSvg();
+      const svg = createScannerSvg();
 
-      const blob =
-        new Blob([svg], {
-          type: "image/svg+xml",
-        });
+      const blob = new Blob([svg], {
+        type: "image/svg+xml",
+      });
 
-      downloadBlob(
-        blob,
-        `${project.name || "devsphere"}-scanner.svg`,
-      );
+      downloadBlob(blob, `${project.name || "devsphere"}-scanner.svg`);
 
-      setStatus(
-        "Scanner downloaded ✓",
-      );
+      setStatus("Scanner downloaded ✓");
 
-      setTimeout(
-        () => setStatus(""),
-        2200,
-      );
+      setTimeout(() => setStatus(""), 2200);
     } catch (error: any) {
-      console.error(
-        "Scanner download error:",
-        error,
-      );
+      console.error("Scanner download error:", error);
 
-      setStatus(
-        "Could not generate scanner.",
-      );
+      setStatus("Could not generate scanner.");
     }
   }
 
   async function saveReveal() {
     try {
-      await api(
-        `/projects/${id}/reveal`,
-        {
-          method: "PATCH",
+      await api(`/projects/${id}/reveal`, {
+        method: "PATCH",
 
-          body: JSON.stringify({
-            method,
-            pin,
-            puzzleQuestion,
-            puzzleAnswer,
-          }),
-        },
-      );
+        body: JSON.stringify({
+          method,
+          pin,
+          puzzleQuestion,
+          puzzleAnswer,
+        }),
+      });
 
-      setStatus(
-        "Reveal settings saved ✓",
-      );
+      setStatus("Reveal settings saved ✓");
     } catch (error: any) {
-      setStatus(
-        error?.message ||
-          "Unable to save reveal settings.",
-      );
+      setStatus(error?.message || "Unable to save reveal settings.");
     }
   }
 
@@ -2364,24 +2280,19 @@ function RoutePublished() {
       <Nav />
 
       <div className="container section">
-
+        <BackButton label="Back to My Websites" />
         <div
           className="card"
           style={{
             padding: 32,
           }}
         >
-          <span className="pill">
-            Website Published
-          </span>
+          <span className="pill">Website Published</span>
 
-          <h2>
-            Your surprise is live 🎉
-          </h2>
+          <h2>Your surprise is live 🎉</h2>
 
           <p className="muted">
-            This website is now permanently
-            saved to your Devsphere account.
+            This website is now permanently saved to your Devsphere account.
           </p>
 
           {/* PUBLIC LINK */}
@@ -2402,16 +2313,12 @@ function RoutePublished() {
                 minWidth: 260,
                 padding: 13,
                 borderRadius: 12,
-                border:
-                  "1px solid #dccbc2",
+                border: "1px solid #dccbc2",
                 background: "#fff",
               }}
             />
 
-            <button
-              className="btn btn-soft"
-              onClick={copyLink}
-            >
+            <button className="btn btn-soft" onClick={copyLink}>
               Copy Link
             </button>
 
@@ -2420,9 +2327,7 @@ function RoutePublished() {
               onClick={shareWebsite}
               disabled={sharing}
             >
-              {sharing
-                ? "Sharing…"
-                : "Share"}
+              {sharing ? "Sharing…" : "Share"}
             </button>
           </div>
 
@@ -2455,7 +2360,6 @@ function RoutePublished() {
           </div>
         </div>
 
-
         {/* =====================================================
             SPECIAL REVEAL SCANNER
            ===================================================== */}
@@ -2469,19 +2373,14 @@ function RoutePublished() {
             }}
           >
             <span className="pill">
-              {scannerStyle === "HEART"
-                ? "HEART SCANNER"
-                : "SQUARE SCANNER"}
+              {scannerStyle === "HEART" ? "HEART SCANNER" : "SQUARE SCANNER"}
             </span>
 
-            <h2>
-              Your Magical Scanner ✨
-            </h2>
+            <h2>Your Magical Scanner ✨</h2>
 
             <p className="muted">
-              Download this scanner or take
-              a screenshot and share it with
-              the person receiving the surprise.
+              Download this scanner or take a screenshot and share it with the
+              person receiving the surprise.
             </p>
 
             <div
@@ -2492,19 +2391,10 @@ function RoutePublished() {
                 marginTop: 24,
                 padding: 28,
                 borderRadius: 24,
-                background:
-                  scannerStyle ===
-                  "HEART"
-                    ? "#fff0f3"
-                    : "#f5eee9",
+                background: scannerStyle === "HEART" ? "#fff0f3" : "#f5eee9",
               }}
             >
-              <QRCodeSVG
-                value={publicUrl}
-                size={250}
-                level="H"
-                includeMargin
-              />
+              <QRCodeSVG value={publicUrl} size={250} level="H" includeMargin />
 
               <strong
                 style={{
@@ -2512,8 +2402,7 @@ function RoutePublished() {
                   fontSize: 18,
                 }}
               >
-                {scannerStyle ===
-                "HEART"
+                {scannerStyle === "HEART"
                   ? "♥ Heart Scanner"
                   : "Square Scanner"}
               </strong>
@@ -2525,27 +2414,16 @@ function RoutePublished() {
                 marginTop: 22,
               }}
             >
-              <button
-                className="btn btn-primary"
-                onClick={
-                  downloadScanner
-                }
-              >
+              <button className="btn btn-primary" onClick={downloadScanner}>
                 Download Scanner
               </button>
 
               <button
                 className="btn btn-soft"
                 onClick={() => {
-                  setStatus(
-                    "Take a screenshot of the scanner above ✓",
-                  );
+                  setStatus("Take a screenshot of the scanner above ✓");
 
-                  setTimeout(
-                    () =>
-                      setStatus(""),
-                    2200,
-                  );
+                  setTimeout(() => setStatus(""), 2200);
                 }}
               >
                 Screenshot Scanner
@@ -2560,16 +2438,10 @@ function RoutePublished() {
               }}
             >
               Scanner style:{" "}
-              <strong>
-                {scannerStyle ===
-                "HEART"
-                  ? "Heart"
-                  : "Square"}
-              </strong>
+              <strong>{scannerStyle === "HEART" ? "Heart" : "Square"}</strong>
             </p>
           </div>
         )}
-
 
         {/* =====================================================
             REVEAL SETTINGS
@@ -2582,13 +2454,9 @@ function RoutePublished() {
               marginTop: 24,
             }}
           >
-            <span className="pill">
-              Reveal Settings
-            </span>
+            <span className="pill">Reveal Settings</span>
 
-            <h3>
-              Choose how the website opens
-            </h3>
+            <h3>Choose how the website opens</h3>
 
             <div
               className="actions"
@@ -2603,40 +2471,26 @@ function RoutePublished() {
                 ["LETTER", "Secret Letter"],
                 ["GIFT", "Gift Box"],
                 ["PUZZLE", "Puzzle"],
-              ].map(
-                ([value, label]) => (
-                  <button
-                    key={value}
-                    className={`btn ${
-                      method === value
-                        ? "btn-primary"
-                        : "btn-soft"
-                    }`}
-                    onClick={() =>
-                      setMethod(
-                        value as any,
-                      )
-                    }
-                  >
-                    {label}
-                  </button>
-                ),
-              )}
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  className={`btn ${
+                    method === value ? "btn-primary" : "btn-soft"
+                  }`}
+                  onClick={() => setMethod(value as any)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             {method === "PIN" && (
               <div className="field">
-                <label>
-                  Secret PIN
-                </label>
+                <label>Secret PIN</label>
 
                 <input
                   value={pin}
-                  onChange={(e) =>
-                    setPin(
-                      e.target.value,
-                    )
-                  }
+                  onChange={(e) => setPin(e.target.value)}
                   minLength={4}
                   placeholder="4+ digits"
                 />
@@ -2646,46 +2500,27 @@ function RoutePublished() {
             {method === "PUZZLE" && (
               <>
                 <div className="field">
-                  <label>
-                    Question
-                  </label>
+                  <label>Question</label>
 
                   <input
-                    value={
-                      puzzleQuestion
-                    }
-                    onChange={(e) =>
-                      setPuzzleQuestion(
-                        e.target.value,
-                      )
-                    }
+                    value={puzzleQuestion}
+                    onChange={(e) => setPuzzleQuestion(e.target.value)}
                     placeholder="Where did we have our first date?"
                   />
                 </div>
 
                 <div className="field">
-                  <label>
-                    Answer
-                  </label>
+                  <label>Answer</label>
 
                   <input
-                    value={
-                      puzzleAnswer
-                    }
-                    onChange={(e) =>
-                      setPuzzleAnswer(
-                        e.target.value,
-                      )
-                    }
+                    value={puzzleAnswer}
+                    onChange={(e) => setPuzzleAnswer(e.target.value)}
                   />
                 </div>
               </>
             )}
 
-            <button
-              className="btn btn-primary"
-              onClick={saveReveal}
-            >
+            <button className="btn btn-primary" onClick={saveReveal}>
               Save Reveal Settings
             </button>
           </div>
@@ -2729,6 +2564,7 @@ function AdminTemplateEditor() {
     <>
       <Nav />
       <div className="container section">
+        <BackButton label="Back to Admin" />
         <span className="pill">Template editor</span>
         <h2>{t.name}</h2>
         <p className="muted">
@@ -2775,8 +2611,9 @@ function Admin() {
     <>
       <Nav />
       <div className="container section">
+        <BackButton label="Back" />
         <span className="pill">Admin</span>
-       <h2>Devsphere Control Center</h2>
+        <h2>Devsphere Control Center</h2>
         {stats && (
           <div className="stat-grid">
             <div className="stat">
@@ -2844,6 +2681,43 @@ function Admin() {
     </>
   );
 }
+function BackButton({ label = "Back" }: { label?: string }) {
+  const navigate = useNavigate();
+
+  return (
+    <button
+      type="button"
+      className="back-button"
+      aria-label={label}
+      onClick={() => {
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          navigate("/");
+        }
+      }}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        marginBottom: 18,
+        padding: "9px 13px",
+        border: "1px solid #e1d2ca",
+        borderRadius: 999,
+        background: "rgba(255,255,255,0.72)",
+        color: "#4a3d37",
+        fontSize: 14,
+        fontWeight: 700,
+        cursor: "pointer",
+        boxShadow: "0 4px 14px rgba(73, 55, 48, 0.06)",
+      }}
+    >
+      ← {label}
+    </button>
+  );
+}
+
 function App() {
   return (
     <Routes>

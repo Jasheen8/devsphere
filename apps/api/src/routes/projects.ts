@@ -651,3 +651,65 @@ r.get("/:id", auth, async (req, res) => {
 });
 
 export default r;
+
+router.delete("/:id", auth, async (req, res) => {
+  try {
+    const projectId = String(req.params.id);
+    const user = (req as any).user;
+
+    const project = await db.project.findFirst({
+      where: {
+        id: projectId,
+        userId: user.id,
+      },
+      include: {
+        website: true,
+        orders: {
+          where: {
+            status: "PAID",
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        error: "Project not found",
+      });
+    }
+
+    // Never allow deleting a paid project.
+    if (project.orders.length > 0) {
+      return res.status(403).json({
+        error: "Paid websites cannot be deleted.",
+      });
+    }
+
+    // Never allow deleting published/finalized projects.
+    if (
+      project.status === "PUBLISHED" ||
+      project.status === "FINALIZED"
+    ) {
+      return res.status(403).json({
+        error: "Completed websites cannot be deleted.",
+      });
+    }
+
+    await db.project.delete({
+      where: {
+        id: project.id,
+      },
+    });
+
+    return res.json({
+      ok: true,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      error: "Unable to delete project",
+    });
+  }
+});
