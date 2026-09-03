@@ -650,17 +650,20 @@ r.get("/:id", auth, async (req, res) => {
   });
 });
 
-export default r;
 
-router.delete("/:id", auth, async (req, res) => {
+/* =========================================================
+   DELETE DRAFT PROJECT
+   ========================================================= */
+
+r.delete("/:id", auth, async (req, res) => {
   try {
     const projectId = String(req.params.id);
-    const user = (req as any).user;
+    const u = (req as any).user;
 
     const project = await db.project.findFirst({
       where: {
         id: projectId,
-        userId: user.id,
+        userId: u.id,
       },
       include: {
         website: true,
@@ -679,20 +682,31 @@ router.delete("/:id", auth, async (req, res) => {
       });
     }
 
-    // Never allow deleting a paid project.
+    /*
+     * Paid websites can NEVER be deleted.
+     */
     if (project.orders.length > 0) {
       return res.status(403).json({
         error: "Paid websites cannot be deleted.",
       });
     }
 
-    // Never allow deleting published/finalized projects.
-    if (
-      project.status === "PUBLISHED" ||
-      project.status === "FINALIZED"
-    ) {
+    /*
+     * Only incomplete DRAFT projects can be deleted.
+     */
+    if (project.status !== "DRAFT") {
       return res.status(403).json({
-        error: "Completed websites cannot be deleted.",
+        error: "Only incomplete draft websites can be deleted.",
+      });
+    }
+
+    /*
+     * A published website should never be deleted.
+     * This is an additional safety check.
+     */
+    if (project.website) {
+      return res.status(403).json({
+        error: "Published websites cannot be deleted.",
       });
     }
 
@@ -706,10 +720,12 @@ router.delete("/:id", auth, async (req, res) => {
       ok: true,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Delete project failed:", error);
 
     return res.status(500).json({
-      error: "Unable to delete project",
+      error: "Unable to delete draft",
     });
   }
 });
+
+export default r;
