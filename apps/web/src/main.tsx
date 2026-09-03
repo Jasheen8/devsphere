@@ -451,14 +451,65 @@ function Dashboard() {
                   </button>
                 )}
                 {p.website && (
-                  <a
-                    className="btn btn-primary"
-                    href={`${window.location.origin}/r/${p.website.slug}`}
-                    target="_blank"
-                  >
-                    View Website
-                  </a>
-                )}
+  <>
+    <a
+      className="btn btn-primary"
+      href={`/r/${p.website.slug}`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      View Website
+    </a>
+
+    <button
+      className="btn btn-soft"
+      onClick={async () => {
+        const url =
+          `${window.location.origin}/r/${p.website.slug}`;
+
+        try {
+          await navigator.clipboard.writeText(url);
+          alert("Website link copied ✓");
+        } catch {
+          prompt(
+            "Copy your website link:",
+            url,
+          );
+        }
+      }}
+    >
+      Copy Link
+    </button>
+
+    <button
+      className="btn btn-soft"
+      onClick={async () => {
+        const url =
+          `${window.location.origin}/r/${p.website.slug}`;
+
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title:
+                p.name ||
+                "My Devsphere Website",
+              text:
+                "Here's my special website ❤️",
+              url,
+            });
+          } catch {
+            // User cancelled share.
+          }
+        } else {
+          await navigator.clipboard.writeText(url);
+          alert("Website link copied ✓");
+        }
+      }}
+    >
+      Share
+    </button>
+  </>
+)}
               </div>
             </div>
           ))}
@@ -1911,101 +1962,734 @@ function Public() {
   );
 }
 function RoutePublished() {
-  const { id } = useParams();
-  const q = new URLSearchParams(useLocation().search);
-  const [method, setMethod] = useState("NORMAL");
+  const { id } = useParams<{ id: string }>();
+
+  const [project, setProject] = useState<any>();
+  const [method, setMethod] =
+    useState<
+      "NORMAL" |
+      "QR" |
+      "PIN" |
+      "LETTER" |
+      "GIFT" |
+      "PUZZLE"
+    >("NORMAL");
+
   const [pin, setPin] = useState("");
-  const [puzzleQuestion, setPuzzleQuestion] = useState("");
-  const [puzzleAnswer, setPuzzleAnswer] = useState("");
+  const [puzzleQuestion, setPuzzleQuestion] =
+    useState("");
+  const [puzzleAnswer, setPuzzleAnswer] =
+    useState("");
+
   const [status, setStatus] = useState("");
-  const url = q.get("url") || "";
-  async function save() {
-    try {
-      await api(`/projects/${id}/reveal`, {
-        method: "PATCH",
-        body: JSON.stringify({ method, pin, puzzleQuestion, puzzleAnswer }),
+  const [sharing, setSharing] = useState(false);
+
+  const qrRef =
+    React.useRef<HTMLDivElement | null>(null);
+
+  const nav = useNavigate();
+
+  useEffect(() => {
+    if (!id) return;
+
+    api(`/projects/${id}`)
+      .then((response) => {
+        const p = response.project;
+
+        setProject(p);
+
+        const savedMethod = String(
+          p?.website?.revealMethod ??
+            p?.revealMethod ??
+            "NORMAL",
+        ).toUpperCase();
+
+        if (
+          [
+            "NORMAL",
+            "QR",
+            "PIN",
+            "LETTER",
+            "GIFT",
+            "PUZZLE",
+          ].includes(savedMethod)
+        ) {
+          setMethod(savedMethod as any);
+        }
+      })
+      .catch((error) => {
+        console.error(
+          "Failed to load published project:",
+          error,
+        );
       });
-      setStatus("Reveal settings saved ✓");
-    } catch (e: any) {
-      setStatus(e.message);
+  }, [id]);
+
+  if (!project) {
+    return (
+      <>
+        <Nav />
+
+        <div className="container section">
+          Loading your published website…
+        </div>
+      </>
+    );
+  }
+
+  const website =
+    project.website;
+
+  if (!website) {
+    return (
+      <>
+        <Nav />
+
+        <div className="container section">
+          <div className="card" style={{ padding: 30 }}>
+            <h2>Website not published yet</h2>
+
+            <p className="muted">
+              Your payment may be complete, but
+              the website still needs to be published.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const publicUrl =
+    `${window.location.origin}/r/${website.slug}`;
+
+  const projectData =
+    project.data &&
+    typeof project.data === "object"
+      ? project.data
+      : {};
+
+  const packagePrice =
+    projectData.packagePrice ||
+    (
+      project.orders?.length
+        ? project.orders[
+            project.orders.length - 1
+          ]?.amount
+        : 99
+    );
+
+  const scannerStyle =
+    projectData.scannerStyle === "SQUARE"
+      ? "SQUARE"
+      : "HEART";
+
+  const isSpecialReveal =
+    packagePrice === 119 ||
+    method === "QR" ||
+    method === "PIN" ||
+    method === "LETTER" ||
+    method === "GIFT" ||
+    method === "PUZZLE";
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(
+        publicUrl,
+      );
+
+      setStatus("Link copied ✓");
+
+      setTimeout(
+        () => setStatus(""),
+        2200,
+      );
+    } catch {
+      setStatus(
+        "Could not copy. Please copy the link manually.",
+      );
     }
   }
+
+  async function shareWebsite() {
+    try {
+      setSharing(true);
+
+      if (
+        navigator.share
+      ) {
+        await navigator.share({
+          title:
+            project.name ||
+            "My Devsphere Website",
+          text:
+            "Here's a special website made for you ❤️",
+          url: publicUrl,
+        });
+
+        setStatus("Shared ✓");
+      } else {
+        await navigator.clipboard.writeText(
+          publicUrl,
+        );
+
+        setStatus(
+          "Sharing isn't supported here. Link copied ✓",
+        );
+      }
+    } catch (error: any) {
+      if (error?.name !== "AbortError") {
+        setStatus(
+          "Unable to share right now.",
+        );
+      }
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  function getQrSvgMarkup() {
+    const svg =
+      qrRef.current?.querySelector("svg");
+
+    if (!svg) {
+      throw new Error("QR code is not ready.");
+    }
+
+    return new XMLSerializer()
+      .serializeToString(svg);
+  }
+
+  function createScannerSvg() {
+    const qrMarkup =
+      getQrSvgMarkup();
+
+    const qrDataUrl =
+      `data:image/svg+xml;base64,${btoa(
+        unescape(
+          encodeURIComponent(qrMarkup),
+        ),
+      )}`;
+
+    const heart =
+      scannerStyle === "HEART";
+
+    const frameColor =
+      heart
+        ? "#8f3044"
+        : "#2b211e";
+
+    const title =
+      heart
+        ? "♥ Scan My Surprise ♥"
+        : "Scan My Surprise";
+
+    return `
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="1200"
+        height="1400"
+        viewBox="0 0 1200 1400"
+      >
+        <rect
+          width="1200"
+          height="1400"
+          rx="70"
+          fill="#fffaf7"
+        />
+
+        ${
+          heart
+            ? `
+              <path
+                d="
+                  M600 1210
+                  C545 1165 180 900 180 535
+                  C180 350 315 230 485 230
+                  C555 230 600 265 600 320
+                  C600 265 645 230 715 230
+                  C885 230 1020 350 1020 535
+                  C1020 900 655 1165 600 1210Z
+                "
+                fill="none"
+                stroke="${frameColor}"
+                stroke-width="22"
+              />
+            `
+            : `
+              <rect
+                x="170"
+                y="180"
+                width="860"
+                height="860"
+                rx="42"
+                fill="none"
+                stroke="${frameColor}"
+                stroke-width="22"
+              />
+            `
+        }
+
+        <text
+          x="600"
+          y="115"
+          text-anchor="middle"
+          font-family="Georgia, serif"
+          font-size="54"
+          fill="${frameColor}"
+          font-weight="700"
+        >
+          ${title}
+        </text>
+
+        <image
+          href="${qrDataUrl}"
+          x="250"
+          y="310"
+          width="700"
+          height="700"
+          preserveAspectRatio="xMidYMid meet"
+        />
+
+        <text
+          x="600"
+          y="1280"
+          text-anchor="middle"
+          font-family="Arial, sans-serif"
+          font-size="34"
+          fill="#5d4b45"
+        >
+          Scan to open the surprise
+        </text>
+
+        <text
+          x="600"
+          y="1335"
+          text-anchor="middle"
+          font-family="Arial, sans-serif"
+          font-size="24"
+          fill="#8a7168"
+        >
+          Made with Devsphere
+        </text>
+      </svg>
+    `;
+  }
+
+  function downloadBlob(
+    blob: Blob,
+    filename: string,
+  ) {
+    const url =
+      URL.createObjectURL(blob);
+
+    const a =
+      document.createElement("a");
+
+    a.href = url;
+    a.download = filename;
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadScanner() {
+    try {
+      const svg =
+        createScannerSvg();
+
+      const blob =
+        new Blob([svg], {
+          type: "image/svg+xml",
+        });
+
+      downloadBlob(
+        blob,
+        `${project.name || "devsphere"}-scanner.svg`,
+      );
+
+      setStatus(
+        "Scanner downloaded ✓",
+      );
+
+      setTimeout(
+        () => setStatus(""),
+        2200,
+      );
+    } catch (error: any) {
+      console.error(
+        "Scanner download error:",
+        error,
+      );
+
+      setStatus(
+        "Could not generate scanner.",
+      );
+    }
+  }
+
+  async function saveReveal() {
+    try {
+      await api(
+        `/projects/${id}/reveal`,
+        {
+          method: "PATCH",
+
+          body: JSON.stringify({
+            method,
+            pin,
+            puzzleQuestion,
+            puzzleAnswer,
+          }),
+        },
+      );
+
+      setStatus(
+        "Reveal settings saved ✓",
+      );
+    } catch (error: any) {
+      setStatus(
+        error?.message ||
+          "Unable to save reveal settings.",
+      );
+    }
+  }
+
   return (
     <>
       <Nav />
+
       <div className="container section">
-        <div className="auth-card">
-          <span className="pill">Website published</span>
-          <h2>Your surprise is live 🎉</h2>
-          <p className="muted">{url}</p>
-          <div style={{ display: "grid", placeItems: "center", gap: 18 }}>
-            {url && <QRCodeSVG value={url} size={220} />}
-            <a className="btn btn-primary" href={url || "#"} target="_blank">
+
+        <div
+          className="card"
+          style={{
+            padding: 32,
+          }}
+        >
+          <span className="pill">
+            Website Published
+          </span>
+
+          <h2>
+            Your surprise is live 🎉
+          </h2>
+
+          <p className="muted">
+            This website is now permanently
+            saved to your Devsphere account.
+          </p>
+
+          {/* PUBLIC LINK */}
+
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+              marginTop: 20,
+            }}
+          >
+            <input
+              value={publicUrl}
+              readOnly
+              style={{
+                flex: 1,
+                minWidth: 260,
+                padding: 13,
+                borderRadius: 12,
+                border:
+                  "1px solid #dccbc2",
+                background: "#fff",
+              }}
+            />
+
+            <button
+              className="btn btn-soft"
+              onClick={copyLink}
+            >
+              Copy Link
+            </button>
+
+            <button
+              className="btn btn-primary"
+              onClick={shareWebsite}
+              disabled={sharing}
+            >
+              {sharing
+                ? "Sharing…"
+                : "Share"}
+            </button>
+          </div>
+
+          {status && (
+            <p
+              className="muted"
+              style={{
+                marginTop: 14,
+              }}
+            >
+              {status}
+            </p>
+          )}
+
+          {/* OPEN WEBSITE */}
+
+          <div
+            style={{
+              marginTop: 22,
+            }}
+          >
+            <a
+              className="btn btn-primary"
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Open Website
             </a>
           </div>
-          <hr
-            style={{
-              border: 0,
-              borderTop: "1px solid #eadfd8",
-              margin: "28px 0",
-            }}
-          />
-          <h3>Choose Reveal Style</h3>
-          <div className="actions">
-            {[
-              ["NORMAL", "Normal", Share2],
-              ["QR", "Magical Scanner", ScanLine],
-              ["PIN", "Code Lock", LockKeyhole],
-              ["LETTER", "Secret Letter", Mail],
-              ["GIFT", "Gift Box", Gift],
-              ["PUZZLE", "Puzzle", Heart],
-            ].map(([v, label, Icon]: any) => (
-              <button
-                key={v}
-                className={`btn ${method === v ? "btn-primary" : "btn-soft"}`}
-                onClick={() => setMethod(v)}
-              >
-                <Icon size={15} />
-                {label}
-              </button>
-            ))}
-          </div>
-          {method === "PIN" && (
-            <div className="field">
-              <label>Secret PIN</label>
-              <input
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                minLength={4}
-                placeholder="4+ digits"
-              />
-            </div>
-          )}
-          {method === "PUZZLE" && (
-            <>
-              <div className="field">
-                <label>Question</label>
-                <input
-                  value={puzzleQuestion}
-                  onChange={(e) => setPuzzleQuestion(e.target.value)}
-                  placeholder="Where did we have our first date?"
-                />
-              </div>
-              <div className="field">
-                <label>Answer</label>
-                <input
-                  value={puzzleAnswer}
-                  onChange={(e) => setPuzzleAnswer(e.target.value)}
-                />
-              </div>
-            </>
-          )}
-          <button className="btn btn-primary" onClick={save}>
-            Save Reveal Settings
-          </button>
-          {status && <p className="muted">{status}</p>}
         </div>
+
+
+        {/* =====================================================
+            SPECIAL REVEAL SCANNER
+           ===================================================== */}
+
+        {isSpecialReveal && (
+          <div
+            className="card"
+            style={{
+              marginTop: 24,
+              padding: 32,
+            }}
+          >
+            <span className="pill">
+              {scannerStyle === "HEART"
+                ? "HEART SCANNER"
+                : "SQUARE SCANNER"}
+            </span>
+
+            <h2>
+              Your Magical Scanner ✨
+            </h2>
+
+            <p className="muted">
+              Download this scanner or take
+              a screenshot and share it with
+              the person receiving the surprise.
+            </p>
+
+            <div
+              ref={qrRef}
+              style={{
+                display: "grid",
+                placeItems: "center",
+                marginTop: 24,
+                padding: 28,
+                borderRadius: 24,
+                background:
+                  scannerStyle ===
+                  "HEART"
+                    ? "#fff0f3"
+                    : "#f5eee9",
+              }}
+            >
+              <QRCodeSVG
+                value={publicUrl}
+                size={250}
+                level="H"
+                includeMargin
+              />
+
+              <strong
+                style={{
+                  marginTop: 14,
+                  fontSize: 18,
+                }}
+              >
+                {scannerStyle ===
+                "HEART"
+                  ? "♥ Heart Scanner"
+                  : "Square Scanner"}
+              </strong>
+            </div>
+
+            <div
+              className="actions"
+              style={{
+                marginTop: 22,
+              }}
+            >
+              <button
+                className="btn btn-primary"
+                onClick={
+                  downloadScanner
+                }
+              >
+                Download Scanner
+              </button>
+
+              <button
+                className="btn btn-soft"
+                onClick={() => {
+                  setStatus(
+                    "Take a screenshot of the scanner above ✓",
+                  );
+
+                  setTimeout(
+                    () =>
+                      setStatus(""),
+                    2200,
+                  );
+                }}
+              >
+                Screenshot Scanner
+              </button>
+            </div>
+
+            <p
+              className="muted"
+              style={{
+                marginTop: 16,
+                fontSize: ".88rem",
+              }}
+            >
+              Scanner style:{" "}
+              <strong>
+                {scannerStyle ===
+                "HEART"
+                  ? "Heart"
+                  : "Square"}
+              </strong>
+            </p>
+          </div>
+        )}
+
+
+        {/* =====================================================
+            REVEAL SETTINGS
+           ===================================================== */}
+
+        {isSpecialReveal && (
+          <div
+            className="auth-card"
+            style={{
+              marginTop: 24,
+            }}
+          >
+            <span className="pill">
+              Reveal Settings
+            </span>
+
+            <h3>
+              Choose how the website opens
+            </h3>
+
+            <div
+              className="actions"
+              style={{
+                marginTop: 16,
+              }}
+            >
+              {[
+                ["NORMAL", "Normal"],
+                ["QR", "Magical Scanner"],
+                ["PIN", "Code Lock"],
+                ["LETTER", "Secret Letter"],
+                ["GIFT", "Gift Box"],
+                ["PUZZLE", "Puzzle"],
+              ].map(
+                ([value, label]) => (
+                  <button
+                    key={value}
+                    className={`btn ${
+                      method === value
+                        ? "btn-primary"
+                        : "btn-soft"
+                    }`}
+                    onClick={() =>
+                      setMethod(
+                        value as any,
+                      )
+                    }
+                  >
+                    {label}
+                  </button>
+                ),
+              )}
+            </div>
+
+            {method === "PIN" && (
+              <div className="field">
+                <label>
+                  Secret PIN
+                </label>
+
+                <input
+                  value={pin}
+                  onChange={(e) =>
+                    setPin(
+                      e.target.value,
+                    )
+                  }
+                  minLength={4}
+                  placeholder="4+ digits"
+                />
+              </div>
+            )}
+
+            {method === "PUZZLE" && (
+              <>
+                <div className="field">
+                  <label>
+                    Question
+                  </label>
+
+                  <input
+                    value={
+                      puzzleQuestion
+                    }
+                    onChange={(e) =>
+                      setPuzzleQuestion(
+                        e.target.value,
+                      )
+                    }
+                    placeholder="Where did we have our first date?"
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    Answer
+                  </label>
+
+                  <input
+                    value={
+                      puzzleAnswer
+                    }
+                    onChange={(e) =>
+                      setPuzzleAnswer(
+                        e.target.value,
+                      )
+                    }
+                  />
+                </div>
+              </>
+            )}
+
+            <button
+              className="btn btn-primary"
+              onClick={saveReveal}
+            >
+              Save Reveal Settings
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

@@ -21,10 +21,7 @@ const revealMethodSchema = z.enum([
   "PUZZLE",
 ]);
 
-const scannerStyleSchema = z.enum([
-  "HEART",
-  "SQUARE",
-]);
+const scannerStyleSchema = z.enum(["HEART", "SQUARE"]);
 
 /* =========================================================
    CREATE RAZORPAY ORDER
@@ -36,13 +33,9 @@ r.post("/create-order", auth, async (req, res) => {
       projectId: z.string(),
       planId: z.string(),
 
-      revealMethod:
-        revealMethodSchema.default("NORMAL"),
+      revealMethod: revealMethodSchema.default("NORMAL"),
 
-      scannerStyle:
-        scannerStyleSchema
-          .nullable()
-          .optional(),
+      scannerStyle: scannerStyleSchema.nullable().optional(),
     })
     .safeParse(req.body);
 
@@ -85,34 +78,19 @@ r.post("/create-order", auth, async (req, res) => {
      BIRTHDAY PRICING
      ======================================================= */
 
-  const projectData =
-    (project as any).data || {};
+  const projectData = (project as any).data || {};
 
-  const movieEnabled =
-    projectData.movieEnabled === true;
+  const movieEnabled = projectData.movieEnabled === true;
 
-  const revealMethod =
-    String(
-      parsed.data.revealMethod || "NORMAL",
-    )
-      .trim()
-      .toUpperCase();
+  const revealMethod = String(parsed.data.revealMethod || "NORMAL")
+    .trim()
+    .toUpperCase();
 
-  const specialRevealMethods = [
-    "QR",
-    "PIN",
-    "LETTER",
-    "GIFT",
-    "PUZZLE",
-  ];
+  const specialRevealMethods = ["QR", "PIN", "LETTER", "GIFT", "PUZZLE"];
 
   let finalPrice = 99;
 
-  if (
-    specialRevealMethods.includes(
-      revealMethod,
-    )
-  ) {
+  if (specialRevealMethods.includes(revealMethod)) {
     finalPrice = 119;
   } else if (movieEnabled) {
     finalPrice = 109;
@@ -123,10 +101,7 @@ r.post("/create-order", auth, async (req, res) => {
      ======================================================= */
 
   const existingData =
-    projectData &&
-    typeof projectData === "object"
-      ? projectData
-      : {};
+    projectData && typeof projectData === "object" ? projectData : {};
 
   const updatedProjectData = {
     ...existingData,
@@ -134,9 +109,7 @@ r.post("/create-order", auth, async (req, res) => {
     method: revealMethod,
 
     scannerStyle:
-      revealMethod === "QR"
-        ? parsed.data.scannerStyle || "HEART"
-        : null,
+      revealMethod === "QR" ? parsed.data.scannerStyle || "HEART" : null,
   };
 
   await db.project.update({
@@ -145,8 +118,9 @@ r.post("/create-order", auth, async (req, res) => {
     },
 
     data: {
-      data:
-        updatedProjectData as any,
+      revealMethod: revealMethod as any,
+
+      data: updatedProjectData as any,
     },
   });
 
@@ -168,10 +142,7 @@ r.post("/create-order", auth, async (req, res) => {
      CREATE RAZORPAY ORDER
      ======================================================= */
 
-  const rp = await createRazorpayOrder(
-    finalPrice * 100,
-    order.id,
-  );
+  const rp = await createRazorpayOrder(finalPrice * 100, order.id);
 
   await db.order.update({
     where: {
@@ -188,8 +159,7 @@ r.post("/create-order", auth, async (req, res) => {
     providerOrderId: rp.id,
     amount: finalPrice * 100,
     currency: plan.currency,
-    keyId:
-      process.env.RAZORPAY_KEY_ID || "",
+    keyId: process.env.RAZORPAY_KEY_ID || "",
   });
 });
 
@@ -222,11 +192,7 @@ r.post("/verify", auth, async (req, res) => {
     },
   });
 
-  if (
-    !order ||
-    order.providerOrderId !==
-      parsed.data.razorpayOrderId
-  ) {
+  if (!order || order.providerOrderId !== parsed.data.razorpayOrderId) {
     return res.status(404).json({
       error: "Order not found",
     });
@@ -244,18 +210,13 @@ r.post("/verify", auth, async (req, res) => {
     });
   }
 
-  const already =
-    await db.payment.findFirst({
-      where: {
-        providerPaymentId:
-          parsed.data.razorpayPaymentId,
-      },
-    });
+  const already = await db.payment.findFirst({
+    where: {
+      providerPaymentId: parsed.data.razorpayPaymentId,
+    },
+  });
 
-  if (
-    already ||
-    order.status === "PAID"
-  ) {
+  if (already || order.status === "PAID") {
     return res.json({
       ok: true,
     });
@@ -269,10 +230,8 @@ r.post("/verify", auth, async (req, res) => {
         status: "CAPTURED",
         amount: order.amount,
         currency: order.currency,
-        providerPaymentId:
-          parsed.data.razorpayPaymentId,
-        signature:
-          parsed.data.razorpaySignature,
+        providerPaymentId: parsed.data.razorpayPaymentId,
+        signature: parsed.data.razorpaySignature,
       },
     }),
 
@@ -283,8 +242,7 @@ r.post("/verify", auth, async (req, res) => {
 
       data: {
         status: "PAID",
-        providerPaymentId:
-          parsed.data.razorpayPaymentId,
+        providerPaymentId: parsed.data.razorpayPaymentId,
       },
     }),
   ]);
@@ -299,99 +257,70 @@ r.post("/verify", auth, async (req, res) => {
    ========================================================= */
 
 r.post("/webhook", async (req, res) => {
-  const sig = String(
-    req.headers["x-razorpay-signature"] || "",
-  );
+  const sig = String(req.headers["x-razorpay-signature"] || "");
 
   const raw = Buffer.isBuffer(req.body)
     ? req.body.toString("utf8")
     : JSON.stringify(req.body);
 
-  if (
-    !verifyWebhookSignature(
-      raw,
-      sig,
-    )
-  ) {
+  if (!verifyWebhookSignature(raw, sig)) {
     return res.status(400).json({
       error: "Invalid webhook signature",
     });
   }
 
-  const parsed = Buffer.isBuffer(req.body)
-    ? JSON.parse(raw)
-    : req.body;
+  const parsed = Buffer.isBuffer(req.body) ? JSON.parse(raw) : req.body;
 
   const event = parsed?.event;
-  const payment =
-    parsed?.payload?.payment?.entity;
+  const payment = parsed?.payload?.payment?.entity;
 
   if (payment?.order_id) {
-    const order =
-      await db.order.findFirst({
-        where: {
-          providerOrderId:
-            payment.order_id,
-        },
-      });
+    const order = await db.order.findFirst({
+      where: {
+        providerOrderId: payment.order_id,
+      },
+    });
 
     if (order) {
-      const isCaptured =
-        event === "payment.captured";
+      const isCaptured = event === "payment.captured" || event === "order.paid";
 
+      const isFailed = event === "payment.failed";
       await db.order.update({
         where: {
           id: order.id,
         },
 
         data: {
-          status: isCaptured
-            ? "PAID"
-            : "FAILED",
-
-          providerPaymentId:
-            payment.id,
+          status: isCaptured ? "PAID" : isFailed ? "FAILED" : order.status,
+          providerPaymentId: payment.id,
         },
       });
 
       await db.payment.upsert({
         where: {
-          id:
-            `webhook-${payment.id}`,
+          id: `webhook-${payment.id}`,
         },
 
         update: {
-          status: isCaptured
-            ? "CAPTURED"
-            : "FAILED",
+          status: isCaptured ? "CAPTURED" : isFailed ? "FAILED" : "CREATED",
         },
 
         create: {
-          id:
-            `webhook-${payment.id}`,
+          id: `webhook-${payment.id}`,
 
-          orderId:
-            order.id,
+          orderId: order.id,
 
-          provider:
-            "razorpay",
+          provider: "razorpay",
 
-          status:
-            isCaptured
-              ? "CAPTURED"
-              : "FAILED",
+          status: isCaptured ? "CAPTURED" : "FAILED",
 
-          amount:
-            order.amount,
+          amount: order.amount,
 
-          currency:
-            order.currency,
+          currency: order.currency,
 
-          providerPaymentId:
-            payment.id,
+          providerPaymentId: payment.id,
 
-          raw:
-            parsed,
+          raw: parsed,
         },
       });
     }

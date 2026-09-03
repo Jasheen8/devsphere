@@ -275,12 +275,355 @@ r.post("/:id/finalize", auth, async (req, res) => {
 });
 
 /* =========================================================
+   PUBLISH PROJECT
+   ========================================================= */
+
+function makeSlug(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 70);
+}
+
+r.post("/:id/publish", auth, async (req, res) => {
+  const u = (req as any).user;
+  const projectId = String(req.params.id);
+
+  const project = await db.project.findFirst({
+    where: {
+      id: projectId,
+      userId: u.id,
+    },
+    include: {
+      website: true,
+    },
+  });
+
+  if (!project) {
+    return res.status(404).json({
+      error: "Project not found",
+    });
+  }
+
+  if (project.status !== "FINALIZED") {
+    return res.status(409).json({
+      error: "Finalize the project first",
+    });
+  }
+
+  /*
+   * Only a paid project can be published.
+   */
+  const paidOrder = await db.order.findFirst({
+    where: {
+      projectId: project.id,
+      userId: u.id,
+      status: "PAID",
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (!paidOrder) {
+    return res.status(402).json({
+      error: "Payment required before publishing",
+    });
+  }
+
+  const projectData =
+    project.data &&
+    typeof project.data === "object"
+      ? (project.data as Record<string, any>)
+      : {};
+
+  const scannerStyle =
+    projectData.scannerStyle === "SQUARE"
+      ? "SQUARE"
+      : "HEART";
+
+  /*
+   * Already published:
+   * keep the same permanent URL.
+   */
+  if (project.website) {
+    const website = await db.publishedSite.update({
+      where: {
+        id: project.website.id,
+      },
+      data: {
+        status: "ACTIVE",
+        revealMethod: project.revealMethod,
+      },
+    });
+
+    await db.project.update({
+      where: {
+        id: project.id,
+      },
+      data: {
+        status: "PUBLISHED",
+        publishedAt:
+          project.publishedAt || new Date(),
+      },
+    });
+
+    const appUrl =
+      process.env.APP_URL ||
+      "http://localhost:5173";
+
+    return res.json({
+      url: `${appUrl}/r/${website.slug}`,
+
+      website,
+
+      packagePrice: paidOrder.amount,
+
+      revealMethod: project.revealMethod,
+
+      scannerStyle:
+        project.revealMethod === "QR"
+          ? scannerStyle
+          : null,
+    });
+  }
+
+  /*
+   * Create a unique permanent slug.
+   */
+  const baseSlug =
+    makeSlug(project.name) ||
+    `surprise-${project.id.slice(-8)}`;
+
+  let slug = baseSlug;
+  let counter = 2;
+
+  while (
+    await db.publishedSite.findUnique({
+      where: {
+        slug,
+      },
+      select: {
+        id: true,
+      },
+    })
+  ) {
+    slug = `${baseSlug}-${counter++}`;
+  }
+
+  /*
+   * Create the permanent website.
+   *
+   * expiresAt is intentionally left null,
+   * so the website does not expire.
+   */
+  const website =
+    await db.publishedSite.create({
+      data: {
+        projectId: project.id,
+
+        slug,
+
+        status: "ACTIVE",
+
+        revealMethod:
+          project.revealMethod,
+      },
+    });
+
+  await db.project.update({
+    where: {
+      id: project.id,
+    },
+
+    data: {
+      status: "PUBLISHED",
+
+      publishedAt: new Date(),
+    },
+  });
+
+  const appUrl =
+    process.env.APP_URL ||
+    "http://localhost:5173";
+
+  return res.status(201).json({
+    url: `${appUrl}/r/${website.slug}`,
+
+    website,
+
+    packagePrice: paidOrder.amount,
+
+    revealMethod: project.revealMethod,
+
+    scannerStyle:
+      project.revealMethod === "QR"
+        ? scannerStyle
+        : null,
+  });
+});
+
+/* =========================================================
+   SAVE REVEAL SETTINGS
+   ========================================================= */
+
+r.patch("/:id/reveal", auth, async (req, res) => {
+  const u = (req as any).user;
+  const projectId = String(req.params.id);
+
+  const parsed = z
+    .object({
+      method: revealMethodSchema,
+
+      pin: z
+        .string()
+        .optional()
+        .default(""),
+
+      puzzleQuestion: z
+        .string()
+        .optional()
+        .default(""),
+
+      puzzleAnswer: z
+        .string()
+        .optional()
+        .default(""),
+    })
+    .safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Invalid reveal settings",
+    });
+  }
+
+  const project =
+    await db.project.findFirst({
+      where: {
+        id: projectId,
+        userId: u.id,
+      },
+      include: {
+        website: true,
+      },
+    });
+
+  if (!project || !project.website) {
+    return res.status(404).json({
+      error: "Published website not found",
+    });
+  }
+
+  const { randomHash } =
+    await import("../lib/auth.js");
+
+  /*
+   * Update project reveal method.
+   */
+  await db.project.update({
+    where: {
+      id: project.id,
+    },
+
+    data: {
+      revealMethod:
+        parsed.data.method,
+    },
+  });
+
+  /*
+   * Create/update access rule.
+   */
+  let accessRuleData: any = {};
+
+  if (parsed.data.method === "PIN") {
+    if (!parsed.data.pin || parsed.data.pin.length < 4) {
+      return res.status(400).json({
+        error: "PIN must contain at least 4 characters",
+      });
+    }
+
+    accessRuleData.pinHash =
+      randomHash(parsed.data.pin);
+
+    accessRuleData.puzzleQuestion = null;
+    accessRuleData.puzzleAnswerHash = null;
+  }
+
+  if (parsed.data.method === "PUZZLE") {
+    if (
+      !parsed.data.puzzleQuestion ||
+      !parsed.data.puzzleAnswer
+    ) {
+      return res.status(400).json({
+        error:
+          "Puzzle question and answer are required",
+      });
+    }
+
+    accessRuleData.pinHash = null;
+
+    accessRuleData.puzzleQuestion =
+      parsed.data.puzzleQuestion;
+
+    accessRuleData.puzzleAnswerHash =
+      randomHash(parsed.data.puzzleAnswer);
+  }
+
+  if (
+    parsed.data.method === "NORMAL" ||
+    parsed.data.method === "QR" ||
+    parsed.data.method === "LETTER" ||
+    parsed.data.method === "GIFT"
+  ) {
+    accessRuleData.pinHash = null;
+    accessRuleData.puzzleQuestion = null;
+    accessRuleData.puzzleAnswerHash = null;
+  }
+
+  const accessRule =
+    await db.siteAccessRule.upsert({
+      where: {
+        siteId: project.website.id,
+      },
+
+      update: accessRuleData,
+
+      create: {
+        siteId: project.website.id,
+        ...accessRuleData,
+      },
+    });
+
+  const website =
+    await db.publishedSite.update({
+      where: {
+        id: project.website.id,
+      },
+
+      data: {
+        revealMethod:
+          parsed.data.method,
+      },
+    });
+
+  return res.json({
+    ok: true,
+    website,
+    accessRule,
+  });
+});
+
+/* =========================================================
    GET SINGLE PROJECT
    ========================================================= */
 
 r.get("/:id", auth, async (req, res) => {
   const projectId = String(req.params.id);
-  
+
   const u = (req as any).user;
 
   const project =
