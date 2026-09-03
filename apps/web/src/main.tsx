@@ -980,9 +980,17 @@ function Editor() {
   if (!project) return <div className="container section">Loading editor…</div>;
   const schema = project.template.schema as TemplateDefinition;
   async function finalize() {
-    await api(`/projects/${project.id}/finalize`, { method: "POST" });
+  try {
+    await api(`/projects/${project.id}/finalize`, {
+      method: "POST",
+    });
+
     nav(`/checkout/${project.id}`);
+  } catch (e: any) {
+    console.error("Finalize failed:", e);
+    alert(e.message || "Could not finalize the project.");
   }
+}
   return (
     <div className="editor">
       <aside className={`editor-panel ${open ? "open" : ""}`}>
@@ -1253,128 +1261,200 @@ function Checkout() {
      ========================================================= */
 
   async function pay() {
-    if (!id) {
-      alert("Project not found.");
+  if (!id) {
+    alert("Project not found.");
+    return;
+  }
+
+  if (!birthdayPlan?.id) {
+    alert("Pricing plan is not available. Run db seed and try again.");
+    return;
+  }
+
+  setLoading("birthday");
+  setCheckoutError("");
+
+  try {
+    const order = await api("/payments/create-order", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: id,
+        planId: birthdayPlan.id,
+        revealMethod,
+        scannerStyle:
+          revealMethod === "QR"
+            ? scannerStyle
+            : null,
+      }),
+    });
+
+    /*
+     * Make sure Razorpay is loaded
+     */
+    if (!(window as any).Razorpay) {
+  await new Promise<void>((resolve, reject) => {
+    const src =
+      "https://checkout.razorpay.com/v1/checkout.js";
+
+    const existing = document.querySelector(
+      `script[src="${src}"]`,
+    ) as HTMLScriptElement | null;
+
+    // Script already exists and Razorpay is available
+    if ((window as any).Razorpay) {
+      resolve();
       return;
     }
 
-    if (!birthdayPlan?.id) {
-      alert(
-        "Birthday pricing plan is not available. Run db seed and try again.",
-      );
-      return;
-    }
-
-    setLoading("birthday");
-    setCheckoutError("");
-
-    try {
-      /*
-       * Backend is the final authority for the price.
-       */
-      const order = await api("/payments/create-order", {
-        method: "POST",
-
-        body: JSON.stringify({
-  projectId: id,
-  planId: birthdayPlan.id,
-  revealMethod,
-  scannerStyle:
-    revealMethod === "QR"
-      ? scannerStyle
-      : null,
-}),
-      });
-
-      /* =====================================================
-         LOAD RAZORPAY
-         ===================================================== */
-
-      if (!(window as any).Razorpay) {
-        await new Promise<void>((resolve, reject) => {
-          const existing = document.querySelector(
-            'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
+    // Script exists but is still loading
+    if (existing) {
+      const checkLoaded = () => {
+        if ((window as any).Razorpay) {
+          resolve();
+        } else {
+          reject(
+            new Error(
+              "Razorpay script loaded but Razorpay is unavailable.",
+            ),
           );
+        }
+      };
 
-          if (existing) {
-            existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener(
+        "load",
+        checkLoaded,
+        { once: true },
+      );
 
-            existing.addEventListener(
-              "error",
-              () => reject(new Error("Unable to load Razorpay.")),
-              { once: true },
-            );
+      existing.addEventListener(
+        "error",
+        () =>
+          reject(
+            new Error(
+              "Unable to load Razorpay.",
+            ),
+          ),
+        { once: true },
+      );
 
-            return;
-          }
+      // Important: handle script that finished loading
+      // before our listener was attached.
+      setTimeout(() => {
+        if ((window as any).Razorpay) {
+          resolve();
+        }
+      }, 100);
 
-          const script = document.createElement("script");
+      return;
+    }
 
-          script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    // No script yet — create it
+    const script = document.createElement("script");
 
-          script.onload = () => resolve();
+    script.src = src;
+    script.async = true;
 
-          script.onerror = () => reject(new Error("Unable to load Razorpay."));
-
-          document.body.appendChild(script);
-        });
+    script.onload = () => {
+      if ((window as any).Razorpay) {
+        resolve();
+      } else {
+        reject(
+          new Error(
+            "Razorpay loaded but the SDK is unavailable.",
+          ),
+        );
       }
+    };
 
-      /* =====================================================
-         RAZORPAY CHECKOUT
-         ===================================================== */
+    script.onerror = () => {
+      reject(
+        new Error(
+          "Unable to load Razorpay.",
+        ),
+      );
+    };
 
-      const razorpay = new (window as any).Razorpay({
-        key: order.keyId,
+    document.body.appendChild(script);
+  });
+}
 
-        amount: order.amount,
+    /*
+     * Razorpay checkout
+     */
+    const razorpay = new (window as any).Razorpay({
+      key: order.keyId,
+      amount: order.amount,
+      currency: order.currency,
 
-        currency: order.currency,
+      // DEVSPHERE branding
+      name: "Devsphere",
 
-        name: "Devsphere",
+      description: `Birthday Website — ₹${birthdayPrice}`,
 
-        description: `Birthday Website — ₹${birthdayPrice}`,
+      order_id: order.providerOrderId,
 
-        order_id: order.providerOrderId,
-
-        handler: async (response: any) => {
+      handler: async (response: any) => {
+        try {
+          /*
+           * Verify payment
+           */
           await api("/payments/verify", {
             method: "POST",
-
             body: JSON.stringify({
               orderId: order.orderId,
-
-              razorpayOrderId: response.razorpay_order_id,
-
-              razorpayPaymentId: response.razorpay_payment_id,
-
-              razorpaySignature: response.razorpay_signature,
+              razorpayOrderId:
+                response.razorpay_order_id,
+              razorpayPaymentId:
+                response.razorpay_payment_id,
+              razorpaySignature:
+                response.razorpay_signature,
             }),
           });
 
-          const published = await api(`/projects/${id}/publish`, {
-            method: "POST",
+          /*
+           * Publish website
+           */
+          const published = await api(
+            `/projects/${id}/publish`,
+            {
+              method: "POST",
+              body: JSON.stringify({}),
+            },
+          );
 
-            body: JSON.stringify({}),
-          });
+          nav(
+            `/published/${id}?url=${encodeURIComponent(
+              published.url,
+            )}`,
+          );
+        } catch (error: any) {
+          console.error(
+            "Payment verification/publication failed:",
+            error,
+          );
 
-          nav(`/published/${id}?url=${encodeURIComponent(published.url)}`);
-        },
-      });
+          setCheckoutError(
+            error?.message ||
+              "Payment succeeded, but website publication failed.",
+          );
+        }
+      },
+    });
 
-      razorpay.open();
-    } catch (e: any) {
-      console.error("Payment error:", e);
+    razorpay.open();
+  } catch (e: any) {
+    console.error("Payment error:", e);
 
-      const message = e?.message || "Payment could not be started.";
+    const message =
+      e?.message ||
+      "Payment could not be started.";
 
-      setCheckoutError(message);
-
-      alert(message);
-    } finally {
-      setLoading("");
-    }
+    setCheckoutError(message);
+    alert(message);
+  } finally {
+    setLoading("");
   }
+}
 
   /* =========================================================
      CHECKOUT UI

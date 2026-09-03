@@ -2010,29 +2010,31 @@
    ========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
+
   .birthday-carousel-wrapper {
-    cursor: default;
+    cursor: grab;
   }
 
   .birthday-carousel-3d {
-    transform: none !important;
+    transform-style: preserve-3d !important;
   }
 
   .birthday-carousel-item {
-    transform: none !important;
-    position: relative;
-    left: auto;
-    top: auto;
-    margin: 10px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    transform-style: preserve-3d !important;
   }
 
   .birthday-polaroid {
-    transform: none !important;
+    transition: box-shadow 0.3s ease;
   }
 
   .birthday-carousel-caption {
     margin-top: 20px;
   }
+
 }
 
 /* =========================================================

@@ -245,6 +245,39 @@ r.get("/", auth, async (req, res) => {
 });
 
 /* =========================================================
+   FINALIZE PROJECT
+   ========================================================= */
+r.post("/:id/finalize", auth, async (req, res) => {
+  const u = (req as any).user;
+
+  const project = await db.project.findFirst({
+    where: {
+      id: req.params.id,
+      userId: u.id,
+    },
+  });
+
+  if (!project) {
+    return res.status(404).json({
+      error: "Project not found",
+    });
+  }
+
+  const updated = await db.project.update({
+    where: {
+      id: project.id,
+    },
+    data: {
+      status: "FINALIZED",
+    },
+  });
+
+  return res.json({
+    project: updated,
+  });
+});
+
+/* =========================================================
    GET SINGLE PROJECT
    ========================================================= */
 
