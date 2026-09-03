@@ -106,10 +106,7 @@ r.patch("/:id", auth, async (req, res) => {
     });
   }
 
-  const projectId =
-    typeof req.params.id === "string"
-      ? req.params.id
-      : req.params.id[0];
+  const projectId = String(req.params.id);
 
   const existing =
     await db.project.findFirst({
@@ -252,7 +249,7 @@ r.post("/:id/finalize", auth, async (req, res) => {
 
   const project = await db.project.findFirst({
     where: {
-      id: req.params.id,
+      id: String(req.params.id),
       userId: u.id,
     },
   });
@@ -282,11 +279,8 @@ r.post("/:id/finalize", auth, async (req, res) => {
    ========================================================= */
 
 r.get("/:id", auth, async (req, res) => {
-  const projectId =
-    typeof req.params.id === "string"
-      ? req.params.id
-      : req.params.id[0];
-
+  const projectId = String(req.params.id);
+  
   const u = (req as any).user;
 
   const project =
