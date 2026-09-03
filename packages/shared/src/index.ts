@@ -17,49 +17,30 @@ export type FieldSchemaType = {
 
   maxItems?: number;
 
-  itemFields?:
-    FieldSchemaType[];
+  itemFields?: FieldSchemaType[];
 };
-
-
 
 /* =========================================================
    RECURSIVE FIELD SCHEMA
    ========================================================= */
 
-export const FieldSchema:
-  z.ZodType<FieldSchemaType> =
-  z.lazy(() =>
-    z.object({
-      id:
-        z.string(),
+export const FieldSchema: z.ZodType<FieldSchemaType> = z.lazy(() =>
+  z.object({
+    id: z.string(),
 
-      type:
-        z.string(),
+    type: z.string(),
 
-      label:
-        z.string()
-          .optional(),
+    label: z.string().optional(),
 
-      required:
-        z.boolean()
-          .optional(),
+    required: z.boolean().optional(),
 
-      placeholder:
-        z.string()
-          .optional(),
+    placeholder: z.string().optional(),
 
-      maxItems:
-        z.number()
-          .optional(),
+    maxItems: z.number().optional(),
 
-      itemFields:
-        z.array(
-          FieldSchema,
-        )
-          .optional(),
-    }),
-  );
+    itemFields: z.array(FieldSchema).optional(),
+  }),
+);
 
 /* =========================================================
    TEMPLATE SCHEMA
@@ -68,9 +49,7 @@ export const FieldSchema:
 export const TemplateSchema = z.object({
   fields: z.array(FieldSchema),
 
-  sections: z.array(
-    z.record(z.unknown()),
-  ),
+  sections: z.array(z.record(z.unknown())),
 
   customization: z
     .object({
@@ -82,3 +61,18 @@ export const TemplateSchema = z.object({
     })
     .optional(),
 });
+
+/* =========================================================
+   TYPES DERIVED FROM ZOD
+   ========================================================= */
+
+export type TemplateDefinition = z.infer<typeof TemplateSchema>;
+
+/*
+ * Project data is the actual customer-entered content.
+ *
+ * Keeping this flexible is appropriate for your dynamic
+ * template system because different templates have different
+ * fields.
+ */
+export type ProjectData = Record<string, unknown>;

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./birthday.css";
-import catImage from "./assets/cat.png";
+const catImage =
+  "https://placehold.co/420x420/f8eee8/6d2b35?text=%E2%9D%A4";
 
 type Memory = {
   emoji?: string;
@@ -562,6 +563,7 @@ export function BirthdayExperience({
     if (!section) {
       return;
     }
+    const timelineSection = section;
 
     /*
      * In the editor, .preview has its own scrollbar.
@@ -573,7 +575,7 @@ export function BirthdayExperience({
       isPreview && previewScroller ? previewScroller : null;
 
     function updateTimeline() {
-      const rect = section.getBoundingClientRect();
+      const rect = timelineSection.getBoundingClientRect();
 
       const viewportHeight = scrollContainer
         ? scrollContainer.clientHeight
@@ -583,7 +585,8 @@ export function BirthdayExperience({
         ? rect.top - scrollContainer.getBoundingClientRect().top
         : rect.top;
 
-      const total = section.offsetHeight + viewportHeight;
+      const total =
+  timelineSection.offsetHeight + viewportHeight;
 
       const passed = viewportHeight - sectionTop;
 
