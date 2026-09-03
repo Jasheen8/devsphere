@@ -1203,8 +1203,18 @@ function Create() {
   const [name, setName] = useState("");
   const nav = useNavigate();
   useEffect(() => {
-    api(`/templates/${id}`).then((x) => setT(x.template));
-  }, [id]);
+  if (!id) return;
+
+  api(`/templates/${id}`)
+    .then((x) => {
+      console.log("Template loaded:", x.template);
+      setTemplate(x.template);
+    })
+    .catch((error) => {
+      console.error("Template loading failed:", error);
+      alert(error.message || "Unable to load template.");
+    });
+}, [id]);
   async function create() {
     try {
       const p = await api("/projects", {
