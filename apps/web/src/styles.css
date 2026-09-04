@@ -1896,46 +1896,24 @@ body {
 }
 
 .heart-qr-wrapper.is-heart {
+  width: 290px;
+  height: 290px;
+  display: grid;
+  place-items: center;
   overflow: visible;
 }
 
-.heart-qr-wrapper.is-heart::before {
-  content: "";
-  position: absolute;
-  inset: 55px;
+.heart-qr-wrapper.is-heart svg {
+  width: 270px;
+  height: 270px;
+  display: block;
 
-  background: #cf2638;
-
-  clip-path: polygon(
-    50% 96%,
-    42% 89%,
-    34% 82%,
-    26% 74%,
-    19% 65%,
-    13% 56%,
-    9% 47%,
-    8% 38%,
-    10% 30%,
-    14% 23%,
-    21% 18%,
-    29% 16%,
-    37% 18%,
-    44% 23%,
-    50% 31%,
-    56% 23%,
-    63% 18%,
-    71% 16%,
-    79% 18%,
-    86% 23%,
-    90% 30%,
-    92% 38%,
-    91% 47%,
-    87% 56%,
-    81% 65%,
-    74% 74%,
-    66% 82%,
-    58% 89%
+  /*
+   * The QR itself is clipped into a heart silhouette.
+   * No solid heart is placed over the QR.
+   */
+  clip-path: path(
+    "M135 263 C125 255 28 188 28 102 C28 57 60 28 98 28 C117 28 130 36 135 52 C140 36 153 28 172 28 C210 28 242 57 242 102 C242 188 145 255 135 263 Z"
   );
-
-  pointer-events: none;
 }
+

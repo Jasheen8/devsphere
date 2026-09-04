@@ -2510,7 +2510,7 @@ function RoutePublished() {
               >
                 <QRCodeSVG
                   value={publicUrl}
-                  size={250}
+                  size={270}
                   level="H"
                   includeMargin
                   fgColor={scannerStyle === "HEART" ? "#cf2638" : "#151515"}
