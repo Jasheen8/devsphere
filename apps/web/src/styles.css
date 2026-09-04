@@ -1902,7 +1902,7 @@ body {
 .heart-qr-wrapper.is-heart::before {
   content: "";
   position: absolute;
-  inset: 8px;
+  inset: 55px;
 
   background: #cf2638;
 
