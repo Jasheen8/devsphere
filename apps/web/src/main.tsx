@@ -1864,32 +1864,54 @@ function Public() {
   const [question, setQuestion] = useState("");
   const [gate, setGate] = useState(true);
   useEffect(() => {
-    api(`/public/${slug}`).then((x) => {
+  if (!slug) return;
+
+  api(`/public/${slug}`)
+    .then((x) => {
+      console.log("PUBLIC WEBSITE DATA:", x);
+
       setPayload(x);
+
       setGate(
         x.accessRequired &&
-          (x.site.revealMethod === "PIN" || x.site.revealMethod === "PUZZLE"),
+          (x.site.revealMethod === "PIN" ||
+            x.site.revealMethod === "PUZZLE"),
       );
-      if (x.site.seoTitle) document.title = x.site.seoTitle;
+
+      if (x.site.seoTitle) {
+        document.title = x.site.seoTitle;
+      }
+
       if (x.site.seoDescription) {
         let m = document.querySelector(
           "meta[name=description]",
         ) as HTMLMetaElement | null;
+
         if (!m) {
           m = document.createElement("meta");
           m.name = "description";
           document.head.appendChild(m);
         }
+
         m.content = x.site.seoDescription;
       }
+    })
+    .catch((error) => {
+      console.error("PUBLIC WEBSITE LOAD FAILED:", error);
+      setQuestion(error?.message || "Unable to load this website.");
+      setGate(false);
     });
-  }, [slug]);
-  if (!payload)
-    return (
-      <div className="reveal">
-        <div className="reveal-box">Loading your surprise…</div>
+}, [slug]);
+  if (!payload) {
+  return (
+    <div className="reveal">
+      <div className="reveal-box">
+        <h2>Loading your surprise…</h2>
+        {question && <p>{question}</p>}
       </div>
-    );
+    </div>
+  );
+}
   async function submit() {
     try {
       if (
