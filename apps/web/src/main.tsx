@@ -233,7 +233,7 @@ function TemplateCard({ t }: { t: Template }) {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Live Demo
+              Live Demo 120800
             </a>
           )}
 
@@ -476,45 +476,46 @@ function Dashboard() {
                 </div>
               </div>
               <div className="actions">
-                {p.status === "DRAFT" && (
-                  <div className="project-actions">
-                    <button
-                      type="button"
-                      className="delete-draft-btn"
-                      onClick={async () => {
-                        const confirmed = window.confirm(
-                          "Delete this draft website? This action cannot be undone.",
-                        );
-
-                        if (!confirmed) return;
-
-                        try {
-                          await api(`/projects/${p.id}`, {
-                            method: "DELETE",
-                          });
-
-                          setProjects((current) =>
-                            current.filter((item) => item.id !== p.id),
+                {(p.status === "DRAFT" || p.status === "FINALIZED") &&
+                  !p.isPaid && (
+                    <div className="project-actions">
+                      <button
+                        type="button"
+                        className="delete-draft-btn"
+                        onClick={async () => {
+                          const confirmed = window.confirm(
+                            "Delete this draft website? This action cannot be undone.",
                           );
-                        } catch (error: any) {
-                          alert(error.message || "Unable to delete draft.");
-                        }
-                      }}
-                    >
-                      Delete Draft
-                    </button>
 
-                    <button
-                      type="button"
-                      className="continue-editing-btn"
-                      onClick={() => nav(`/edit/${p.id}`)}
-                    >
-                      Continue Editing
-                    </button>
-                  </div>
-                )}
+                          if (!confirmed) return;
 
-                {p.status === "FINALIZED" && (
+                          try {
+                            await api(`/projects/${p.id}`, {
+                              method: "DELETE",
+                            });
+
+                            setProjects((current) =>
+                              current.filter((item) => item.id !== p.id),
+                            );
+                          } catch (error: any) {
+                            alert(error.message || "Unable to delete draft.");
+                          }
+                        }}
+                      >
+                        Delete Draft
+                      </button>
+
+                      <button
+                        type="button"
+                        className="continue-editing-btn"
+                        onClick={() => nav(`/edit/${p.id}`)}
+                      >
+                        Continue Editing
+                      </button>
+                    </div>
+                  )}
+
+                {p.status === "FINALIZED" && !p.isPaid && (
                   <button
                     className="btn btn-primary"
                     onClick={() => nav(`/checkout/${p.id}`)}

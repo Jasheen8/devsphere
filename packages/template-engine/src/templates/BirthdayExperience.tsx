@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./birthday.css";
-const catImage =
-  "https://placehold.co/420x420/f8eee8/6d2b35?text=%E2%9D%A4";
+import catImage from "./assets/cat.png";
 
 type Memory = {
   emoji?: string;

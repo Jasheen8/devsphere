@@ -20,16 +20,11 @@ const projectInput = z.object({
   templateId: z.string(),
   name: z.string().min(1),
 
-  data: z
-    .record(z.unknown())
-    .default({}),
+  data: z.record(z.unknown()).default({}),
 
-  customization: z
-    .record(z.unknown())
-    .default({}),
+  customization: z.record(z.unknown()).default({}),
 
-  revealMethod:
-    revealMethodSchema.default("NORMAL"),
+  revealMethod: revealMethodSchema.default("NORMAL"),
 });
 
 /* =========================================================
@@ -37,8 +32,7 @@ const projectInput = z.object({
    ========================================================= */
 
 r.post("/", auth, async (req, res) => {
-  const p =
-    projectInput.safeParse(req.body);
+  const p = projectInput.safeParse(req.body);
 
   if (!p.success) {
     return res.status(400).json({
@@ -48,12 +42,11 @@ r.post("/", auth, async (req, res) => {
 
   const u = (req as any).user;
 
-  const t =
-    await db.template.findUnique({
-      where: {
-        id: p.data.templateId,
-      },
-    });
+  const t = await db.template.findUnique({
+    where: {
+      id: p.data.templateId,
+    },
+  });
 
   if (!t || !t.published) {
     return res.status(404).json({
@@ -61,27 +54,21 @@ r.post("/", auth, async (req, res) => {
     });
   }
 
-  const project =
-    await db.project.create({
-      data: {
-        userId: u.id,
+  const project = await db.project.create({
+    data: {
+      userId: u.id,
 
-        templateId:
-          t.id,
+      templateId: t.id,
 
-        name:
-          p.data.name,
+      name: p.data.name,
 
-        data:
-          p.data.data as Prisma.InputJsonValue,
+      data: p.data.data as Prisma.InputJsonValue,
 
-        customization:
-          p.data.customization as Prisma.InputJsonValue,
+      customization: p.data.customization as Prisma.InputJsonValue,
 
-        revealMethod:
-          p.data.revealMethod,
-      },
-    });
+      revealMethod: p.data.revealMethod,
+    },
+  });
 
   return res.status(201).json({
     project,
@@ -95,10 +82,7 @@ r.post("/", auth, async (req, res) => {
 r.patch("/:id", auth, async (req, res) => {
   const u = (req as any).user;
 
-  const p =
-    projectInput
-      .partial()
-      .safeParse(req.body);
+  const p = projectInput.partial().safeParse(req.body);
 
   if (!p.success) {
     return res.status(400).json({
@@ -108,13 +92,12 @@ r.patch("/:id", auth, async (req, res) => {
 
   const projectId = String(req.params.id);
 
-  const existing =
-    await db.project.findFirst({
-      where: {
-        id: projectId,
-        userId: u.id,
-      },
-    });
+  const existing = await db.project.findFirst({
+    where: {
+      id: projectId,
+      userId: u.id,
+    },
+  });
 
   if (!existing) {
     return res.status(404).json({
@@ -122,94 +105,59 @@ r.patch("/:id", auth, async (req, res) => {
     });
   }
 
-  const project =
-    await db.$transaction(
-      async (tx) => {
-        await tx.projectRevision.create({
-          data: {
-            projectId:
-              existing.id,
+  const project = await db.$transaction(async (tx) => {
+    await tx.projectRevision.create({
+      data: {
+        projectId: existing.id,
 
-            data:
-              existing.data === null
-                ? Prisma.JsonNull
-                : (
-                    existing.data as
-                      Prisma.InputJsonValue
-                  ),
+        data:
+          existing.data === null
+            ? Prisma.JsonNull
+            : (existing.data as Prisma.InputJsonValue),
 
-            customization:
-              existing.customization === null
-                ? Prisma.JsonNull
-                : (
-                    existing.customization as
-                      Prisma.InputJsonValue
-                  ),
+        customization:
+          existing.customization === null
+            ? Prisma.JsonNull
+            : (existing.customization as Prisma.InputJsonValue),
 
-            status:
-              existing.status,
-          },
-        });
-
-        const updateData:
-          Prisma.ProjectUpdateInput = {};
-
-        if (
-          p.data.name !==
-          undefined
-        ) {
-          updateData.name =
-            p.data.name;
-        }
-
-        if (
-          p.data.data !==
-          undefined
-        ) {
-          updateData.data =
-            p.data.data as
-              Prisma.InputJsonValue;
-        }
-
-        if (
-          p.data.customization !==
-          undefined
-        ) {
-          updateData.customization =
-            p.data.customization as
-              Prisma.InputJsonValue;
-        }
-
-        if (
-          p.data.revealMethod !==
-          undefined
-        ) {
-          updateData.revealMethod =
-            p.data.revealMethod;
-        }
-
-        if (
-          p.data.templateId !==
-          undefined
-        ) {
-          updateData.template = {
-            connect: {
-              id:
-                p.data.templateId,
-            },
-          };
-        }
-
-        return tx.project.update({
-          where: {
-            id: existing.id,
-          },
-
-          data:
-            updateData,
-        });
+        status: existing.status,
       },
-    );
+    });
+
+    const updateData: Prisma.ProjectUpdateInput = {};
+
+    if (p.data.name !== undefined) {
+      updateData.name = p.data.name;
+    }
+
+    if (p.data.data !== undefined) {
+      updateData.data = p.data.data as Prisma.InputJsonValue;
+    }
+
+    if (p.data.customization !== undefined) {
+      updateData.customization = p.data.customization as Prisma.InputJsonValue;
+    }
+
+    if (p.data.revealMethod !== undefined) {
+      updateData.revealMethod = p.data.revealMethod;
+    }
+
+    if (p.data.templateId !== undefined) {
+      updateData.template = {
+        connect: {
+          id: p.data.templateId,
+        },
+      };
+    }
+
+    return tx.project.update({
+      where: {
+        id: existing.id,
+      },
+
+      data: updateData,
+    });
+  });
 
   return res.json({
     project,
@@ -334,15 +282,12 @@ r.post("/:id/publish", auth, async (req, res) => {
   }
 
   const projectData =
-    project.data &&
-    typeof project.data === "object"
+    project.data && typeof project.data === "object"
       ? (project.data as Record<string, any>)
       : {};
 
   const scannerStyle =
-    projectData.scannerStyle === "SQUARE"
-      ? "SQUARE"
-      : "HEART";
+    projectData.scannerStyle === "SQUARE" ? "SQUARE" : "HEART";
 
   /*
    * Already published:
@@ -365,14 +310,11 @@ r.post("/:id/publish", auth, async (req, res) => {
       },
       data: {
         status: "PUBLISHED",
-        publishedAt:
-          project.publishedAt || new Date(),
+        publishedAt: project.publishedAt || new Date(),
       },
     });
 
-    const appUrl =
-      process.env.APP_URL ||
-      "http://localhost:5173";
+    const appUrl = process.env.APP_URL || "http://localhost:5173";
 
     return res.json({
       url: `${appUrl}/r/${website.slug}`,
@@ -383,19 +325,14 @@ r.post("/:id/publish", auth, async (req, res) => {
 
       revealMethod: project.revealMethod,
 
-      scannerStyle:
-        project.revealMethod === "QR"
-          ? scannerStyle
-          : null,
+      scannerStyle: project.revealMethod === "QR" ? scannerStyle : null,
     });
   }
 
   /*
    * Create a unique permanent slug.
    */
-  const baseSlug =
-    makeSlug(project.name) ||
-    `surprise-${project.id.slice(-8)}`;
+  const baseSlug = makeSlug(project.name) || `surprise-${project.id.slice(-8)}`;
 
   let slug = baseSlug;
   let counter = 2;
@@ -419,19 +356,17 @@ r.post("/:id/publish", auth, async (req, res) => {
    * expiresAt is intentionally left null,
    * so the website does not expire.
    */
-  const website =
-    await db.publishedSite.create({
-      data: {
-        projectId: project.id,
+  const website = await db.publishedSite.create({
+    data: {
+      projectId: project.id,
 
-        slug,
+      slug,
 
-        status: "ACTIVE",
+      status: "ACTIVE",
 
-        revealMethod:
-          project.revealMethod,
-      },
-    });
+      revealMethod: project.revealMethod,
+    },
+  });
 
   await db.project.update({
     where: {
@@ -445,9 +380,7 @@ r.post("/:id/publish", auth, async (req, res) => {
     },
   });
 
-  const appUrl =
-    process.env.APP_URL ||
-    "http://localhost:5173";
+  const appUrl = process.env.APP_URL || "http://localhost:5173";
 
   return res.status(201).json({
     url: `${appUrl}/r/${website.slug}`,
@@ -458,10 +391,7 @@ r.post("/:id/publish", auth, async (req, res) => {
 
     revealMethod: project.revealMethod,
 
-    scannerStyle:
-      project.revealMethod === "QR"
-        ? scannerStyle
-        : null,
+    scannerStyle: project.revealMethod === "QR" ? scannerStyle : null,
   });
 });
 
@@ -477,20 +407,11 @@ r.patch("/:id/reveal", auth, async (req, res) => {
     .object({
       method: revealMethodSchema,
 
-      pin: z
-        .string()
-        .optional()
-        .default(""),
+      pin: z.string().optional().default(""),
 
-      puzzleQuestion: z
-        .string()
-        .optional()
-        .default(""),
+      puzzleQuestion: z.string().optional().default(""),
 
-      puzzleAnswer: z
-        .string()
-        .optional()
-        .default(""),
+      puzzleAnswer: z.string().optional().default(""),
     })
     .safeParse(req.body);
 
@@ -500,16 +421,15 @@ r.patch("/:id/reveal", auth, async (req, res) => {
     });
   }
 
-  const project =
-    await db.project.findFirst({
-      where: {
-        id: projectId,
-        userId: u.id,
-      },
-      include: {
-        website: true,
-      },
-    });
+  const project = await db.project.findFirst({
+    where: {
+      id: projectId,
+      userId: u.id,
+    },
+    include: {
+      website: true,
+    },
+  });
 
   if (!project || !project.website) {
     return res.status(404).json({
@@ -517,8 +437,7 @@ r.patch("/:id/reveal", auth, async (req, res) => {
     });
   }
 
-  const { randomHash } =
-    await import("../lib/auth.js");
+  const { randomHash } = await import("../lib/auth.js");
 
   /*
    * Update project reveal method.
@@ -529,8 +448,7 @@ r.patch("/:id/reveal", auth, async (req, res) => {
     },
 
     data: {
-      revealMethod:
-        parsed.data.method,
+      revealMethod: parsed.data.method,
     },
   });
 
@@ -546,31 +464,24 @@ r.patch("/:id/reveal", auth, async (req, res) => {
       });
     }
 
-    accessRuleData.pinHash =
-      randomHash(parsed.data.pin);
+    accessRuleData.pinHash = randomHash(parsed.data.pin);
 
     accessRuleData.puzzleQuestion = null;
     accessRuleData.puzzleAnswerHash = null;
   }
 
   if (parsed.data.method === "PUZZLE") {
-    if (
-      !parsed.data.puzzleQuestion ||
-      !parsed.data.puzzleAnswer
-    ) {
+    if (!parsed.data.puzzleQuestion || !parsed.data.puzzleAnswer) {
       return res.status(400).json({
-        error:
-          "Puzzle question and answer are required",
+        error: "Puzzle question and answer are required",
       });
     }
 
     accessRuleData.pinHash = null;
 
-    accessRuleData.puzzleQuestion =
-      parsed.data.puzzleQuestion;
+    accessRuleData.puzzleQuestion = parsed.data.puzzleQuestion;
 
-    accessRuleData.puzzleAnswerHash =
-      randomHash(parsed.data.puzzleAnswer);
+    accessRuleData.puzzleAnswerHash = randomHash(parsed.data.puzzleAnswer);
   }
 
   if (
@@ -584,31 +495,28 @@ r.patch("/:id/reveal", auth, async (req, res) => {
     accessRuleData.puzzleAnswerHash = null;
   }
 
-  const accessRule =
-    await db.siteAccessRule.upsert({
-      where: {
-        siteId: project.website.id,
-      },
+  const accessRule = await db.siteAccessRule.upsert({
+    where: {
+      siteId: project.website.id,
+    },
 
-      update: accessRuleData,
+    update: accessRuleData,
 
-      create: {
-        siteId: project.website.id,
-        ...accessRuleData,
-      },
-    });
+    create: {
+      siteId: project.website.id,
+      ...accessRuleData,
+    },
+  });
 
-  const website =
-    await db.publishedSite.update({
-      where: {
-        id: project.website.id,
-      },
+  const website = await db.publishedSite.update({
+    where: {
+      id: project.website.id,
+    },
 
-      data: {
-        revealMethod:
-          parsed.data.method,
-      },
-    });
+    data: {
+      revealMethod: parsed.data.method,
+    },
+  });
 
   return res.json({
     ok: true,
@@ -626,18 +534,17 @@ r.get("/:id", auth, async (req, res) => {
 
   const u = (req as any).user;
 
-  const project =
-    await db.project.findFirst({
-      where: {
-        id: projectId,
-        userId: u.id,
-      },
+  const project = await db.project.findFirst({
+    where: {
+      id: projectId,
+      userId: u.id,
+    },
 
-      include: {
-        template: true,
-        website: true,
-      },
-    });
+    include: {
+      template: true,
+      website: true,
+    },
+  });
 
   if (!project) {
     return res.status(404).json({
@@ -649,7 +556,6 @@ r.get("/:id", auth, async (req, res) => {
     project,
   });
 });
-
 
 /* =========================================================
    DELETE DRAFT PROJECT
@@ -694,9 +600,9 @@ r.delete("/:id", auth, async (req, res) => {
     /*
      * Only incomplete DRAFT projects can be deleted.
      */
-    if (project.status !== "DRAFT") {
+    if (project.status !== "DRAFT" && project.status !== "FINALIZED") {
       return res.status(403).json({
-        error: "Only incomplete draft websites can be deleted.",
+        error: "Only unpaid draft or finalized websites can be deleted.",
       });
     }
 
@@ -710,11 +616,38 @@ r.delete("/:id", auth, async (req, res) => {
       });
     }
 
-    await db.project.delete({
-      where: {
-        id: project.id,
+    await db.$transaction(async (tx) => {
+  // Delete unpaid orders attached to this project first.
+  await tx.order.deleteMany({
+    where: {
+      projectId: project.id,
+      status: {
+        not: "PAID",
       },
-    });
+    },
+  });
+
+  // Delete project-related media.
+  await tx.projectMedia.deleteMany({
+    where: {
+      projectId: project.id,
+    },
+  });
+
+  // Delete project revisions.
+  await tx.projectRevision.deleteMany({
+    where: {
+      projectId: project.id,
+    },
+  });
+
+  // Finally delete the project.
+  await tx.project.delete({
+    where: {
+      id: project.id,
+    },
+  });
+});
 
     return res.json({
       ok: true,
