@@ -1860,3 +1860,54 @@ body {
     width: 100%;
   }
 }
+
+
+.heart-qr-wrapper {
+  width: 270px;
+  height: 270px;
+  display: grid;
+  place-items: center;
+}
+
+.heart-qr-wrapper svg {
+  display: block;
+}
+
+.heart-qr-wrapper.is-square svg {
+  clip-path: none;
+}
+
+.heart-qr-wrapper.is-heart svg {
+  clip-path: polygon(
+    50% 96%,
+    43% 89%,
+    35% 82%,
+    27% 74%,
+    20% 66%,
+    14% 57%,
+    10% 48%,
+    9% 39%,
+    10% 31%,
+    14% 24%,
+    20% 19%,
+    27% 16%,
+    34% 17%,
+    41% 20%,
+    47% 25%,
+    50% 31%,
+    53% 25%,
+    59% 20%,
+    66% 17%,
+    73% 16%,
+    80% 19%,
+    86% 24%,
+    90% 31%,
+    91% 39%,
+    90% 48%,
+    86% 57%,
+    80% 66%,
+    73% 74%,
+    65% 82%,
+    57% 89%
+  );
+}

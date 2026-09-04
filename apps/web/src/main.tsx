@@ -1279,9 +1279,7 @@ function Checkout() {
     "NORMAL" | "QR" | "PIN" | "LETTER" | "GIFT" | "PUZZLE"
   >("NORMAL");
 
-  const [scannerStyle, setScannerStyle] = useState<
-    "CLASSIC" | "HEART" | "LOVE" | "ROMANTIC"
-  >("HEART");
+  const [scannerStyle, setScannerStyle] = useState<"HEART" | "SQUARE">("HEART");
 
   const nav = useNavigate();
 
@@ -1864,54 +1862,53 @@ function Public() {
   const [question, setQuestion] = useState("");
   const [gate, setGate] = useState(true);
   useEffect(() => {
-  if (!slug) return;
+    if (!slug) return;
 
-  api(`/public/${slug}`)
-    .then((x) => {
-      console.log("PUBLIC WEBSITE DATA:", x);
+    api(`/public/${slug}`)
+      .then((x) => {
+        console.log("PUBLIC WEBSITE DATA:", x);
 
-      setPayload(x);
+        setPayload(x);
 
-      setGate(
-        x.accessRequired &&
-          (x.site.revealMethod === "PIN" ||
-            x.site.revealMethod === "PUZZLE"),
-      );
+        setGate(
+          x.accessRequired &&
+            (x.site.revealMethod === "PIN" || x.site.revealMethod === "PUZZLE"),
+        );
 
-      if (x.site.seoTitle) {
-        document.title = x.site.seoTitle;
-      }
-
-      if (x.site.seoDescription) {
-        let m = document.querySelector(
-          "meta[name=description]",
-        ) as HTMLMetaElement | null;
-
-        if (!m) {
-          m = document.createElement("meta");
-          m.name = "description";
-          document.head.appendChild(m);
+        if (x.site.seoTitle) {
+          document.title = x.site.seoTitle;
         }
 
-        m.content = x.site.seoDescription;
-      }
-    })
-    .catch((error) => {
-      console.error("PUBLIC WEBSITE LOAD FAILED:", error);
-      setQuestion(error?.message || "Unable to load this website.");
-      setGate(false);
-    });
-}, [slug]);
+        if (x.site.seoDescription) {
+          let m = document.querySelector(
+            "meta[name=description]",
+          ) as HTMLMetaElement | null;
+
+          if (!m) {
+            m = document.createElement("meta");
+            m.name = "description";
+            document.head.appendChild(m);
+          }
+
+          m.content = x.site.seoDescription;
+        }
+      })
+      .catch((error) => {
+        console.error("PUBLIC WEBSITE LOAD FAILED:", error);
+        setQuestion(error?.message || "Unable to load this website.");
+        setGate(false);
+      });
+  }, [slug]);
   if (!payload) {
-  return (
-    <div className="reveal">
-      <div className="reveal-box">
-        <h2>Loading your surprise…</h2>
-        {question && <p>{question}</p>}
+    return (
+      <div className="reveal">
+        <div className="reveal-box">
+          <h2>Loading your surprise…</h2>
+          {question && <p>{question}</p>}
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
   async function submit() {
     try {
       if (
@@ -2155,10 +2152,10 @@ function RoutePublished() {
     const heart = scannerStyle === "HEART";
 
     const frameColor = heart ? "#8f3044" : "#2b211e";
-
     const title = heart ? "♥ Scan My Surprise ♥" : "Scan My Surprise";
 
-    return `
+    if (!heart) {
+      return `
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="1200"
@@ -2171,38 +2168,6 @@ function RoutePublished() {
           rx="70"
           fill="#fffaf7"
         />
-
-        ${
-          heart
-            ? `
-              <path
-                d="
-                  M600 1210
-                  C545 1165 180 900 180 535
-                  C180 350 315 230 485 230
-                  C555 230 600 265 600 320
-                  C600 265 645 230 715 230
-                  C885 230 1020 350 1020 535
-                  C1020 900 655 1165 600 1210Z
-                "
-                fill="none"
-                stroke="${frameColor}"
-                stroke-width="22"
-              />
-            `
-            : `
-              <rect
-                x="170"
-                y="180"
-                width="860"
-                height="860"
-                rx="42"
-                fill="none"
-                stroke="${frameColor}"
-                stroke-width="22"
-              />
-            `
-        }
 
         <text
           x="600"
@@ -2219,7 +2184,7 @@ function RoutePublished() {
         <image
           href="${qrDataUrl}"
           x="250"
-          y="310"
+          y="220"
           width="700"
           height="700"
           preserveAspectRatio="xMidYMid meet"
@@ -2227,7 +2192,7 @@ function RoutePublished() {
 
         <text
           x="600"
-          y="1280"
+          y="1010"
           text-anchor="middle"
           font-family="Arial, sans-serif"
           font-size="34"
@@ -2238,7 +2203,7 @@ function RoutePublished() {
 
         <text
           x="600"
-          y="1335"
+          y="1065"
           text-anchor="middle"
           font-family="Arial, sans-serif"
           font-size="24"
@@ -2248,6 +2213,107 @@ function RoutePublished() {
         </text>
       </svg>
     `;
+    }
+
+    return `
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="1200"
+      height="1400"
+      viewBox="0 0 1200 1400"
+    >
+      <defs>
+        <!-- Heart silhouette -->
+        <clipPath id="heartClip">
+          <path
+            d="
+              M600 1135
+              C545 1090 135 800 135 465
+              C135 275 275 150 445 150
+              C520 150 575 180 600 245
+              C625 180 680 150 755 150
+              C925 150 1065 275 1065 465
+              C1065 800 655 1090 600 1135
+              Z
+            "
+          />
+        </clipPath>
+      </defs>
+
+      <!-- Background -->
+      <rect
+        width="1200"
+        height="1400"
+        rx="70"
+        fill="#fffaf7"
+      />
+
+      <!-- Heading -->
+      <text
+        x="600"
+        y="95"
+        text-anchor="middle"
+        font-family="Georgia, serif"
+        font-size="52"
+        fill="${frameColor}"
+        font-weight="700"
+      >
+        ${title}
+      </text>
+
+      <!-- HEART-SHAPED QR -->
+      <g clip-path="url(#heartClip)">
+        <image
+          href="${qrDataUrl}"
+          x="115"
+          y="150"
+          width="970"
+          height="970"
+          preserveAspectRatio="none"
+        />
+      </g>
+
+      <!-- Heart border -->
+      <path
+        d="
+          M600 1135
+          C545 1090 135 800 135 465
+          C135 275 275 150 445 150
+          C520 150 575 180 600 245
+          C625 180 680 150 755 150
+          C925 150 1065 275 1065 465
+          C1065 800 655 1090 600 1135
+          Z
+        "
+        fill="none"
+        stroke="${frameColor}"
+        stroke-width="14"
+      />
+
+      <!-- Small heart decoration -->
+      <text
+        x="600"
+        y="1210"
+        text-anchor="middle"
+        font-family="Georgia, serif"
+        font-size="34"
+        fill="${frameColor}"
+      >
+        Scan to open the surprise ❤️
+      </text>
+
+      <text
+        x="600"
+        y="1270"
+        text-anchor="middle"
+        font-family="Arial, sans-serif"
+        font-size="23"
+        fill="#8a7168"
+      >
+        Made with Devsphere
+      </text>
+    </svg>
+  `;
   }
 
   function downloadBlob(blob: Blob, filename: string) {
@@ -2288,23 +2354,25 @@ function RoutePublished() {
   }
 
   async function saveReveal() {
-    try {
-      await api(`/projects/${id}/reveal`, {
-        method: "PATCH",
+  try {
+    await api(`/projects/${id}/reveal`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        method,
+        pin,
+        puzzleQuestion,
+        puzzleAnswer,
+        scannerStyle: method === "QR" ? scannerStyle : null,
+      }),
+    });
 
-        body: JSON.stringify({
-          method,
-          pin,
-          puzzleQuestion,
-          puzzleAnswer,
-        }),
-      });
-
-      setStatus("Reveal settings saved ✓");
-    } catch (error: any) {
-      setStatus(error?.message || "Unable to save reveal settings.");
-    }
+    setStatus("Reveal settings saved ✓");
+  } catch (error: any) {
+    setStatus(
+      error?.message || "Unable to save reveal settings.",
+    );
   }
+}
 
   return (
     <>
@@ -2425,7 +2493,22 @@ function RoutePublished() {
                 background: scannerStyle === "HEART" ? "#fff0f3" : "#f5eee9",
               }}
             >
-              <QRCodeSVG value={publicUrl} size={250} level="H" includeMargin />
+              <div
+                className={
+                  scannerStyle === "HEART"
+                    ? "heart-qr-wrapper is-heart"
+                    : "heart-qr-wrapper is-square"
+                }
+              >
+                <QRCodeSVG
+                  value={publicUrl}
+                  size={250}
+                  level="H"
+                  includeMargin
+                  fgColor={scannerStyle === "HEART" ? "#cf2638" : "#151515"}
+                  bgColor="transparent"
+                />
+              </div>
 
               <strong
                 style={{
