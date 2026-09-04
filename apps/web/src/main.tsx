@@ -71,24 +71,22 @@ function Nav() {
       </div>
 
       <div className="nav-links">
-        <a href="/templates">Templates</a>
-        <a href="/dashboard">My Websites</a>
+        <Link to="/templates">Templates</Link>
+        <Link to="/dashboard">My Websites</Link>
 
         {user ? (
-          <button
-            type="button"
+          <Link
+            to="/dashboard"
             className="nav-user"
             title={user.name || user.email}
-            onClick={() => {
-              window.location.href = "/dashboard";
-            }}
+            aria-label="Open My Websites"
           >
             {userInitial}
-          </button>
+          </Link>
         ) : (
-          <a href="/login" className="nav-login">
+          <Link to="/login" className="nav-login">
             Login
-          </a>
+          </Link>
         )}
       </div>
     </nav>
@@ -1203,18 +1201,18 @@ function Create() {
   const [name, setName] = useState("");
   const nav = useNavigate();
   useEffect(() => {
-  if (!id) return;
+    if (!id) return;
 
-  api(`/templates/${id}`)
-    .then((x) => {
-      console.log("Template loaded:", x.template);
-      setTemplate(x.template);
-    })
-    .catch((error) => {
-      console.error("Template loading failed:", error);
-      alert(error.message || "Unable to load template.");
-    });
-}, [id]);
+    api(`/templates/${id}`)
+      .then((x) => {
+        console.log("Template loaded:", x.template);
+        setTemplate(x.template);
+      })
+      .catch((error) => {
+        console.error("Template loading failed:", error);
+        alert(error.message || "Unable to load template.");
+      });
+  }, [id]);
   async function create() {
     try {
       const p = await api("/projects", {
