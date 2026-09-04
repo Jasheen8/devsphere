@@ -27,7 +27,7 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import { TemplateRenderer } from "@memora/template-engine";
 import type { TemplateDefinition } from "@memora/shared";
-import { api, apiBase } from "./lib/api";
+import { api, apiBase, getTemplates, preloadTemplates } from "./lib/api";
 import "./styles.css";
 
 type Template = {
@@ -71,7 +71,9 @@ function Nav() {
       </div>
 
       <div className="nav-links">
-        <Link to="/templates">Templates</Link>
+        <Link to="/templates" onMouseEnter={preloadTemplates}>
+          Templates
+        </Link>
         <Link to="/dashboard">My Websites</Link>
 
         {user ? (
@@ -95,9 +97,13 @@ function Nav() {
 function Home() {
   const [templates, setTemplates] = useState<Template[]>([]);
   useEffect(() => {
-    api<{ items: Template[] }>("/templates?featured=true")
-      .then((x) => setTemplates(x.items))
-      .catch(() => {});
+    getTemplates()
+      .then((items) => {
+        setItems(items);
+      })
+      .catch((error) => {
+        console.error("Failed to load templates:", error);
+      });
   }, []);
   return (
     <>
@@ -113,7 +119,11 @@ function Home() {
             celebration websites in minutes — without coding.
           </p>
           <div className="actions" style={{ justifyContent: "center" }}>
-            <Link className="btn btn-primary" to="/templates">
+            <Link
+              className="btn btn-primary"
+              to="/templates"
+              onMouseEnter={preloadTemplates}
+            >
               Create Your Surprise <ArrowRight size={17} />
             </Link>
             <Link className="btn btn-soft" to="/templates">
@@ -2354,25 +2364,23 @@ function RoutePublished() {
   }
 
   async function saveReveal() {
-  try {
-    await api(`/projects/${id}/reveal`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        method,
-        pin,
-        puzzleQuestion,
-        puzzleAnswer,
-        scannerStyle: method === "QR" ? scannerStyle : null,
-      }),
-    });
+    try {
+      await api(`/projects/${id}/reveal`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          method,
+          pin,
+          puzzleQuestion,
+          puzzleAnswer,
+          scannerStyle: method === "QR" ? scannerStyle : null,
+        }),
+      });
 
-    setStatus("Reveal settings saved ✓");
-  } catch (error: any) {
-    setStatus(
-      error?.message || "Unable to save reveal settings.",
-    );
+      setStatus("Reveal settings saved ✓");
+    } catch (error: any) {
+      setStatus(error?.message || "Unable to save reveal settings.");
+    }
   }
-}
 
   return (
     <>
