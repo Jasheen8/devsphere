@@ -1863,57 +1863,168 @@ body {
 
 
 .heart-qr-wrapper {
-  width: 270px;
-  height: 270px;
-  display: grid;
-  place-items: center;
-}
-
-.heart-qr-wrapper svg {
-  display: block;
-}
-
-.heart-qr-wrapper.is-square svg {
-  clip-path: none;
-}
-
-.heart-qr-wrapper {
-  width: 270px;
-  height: 270px;
-  display: grid;
-  place-items: center;
   position: relative;
+  width: 300px;
+  height: 300px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.heart-qr-wrapper svg {
+.heart-qr-real-code {
+  position: relative;
+  z-index: 5;
+
+  width: 230px;
+  height: 230px;
+
+  display: grid;
+  place-items: center;
+}
+
+.heart-qr-real-code svg {
   display: block;
+  width: 230px;
+  height: 230px;
+}
+
+/* ================================
+   HEART DECORATIVE LOBES
+   These NEVER cover the QR itself.
+   ================================ */
+
+.heart-qr-lobe {
+  position: absolute;
+  z-index: 1;
+
+  width: 125px;
+  height: 105px;
+
+  background:
+    repeating-linear-gradient(
+      45deg,
+      #cf2638 0 6px,
+      transparent 6px 11px
+    );
+
+  pointer-events: none;
+}
+
+/* LEFT HALF-CIRCLE */
+
+.heart-qr-lobe-left {
+  left: 18px;
+  top: 20px;
+
+  border-radius: 75px 75px 20px 20px;
+
+  clip-path: polygon(
+    4% 72%,
+    6% 53%,
+    12% 36%,
+    22% 21%,
+    37% 10%,
+    53% 6%,
+    69% 10%,
+    82% 21%,
+    92% 36%,
+    97% 52%,
+    98% 68%,
+    94% 82%,
+    85% 92%,
+    72% 98%,
+    56% 100%,
+    40% 98%,
+    25% 91%,
+    14% 82%
+  );
+}
+
+/* RIGHT HALF-CIRCLE */
+
+.heart-qr-lobe-right {
+  right: 18px;
+  top: 20px;
+
+  border-radius: 75px 75px 20px 20px;
+
+  clip-path: polygon(
+    2% 68%,
+    3% 52%,
+    8% 36%,
+    18% 21%,
+    31% 10%,
+    47% 6%,
+    63% 10%,
+    78% 21%,
+    88% 36%,
+    94% 53%,
+    96% 72%,
+    86% 82%,
+    75% 91%,
+    60% 98%,
+    44% 100%,
+    28% 98%,
+    15% 92%,
+    6% 82%
+  );
+}
+
+/* ================================
+   HEART LOWER DECORATION
+   ================================ */
+
+.heart-qr-wrapper.is-heart::after {
+  content: "";
+
+  position: absolute;
+  z-index: 0;
+
+  width: 155px;
+  height: 95px;
+
+  left: 50%;
+  top: 185px;
+
+  transform: translateX(-50%);
+
+  background:
+    repeating-linear-gradient(
+      45deg,
+      #cf2638 0 6px,
+      transparent 6px 11px
+    );
+
+  clip-path: polygon(
+    50% 100%,
+    7% 25%,
+    17% 12%,
+    31% 7%,
+    43% 13%,
+    50% 25%,
+    57% 13%,
+    69% 7%,
+    83% 12%,
+    93% 25%
+  );
+
+  pointer-events: none;
+}
+
+/* SQUARE MODE */
+
+.heart-qr-wrapper.is-square {
+  width: 270px;
+  height: 270px;
+}
+
+.heart-qr-wrapper.is-square .heart-qr-real-code {
   width: 250px;
   height: 250px;
 }
 
-.heart-qr-wrapper.is-square svg {
-  clip-path: none;
+.heart-qr-wrapper.is-square .heart-qr-real-code svg {
+  width: 250px;
+  height: 250px;
 }
-
-.heart-qr-wrapper.is-heart {
-  width: 290px;
-  height: 290px;
-  display: grid;
-  place-items: center;
-  overflow: visible;
-}
-
-.heart-qr-wrapper.is-heart svg {
-  width: 270px;
-  height: 270px;
-  display: block;
-
-  /*
-   * The QR itself is clipped into a heart silhouette.
-   * No solid heart is placed over the QR.
-   */
-  clip-path: path(
-    "M135 263 C125 255 28 188 28 102 C28 57 60 28 98 28 C117 28 130 36 135 52 C140 36 153 28 172 28 C210 28 242 57 242 102 C242 188 145 255 135 263 Z"
-  );
-}
-

@@ -2508,14 +2508,23 @@ function RoutePublished() {
                     : "heart-qr-wrapper is-square"
                 }
               >
-                <QRCodeSVG
-                  value={publicUrl}
-                  size={270}
-                  level="H"
-                  includeMargin
-                  fgColor={scannerStyle === "HEART" ? "#cf2638" : "#151515"}
-                  bgColor="transparent"
-                />
+                {scannerStyle === "HEART" && (
+                  <>
+                    <span className="heart-qr-lobe heart-qr-lobe-left" />
+                    <span className="heart-qr-lobe heart-qr-lobe-right" />
+                  </>
+                )}
+
+                <div className="heart-qr-real-code">
+                  <QRCodeSVG
+                    value={publicUrl}
+                    size={230}
+                    level="H"
+                    includeMargin
+                    fgColor="#cf2638"
+                    bgColor="#fff0f3"
+                  />
+                </div>
               </div>
 
               <strong
