@@ -99,7 +99,7 @@ function Home() {
   useEffect(() => {
     getTemplates()
       .then((items) => {
-        setItems(items);
+        setTemplates(items);
       })
       .catch((error) => {
         console.error("Failed to load templates:", error);
@@ -1284,7 +1284,7 @@ function Checkout() {
   const [project, setProject] = useState<any>();
   const [loading, setLoading] = useState("");
   const [checkoutError, setCheckoutError] = useState("");
-
+  const [currency, setCurrency] = useState<"INR" | "USD">("INR");
   const [revealMethod, setRevealMethod] = useState<
     "NORMAL" | "QR" | "PIN" | "LETTER" | "GIFT" | "PUZZLE"
   >("NORMAL");
@@ -1377,7 +1377,14 @@ function Checkout() {
    */
 
   const birthdayPrice = specialRevealSelected ? 119 : movieEnabled ? 109 : 99;
-
+  const displayPrice =
+  currency === "USD"
+    ? specialRevealSelected
+      ? 2.99
+      : movieEnabled
+        ? 2.49
+        : 1.99
+    : birthdayPrice;
   const priceLabel = specialRevealSelected
     ? "SPECIAL REVEAL"
     : movieEnabled
@@ -1424,11 +1431,12 @@ function Checkout() {
       const order = await api("/payments/create-order", {
         method: "POST",
         body: JSON.stringify({
-          projectId: id,
-          planId: birthdayPlan.id,
-          revealMethod,
-          scannerStyle: revealMethod === "QR" ? scannerStyle : null,
-        }),
+  projectId: id,
+  planId: birthdayPlan.id,
+  revealMethod,
+  scannerStyle: revealMethod === "QR" ? scannerStyle : null,
+  currency,
+}),
       });
 
       /*
@@ -1514,7 +1522,9 @@ function Checkout() {
         // DEVSPHERE branding
         name: "Devsphere",
 
-        description: `Birthday Website — ₹${birthdayPrice}`,
+        description: `Birthday Website — ${
+  currency === "USD" ? "$" : "₹"
+}${displayPrice}`,
 
         order_id: order.providerOrderId,
 
@@ -1587,6 +1597,36 @@ function Checkout() {
             </p>
           </div>
         </div>
+
+        <div className="checkout-currency-section">
+  <h3>Choose Currency</h3>
+
+  <p className="muted">
+    Select how you want to pay.
+  </p>
+
+  <div className="actions">
+    <button
+      type="button"
+      className={`btn ${
+        currency === "INR" ? "btn-primary" : "btn-soft"
+      }`}
+      onClick={() => setCurrency("INR")}
+    >
+      🇮🇳 INR ₹
+    </button>
+
+    <button
+      type="button"
+      className={`btn ${
+        currency === "USD" ? "btn-primary" : "btn-soft"
+      }`}
+      onClick={() => setCurrency("USD")}
+    >
+      🌎 USD $
+    </button>
+  </div>
+</div>
 
         {/* ===================================================
             REVEAL STYLE
@@ -1709,7 +1749,7 @@ function Checkout() {
             <div className="scanner-style-price">
               <span>Magical Scanner</span>
 
-              <strong>₹119</strong>
+              <strong>{currency === "USD" ? "$2.99" : "₹119"}</strong>
             </div>
           </div>
         )}
@@ -1812,11 +1852,11 @@ function Checkout() {
         >
           <span className="pill">{priceLabel}</span>
 
-          <h3>Your package: ₹{birthdayPrice}</h3>
+          <h3>Your package: {currency === "USD" ? "$" : "₹"}{displayPrice}</h3>
 
           <p className="muted">{priceDescription}</p>
 
-          <div className="birthday-current-price">₹{birthdayPrice}</div>
+          <div className="birthday-current-price">{currency === "USD" ? "$" : "₹"}{displayPrice}</div>
 
           {/* MOVIE NOTE */}
 
@@ -1839,7 +1879,8 @@ function Checkout() {
                     : revealMethod === "GIFT"
                       ? "Gift Box selected."
                       : "Puzzle selected."}{" "}
-              Your package price is ₹119.
+              Your package price is{" "}
+{currency === "USD" ? "$2.99" : "₹119"}.
             </p>
           )}
 
@@ -1855,10 +1896,10 @@ function Checkout() {
             disabled={!birthdayPlan?.id || loading === "birthday"}
           >
             {loading === "birthday"
-              ? "Opening payment…"
-              : birthdayPlan?.id
-                ? `Pay ₹${birthdayPrice}`
-                : "Run db seed to load plan"}
+  ? "Opening payment…"
+  : birthdayPlan?.id
+    ? `Pay ${currency === "USD" ? "$" : "₹"}${displayPrice}`
+    : "Run db seed to load plan"}
           </button>
         </div>
       </div>

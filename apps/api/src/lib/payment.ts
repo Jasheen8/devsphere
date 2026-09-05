@@ -1,6 +1,8 @@
 import Razorpay from "razorpay";
 import crypto from "node:crypto";
 
+type RazorpayCurrency = "INR" | "USD";
+
 function getRazorpayClient() {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -20,16 +22,24 @@ function getRazorpayClient() {
 export async function createRazorpayOrder(
   amount: number,
   receipt: string,
+  currency: RazorpayCurrency = "INR",
 ) {
+  // Razorpay expects the smallest currency unit:
+  // INR 99  -> 9900 paise
+  // USD $1.99 -> 199 cents
   if (!Number.isInteger(amount) || amount < 100) {
     throw new Error("Invalid Razorpay amount");
+  }
+
+  if (currency !== "INR" && currency !== "USD") {
+    throw new Error("Unsupported Razorpay currency");
   }
 
   const client = getRazorpayClient();
 
   return client.orders.create({
     amount,
-    currency: "INR",
+    currency,
     receipt,
     payment_capture: true,
   });
@@ -42,7 +52,7 @@ export function verifyPaymentSignature(
 ) {
   const secret = process.env.RAZORPAY_KEY_SECRET;
 
-  if (!secret) {
+  if (!secret || !signature) {
     return false;
   }
 

@@ -22,22 +22,24 @@ const revealMethodSchema = z.enum([
 ]);
 
 const scannerStyleSchema = z.enum(["HEART", "SQUARE"]);
-
+const currencySchema = z.enum(["INR", "USD"]);
 /* =========================================================
    CREATE RAZORPAY ORDER
    ========================================================= */
 
 r.post("/create-order", auth, async (req, res) => {
   const parsed = z
-    .object({
-      projectId: z.string(),
-      planId: z.string(),
+  .object({
+    projectId: z.string(),
+    planId: z.string(),
 
-      revealMethod: revealMethodSchema.default("NORMAL"),
+    revealMethod: revealMethodSchema.default("NORMAL"),
 
-      scannerStyle: scannerStyleSchema.nullable().optional(),
-    })
-    .safeParse(req.body);
+    scannerStyle: scannerStyleSchema.nullable().optional(),
+
+    currency: currencySchema.default("INR"),
+  })
+  .safeParse(req.body);
 
   if (!parsed.success) {
     return res.status(400).json({
@@ -90,11 +92,35 @@ r.post("/create-order", auth, async (req, res) => {
 
   let finalPrice = 99;
 
-  if (specialRevealMethods.includes(revealMethod)) {
-    finalPrice = 119;
-  } else if (movieEnabled) {
-    finalPrice = 109;
-  }
+if (specialRevealMethods.includes(revealMethod)) {
+  finalPrice = 119;
+} else if (movieEnabled) {
+  finalPrice = 109;
+}
+
+const currency = parsed.data.currency;
+
+/*
+ * Devsphere fixed pricing.
+ *
+ * INR:
+ * ₹99  Basic
+ * ₹109 Movie
+ * ₹119 Special Reveal
+ *
+ * USD:
+ * $1.99 Basic
+ * $2.49 Movie
+ * $2.99 Special Reveal
+ */
+const payableAmount =
+  currency === "USD"
+    ? specialRevealMethods.includes(revealMethod)
+      ? 2.99
+      : movieEnabled
+        ? 2.49
+        : 1.99
+    : finalPrice;
 
   /* =======================================================
      SAVE SELECTED REVEAL / SCANNER STYLE
@@ -129,20 +155,24 @@ r.post("/create-order", auth, async (req, res) => {
      ======================================================= */
 
   const order = await db.order.create({
-    data: {
-      userId: u.id,
-      projectId: project.id,
-      planId: plan.id,
-      amount: finalPrice,
-      currency: plan.currency,
-    },
-  });
+  data: {
+    userId: u.id,
+    projectId: project.id,
+    planId: plan.id,
+    amount: payableAmount,
+    currency,
+  },
+});
 
   /* =======================================================
      CREATE RAZORPAY ORDER
      ======================================================= */
 
-  const rp = await createRazorpayOrder(finalPrice * 100, order.id);
+  const rp = await createRazorpayOrder(
+  Math.round(payableAmount * 100),
+  order.id,
+  currency,
+);
 
   await db.order.update({
     where: {
@@ -155,12 +185,12 @@ r.post("/create-order", auth, async (req, res) => {
   });
 
   return res.status(201).json({
-    orderId: order.id,
-    providerOrderId: rp.id,
-    amount: finalPrice * 100,
-    currency: plan.currency,
-    keyId: process.env.RAZORPAY_KEY_ID || "",
-  });
+  orderId: order.id,
+  providerOrderId: rp.id,
+  amount: Math.round(payableAmount * 100),
+  currency,
+  keyId: process.env.RAZORPAY_KEY_ID || "",
+});
 });
 
 /* =========================================================
