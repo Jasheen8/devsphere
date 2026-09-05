@@ -22,24 +22,23 @@ const revealMethodSchema = z.enum([
 ]);
 
 const scannerStyleSchema = z.enum(["HEART", "SQUARE"]);
+
 const currencySchema = z.enum(["INR", "USD"]);
+
 /* =========================================================
    CREATE RAZORPAY ORDER
    ========================================================= */
 
 r.post("/create-order", auth, async (req, res) => {
   const parsed = z
-  .object({
-    projectId: z.string(),
-    planId: z.string(),
-
-    revealMethod: revealMethodSchema.default("NORMAL"),
-
-    scannerStyle: scannerStyleSchema.nullable().optional(),
-
-    currency: currencySchema.default("INR"),
-  })
-  .safeParse(req.body);
+    .object({
+      projectId: z.string(),
+      planId: z.string(),
+      revealMethod: revealMethodSchema.default("NORMAL"),
+      scannerStyle: scannerStyleSchema.nullable().optional(),
+      currency: currencySchema.default("INR"),
+    })
+    .safeParse(req.body);
 
   if (!parsed.success) {
     return res.status(400).json({
@@ -80,62 +79,78 @@ r.post("/create-order", auth, async (req, res) => {
      BIRTHDAY PRICING
      ======================================================= */
 
-  const projectData = (project as any).data || {};
+  const projectData =
+    project.data && typeof project.data === "object"
+      ? (project.data as Record<string, unknown>)
+      : {};
 
   const movieEnabled = projectData.movieEnabled === true;
 
-  const revealMethod = String(parsed.data.revealMethod || "NORMAL")
+  const revealMethod = String(
+    parsed.data.revealMethod || "NORMAL",
+  )
     .trim()
     .toUpperCase();
 
-  const specialRevealMethods = ["QR", "PIN", "LETTER", "GIFT", "PUZZLE"];
+  const specialRevealMethods = [
+    "QR",
+    "PIN",
+    "LETTER",
+    "GIFT",
+    "PUZZLE",
+  ];
 
-  let finalPrice = 99;
+  const isSpecialReveal =
+    specialRevealMethods.includes(revealMethod);
 
-if (specialRevealMethods.includes(revealMethod)) {
-  finalPrice = 119;
-} else if (movieEnabled) {
-  finalPrice = 109;
-}
+  const currency = parsed.data.currency;
 
-const currency = parsed.data.currency;
+  /*
+   * Devsphere fixed pricing
+   *
+   * INR:
+   * ₹99  Basic
+   * ₹109 Movie
+   * ₹119 Special Reveal
+   *
+   * USD:
+   * $1.99 Basic
+   * $2.49 Movie
+   * $2.99 Special Reveal
+   */
 
-/*
- * Devsphere fixed pricing.
- *
- * INR:
- * ₹99  Basic
- * ₹109 Movie
- * ₹119 Special Reveal
- *
- * USD:
- * $1.99 Basic
- * $2.49 Movie
- * $2.99 Special Reveal
- */
-const payableAmount =
-  currency === "USD"
-    ? specialRevealMethods.includes(revealMethod)
-      ? 2.99
-      : movieEnabled
-        ? 2.49
-        : 1.99
-    : finalPrice;
+  const majorPrice =
+    currency === "USD"
+      ? isSpecialReveal
+        ? 2.99
+        : movieEnabled
+          ? 2.49
+          : 1.99
+      : isSpecialReveal
+        ? 119
+        : movieEnabled
+          ? 109
+          : 99;
+
+  /*
+   * Razorpay + database amount
+   *
+   * INR ₹99  -> 9900 paise
+   * USD $1.99 -> 199 cents
+   */
+  const amountMinor = Math.round(majorPrice * 100);
 
   /* =======================================================
-     SAVE SELECTED REVEAL / SCANNER STYLE
+     SAVE REVEAL / SCANNER STYLE
      ======================================================= */
 
-  const existingData =
-    projectData && typeof projectData === "object" ? projectData : {};
-
   const updatedProjectData = {
-    ...existingData,
-
+    ...projectData,
     method: revealMethod,
-
     scannerStyle:
-      revealMethod === "QR" ? parsed.data.scannerStyle || "HEART" : null,
+      revealMethod === "QR"
+        ? parsed.data.scannerStyle || "HEART"
+        : null,
   };
 
   await db.project.update({
@@ -145,7 +160,6 @@ const payableAmount =
 
     data: {
       revealMethod: revealMethod as any,
-
       data: updatedProjectData as any,
     },
   });
@@ -155,42 +169,67 @@ const payableAmount =
      ======================================================= */
 
   const order = await db.order.create({
-  data: {
-    userId: u.id,
-    projectId: project.id,
-    planId: plan.id,
-    amount: payableAmount,
-    currency,
-  },
-});
+    data: {
+      userId: u.id,
+      projectId: project.id,
+      planId: plan.id,
+
+      // IMPORTANT:
+      // Store amount in minor currency units.
+      // INR 99 = 9900
+      // USD 1.99 = 199
+      amount: amountMinor,
+
+      currency,
+    },
+  });
 
   /* =======================================================
      CREATE RAZORPAY ORDER
      ======================================================= */
 
-  const rp = await createRazorpayOrder(
-  Math.round(payableAmount * 100),
-  order.id,
-  currency,
-);
+  try {
+    const rp = await createRazorpayOrder(
+      amountMinor,
+      order.id,
+      currency,
+    );
 
-  await db.order.update({
-    where: {
-      id: order.id,
-    },
+    await db.order.update({
+      where: {
+        id: order.id,
+      },
 
-    data: {
+      data: {
+        providerOrderId: rp.id,
+      },
+    });
+
+    return res.status(201).json({
+      orderId: order.id,
       providerOrderId: rp.id,
-    },
-  });
 
-  return res.status(201).json({
-  orderId: order.id,
-  providerOrderId: rp.id,
-  amount: Math.round(payableAmount * 100),
-  currency,
-  keyId: process.env.RAZORPAY_KEY_ID || "",
-});
+      // Razorpay amount is already minor units.
+      amount: amountMinor,
+
+      currency,
+
+      keyId: process.env.RAZORPAY_KEY_ID || "",
+    });
+  } catch (error) {
+    // Prevent orphan database orders if Razorpay rejects creation.
+    await db.order.delete({
+      where: {
+        id: order.id,
+      },
+    }).catch(() => {});
+
+    console.error("Razorpay order creation failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to create payment order",
+    });
+  }
 });
 
 /* =========================================================
@@ -240,6 +279,10 @@ r.post("/verify", auth, async (req, res) => {
     });
   }
 
+  /* =======================================================
+     IDEMPOTENCY
+     ======================================================= */
+
   const already = await db.payment.findFirst({
     where: {
       providerPaymentId: parsed.data.razorpayPaymentId,
@@ -252,14 +295,22 @@ r.post("/verify", auth, async (req, res) => {
     });
   }
 
+  /* =======================================================
+     SAVE PAYMENT + MARK ORDER PAID
+     ======================================================= */
+
   await db.$transaction([
     db.payment.create({
       data: {
         orderId: order.id,
         provider: "razorpay",
         status: "CAPTURED",
+
+        // Same minor-unit amount stored on order.
         amount: order.amount,
+
         currency: order.currency,
+
         providerPaymentId: parsed.data.razorpayPaymentId,
         signature: parsed.data.razorpaySignature,
       },
@@ -287,7 +338,9 @@ r.post("/verify", auth, async (req, res) => {
    ========================================================= */
 
 r.post("/webhook", async (req, res) => {
-  const sig = String(req.headers["x-razorpay-signature"] || "");
+  const sig = String(
+    req.headers["x-razorpay-signature"] || "",
+  );
 
   const raw = Buffer.isBuffer(req.body)
     ? req.body.toString("utf8")
@@ -299,7 +352,17 @@ r.post("/webhook", async (req, res) => {
     });
   }
 
-  const parsed = Buffer.isBuffer(req.body) ? JSON.parse(raw) : req.body;
+  let parsed: any;
+
+  try {
+    parsed = Buffer.isBuffer(req.body)
+      ? JSON.parse(raw)
+      : req.body;
+  } catch {
+    return res.status(400).json({
+      error: "Invalid webhook payload",
+    });
+  }
 
   const event = parsed?.event;
   const payment = parsed?.payload?.payment?.entity;
@@ -312,47 +375,88 @@ r.post("/webhook", async (req, res) => {
     });
 
     if (order) {
-      const isCaptured = event === "payment.captured" || event === "order.paid";
+      const isCaptured =
+        event === "payment.captured" ||
+        event === "order.paid";
 
-      const isFailed = event === "payment.failed";
-      await db.order.update({
-        where: {
-          id: order.id,
-        },
+      const isFailed =
+        event === "payment.failed";
 
-        data: {
-          status: isCaptured ? "PAID" : isFailed ? "FAILED" : order.status,
-          providerPaymentId: payment.id,
-        },
-      });
+      /* ===================================================
+         ONLY CHANGE STATUS FOR KNOWN FINAL EVENTS
+         =================================================== */
 
-      await db.payment.upsert({
-        where: {
-          id: `webhook-${payment.id}`,
-        },
+      if (isCaptured) {
+        await db.order.update({
+          where: {
+            id: order.id,
+          },
 
-        update: {
-          status: isCaptured ? "CAPTURED" : isFailed ? "FAILED" : "CREATED",
-        },
+          data: {
+            status: "PAID",
+            providerPaymentId: payment.id,
+          },
+        });
 
-        create: {
-          id: `webhook-${payment.id}`,
+        await db.payment.upsert({
+          where: {
+            id: `webhook-${payment.id}`,
+          },
 
-          orderId: order.id,
+          update: {
+            status: "CAPTURED",
+            amount: order.amount,
+            currency: order.currency,
+            raw: parsed,
+          },
 
-          provider: "razorpay",
+          create: {
+            id: `webhook-${payment.id}`,
+            orderId: order.id,
+            provider: "razorpay",
+            status: "CAPTURED",
+            amount: order.amount,
+            currency: order.currency,
+            providerPaymentId: payment.id,
+            raw: parsed,
+          },
+        });
+      } else if (isFailed) {
+        await db.order.update({
+          where: {
+            id: order.id,
+          },
 
-          status: isCaptured ? "CAPTURED" : "FAILED",
+          data: {
+            status: "FAILED",
+            providerPaymentId: payment.id,
+          },
+        });
 
-          amount: order.amount,
+        await db.payment.upsert({
+          where: {
+            id: `webhook-${payment.id}`,
+          },
 
-          currency: order.currency,
+          update: {
+            status: "FAILED",
+            amount: order.amount,
+            currency: order.currency,
+            raw: parsed,
+          },
 
-          providerPaymentId: payment.id,
-
-          raw: parsed,
-        },
-      });
+          create: {
+            id: `webhook-${payment.id}`,
+            orderId: order.id,
+            provider: "razorpay",
+            status: "FAILED",
+            amount: order.amount,
+            currency: order.currency,
+            providerPaymentId: payment.id,
+            raw: parsed,
+          },
+        });
+      }
     }
   }
 
