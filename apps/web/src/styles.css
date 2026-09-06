@@ -765,21 +765,29 @@ body {
   }
 
   .site-nav {
-    padding: 12px 16px;
-  }
+  padding: 12px 16px;
+}
 
-  .nav-links {
-    gap: 4px;
-  }
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
 
-  .nav-links a {
-    display: none;
-  }
+.nav-links a {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
 
-  .nav-user,
-  .nav-login {
-    display: inline-flex;
-  }
+.nav-user {
+  display: inline-flex;
+}
+
+.nav-login {
+  display: inline-flex;
+}
 
   .hero-home {
     padding: 65px 0 40px;

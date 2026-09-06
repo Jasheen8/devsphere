@@ -1,4 +1,93 @@
-import {Router} from 'express'; import bcrypt from 'bcryptjs'; import {db} from '../lib/db.js'; import {TemplateSchema} from '@memora/shared';
-const r=Router();
-r.get('/:slug',async(req,res)=>{const site=await db.publishedSite.findUnique({where:{slug:req.params.slug},include:{project:{include:{template:true,media:{orderBy:{sortOrder:'asc'}}}},accessRule:true}});if(!site||site.status!=='ACTIVE'||(site.expiresAt&&site.expiresAt<new Date()))return res.status(404).json({error:'Website not found'});const template=TemplateSchema.parse(site.project.template.schema);res.json({site:{slug:site.slug,revealMethod:site.revealMethod,status:site.status,expiresAt:site.expiresAt,seoTitle:site.seoTitle,seoDescription:site.seoDescription,ogImageUrl:site.ogImageUrl},template,data:site.project.data,customization:site.project.customization,media:site.project.media,accessRequired:site.revealMethod==='PIN'||site.revealMethod==='PUZZLE'||site.revealMethod==='LETTER'||site.revealMethod==='GIFT', accessRule: site.accessRule ? {puzzleQuestion:site.accessRule.puzzleQuestion,letterTitle:site.accessRule.letterTitle,letterIntro:site.accessRule.letterIntro} : null});});
-r.post('/:slug/unlock',async(req,res)=>{const site=await db.publishedSite.findUnique({where:{slug:req.params.slug},include:{accessRule:true}});if(!site||site.status!=='ACTIVE'||!site.accessRule)return res.status(404).json({error:'Website not found'});const rule=site.accessRule; if(rule.attempts>=10) return res.status(429).json({error:'Too many attempts. Try again later.'}); const {pin,answer}=req.body||{}; let ok=false;if(site.revealMethod==='PIN'&&site.accessRule.pinHash&&typeof pin==='string')ok=await bcrypt.compare(pin,site.accessRule.pinHash);if(site.revealMethod==='PUZZLE'&&site.accessRule.puzzleAnswerHash&&typeof answer==='string')ok=await bcrypt.compare(answer.trim().toLowerCase(),site.accessRule.puzzleAnswerHash);if(!ok){await db.siteAccessRule.update({where:{id:rule.id},data:{attempts:{increment:1}}});return res.status(401).json({error:'That unlock is not correct'});} await db.siteAccessRule.update({where:{id:rule.id},data:{attempts:0}});res.json({ok:true})}); export default r;
+import { Router } from "express";
+import bcrypt from "bcryptjs";
+import { db } from "../lib/db.js";
+import { TemplateSchema } from "@memora/shared";
+const r = Router();
+r.get("/:slug", async (req, res) => {
+  const site = await db.publishedSite.findUnique({
+    where: { slug: req.params.slug },
+    include: {
+      project: {
+        include: { template: true, media: { orderBy: { sortOrder: "asc" } } },
+      },
+      accessRule: true,
+    },
+  });
+  if (
+    !site ||
+    site.status !== "ACTIVE" ||
+    (site.expiresAt && site.expiresAt < new Date())
+  )
+    return res.status(404).json({ error: "Website not found" });
+  const template = TemplateSchema.parse(site.project.template.schema);
+  res.json({
+    site: {
+      slug: site.slug,
+      revealMethod: site.revealMethod,
+      status: site.status,
+      expiresAt: site.expiresAt,
+      seoTitle: site.seoTitle,
+      seoDescription: site.seoDescription,
+      ogImageUrl: site.ogImageUrl,
+    },
+    template,
+    data: site.project.data,
+    customization: site.project.customization,
+    media: site.project.media,
+    accessRequired:
+      site.revealMethod === "PIN" ||
+      site.revealMethod === "PUZZLE" ||
+      site.revealMethod === "LETTER" ||
+      site.revealMethod === "GIFT",
+    accessRule: site.accessRule
+      ? {
+          puzzleQuestion: site.accessRule.puzzleQuestion,
+          letterTitle: site.accessRule.letterTitle,
+          letterIntro: site.accessRule.letterIntro,
+        }
+      : null,
+  });
+});
+r.post("/:slug/unlock", async (req, res) => {
+  const site = await db.publishedSite.findUnique({
+    where: { slug: req.params.slug },
+    include: { accessRule: true },
+  });
+  if (!site || site.status !== "ACTIVE" || !site.accessRule)
+    return res.status(404).json({ error: "Website not found" });
+  const rule = site.accessRule;
+  if (rule.attempts >= 10)
+    return res
+      .status(429)
+      .json({ error: "Too many attempts. Try again later." });
+  const { pin, answer } = req.body || {};
+  let ok = false;
+  if (
+    site.revealMethod === "PIN" &&
+    site.accessRule.pinHash &&
+    typeof pin === "string"
+  )
+    ok = await bcrypt.compare(pin, site.accessRule.pinHash);
+  if (
+    site.revealMethod === "PUZZLE" &&
+    site.accessRule.puzzleAnswerHash &&
+    typeof answer === "string"
+  )
+    ok = await bcrypt.compare(
+      answer.trim().toLowerCase(),
+      site.accessRule.puzzleAnswerHash,
+    );
+  if (!ok) {
+    await db.siteAccessRule.update({
+      where: { id: rule.id },
+      data: { attempts: { increment: 1 } },
+    });
+    return res.status(401).json({ error: "That unlock is not correct" });
+  }
+  await db.siteAccessRule.update({
+    where: { id: rule.id },
+    data: { attempts: 0 },
+  });
+  res.json({ ok: true });
+});
+export default r;

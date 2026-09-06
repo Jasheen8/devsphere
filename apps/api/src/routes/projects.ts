@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { db } from "../lib/db.js";
 import { auth } from "../lib/auth.js";
+import bcrypt from "bcryptjs";
 
 const r = Router();
 
@@ -400,129 +401,159 @@ r.post("/:id/publish", auth, async (req, res) => {
    ========================================================= */
 
 r.patch("/:id/reveal", auth, async (req, res) => {
-  const u = (req as any).user;
-  const projectId = String(req.params.id);
+  try {
+    const u = (req as any).user;
+    const projectId = String(req.params.id);
 
-  const parsed = z
-    .object({
-      method: revealMethodSchema,
+    const parsed = z
+      .object({
+        method: revealMethodSchema,
 
-      pin: z.string().optional().default(""),
+        pin: z.string().optional().default(""),
 
-      puzzleQuestion: z.string().optional().default(""),
+        puzzleQuestion: z.string().optional().default(""),
 
-      puzzleAnswer: z.string().optional().default(""),
-    })
-    .safeParse(req.body);
+        puzzleAnswer: z.string().optional().default(""),
+      })
+      .safeParse(req.body);
 
-  if (!parsed.success) {
-    return res.status(400).json({
-      error: "Invalid reveal settings",
-    });
-  }
-
-  const project = await db.project.findFirst({
-    where: {
-      id: projectId,
-      userId: u.id,
-    },
-    include: {
-      website: true,
-    },
-  });
-
-  if (!project || !project.website) {
-    return res.status(404).json({
-      error: "Published website not found",
-    });
-  }
-
-  const { randomHash } = await import("../lib/auth.js");
-
-  /*
-   * Update project reveal method.
-   */
-  await db.project.update({
-    where: {
-      id: project.id,
-    },
-
-    data: {
-      revealMethod: parsed.data.method,
-    },
-  });
-
-  /*
-   * Create/update access rule.
-   */
-  let accessRuleData: any = {};
-
-  if (parsed.data.method === "PIN") {
-    if (!parsed.data.pin || parsed.data.pin.length < 4) {
+    if (!parsed.success) {
       return res.status(400).json({
-        error: "PIN must contain at least 4 characters",
+        error: "Invalid reveal settings",
       });
     }
 
-    accessRuleData.pinHash = randomHash(parsed.data.pin);
+    const project = await db.project.findFirst({
+      where: {
+        id: projectId,
+        userId: u.id,
+      },
+      include: {
+        website: true,
+      },
+    });
 
-    accessRuleData.puzzleQuestion = null;
-    accessRuleData.puzzleAnswerHash = null;
-  }
-
-  if (parsed.data.method === "PUZZLE") {
-    if (!parsed.data.puzzleQuestion || !parsed.data.puzzleAnswer) {
-      return res.status(400).json({
-        error: "Puzzle question and answer are required",
+    if (!project || !project.website) {
+      return res.status(404).json({
+        error: "Published website not found",
       });
     }
 
-    accessRuleData.pinHash = null;
+    /*
+     * Update project reveal method.
+     */
+    await db.project.update({
+      where: {
+        id: project.id,
+      },
 
-    accessRuleData.puzzleQuestion = parsed.data.puzzleQuestion;
+      data: {
+        revealMethod: parsed.data.method,
+      },
+    });
 
-    accessRuleData.puzzleAnswerHash = randomHash(parsed.data.puzzleAnswer);
+    /*
+     * Create/update access rule.
+     */
+    const accessRuleData: any = {
+      attempts: 0,
+    };
+
+    /* =====================================================
+       PIN
+       ===================================================== */
+
+    if (parsed.data.method === "PIN") {
+      const pin = parsed.data.pin.trim();
+
+      if (!pin || pin.length < 4) {
+        return res.status(400).json({
+          error: "PIN must contain at least 4 characters",
+        });
+      }
+
+      accessRuleData.pinHash = await bcrypt.hash(pin, 12);
+
+      accessRuleData.puzzleQuestion = null;
+      accessRuleData.puzzleAnswerHash = null;
+    }
+
+    /* =====================================================
+       PUZZLE
+       ===================================================== */
+
+    if (parsed.data.method === "PUZZLE") {
+      const puzzleQuestion = parsed.data.puzzleQuestion.trim();
+      const puzzleAnswer = parsed.data.puzzleAnswer
+        .trim()
+        .toLowerCase();
+
+      if (!puzzleQuestion || !puzzleAnswer) {
+        return res.status(400).json({
+          error: "Puzzle question and answer are required",
+        });
+      }
+
+      accessRuleData.pinHash = null;
+
+      accessRuleData.puzzleQuestion = puzzleQuestion;
+
+      accessRuleData.puzzleAnswerHash = await bcrypt.hash(
+        puzzleAnswer,
+        12,
+      );
+    }
+
+    /* =====================================================
+       NORMAL / QR / LETTER / GIFT
+       ===================================================== */
+
+    if (
+      parsed.data.method === "NORMAL" ||
+      parsed.data.method === "QR" ||
+      parsed.data.method === "LETTER" ||
+      parsed.data.method === "GIFT"
+    ) {
+      accessRuleData.pinHash = null;
+      accessRuleData.puzzleQuestion = null;
+      accessRuleData.puzzleAnswerHash = null;
+    }
+
+    const accessRule = await db.siteAccessRule.upsert({
+      where: {
+        siteId: project.website.id,
+      },
+
+      update: accessRuleData,
+
+      create: {
+        siteId: project.website.id,
+        ...accessRuleData,
+      },
+    });
+
+    const website = await db.publishedSite.update({
+      where: {
+        id: project.website.id,
+      },
+
+      data: {
+        revealMethod: parsed.data.method,
+      },
+    });
+
+    return res.json({
+      ok: true,
+      website,
+      accessRule,
+    });
+  } catch (error) {
+    console.error("Failed to save reveal settings:", error);
+
+    return res.status(500).json({
+      error: "Unable to save reveal settings",
+    });
   }
-
-  if (
-    parsed.data.method === "NORMAL" ||
-    parsed.data.method === "QR" ||
-    parsed.data.method === "LETTER" ||
-    parsed.data.method === "GIFT"
-  ) {
-    accessRuleData.pinHash = null;
-    accessRuleData.puzzleQuestion = null;
-    accessRuleData.puzzleAnswerHash = null;
-  }
-
-  const accessRule = await db.siteAccessRule.upsert({
-    where: {
-      siteId: project.website.id,
-    },
-
-    update: accessRuleData,
-
-    create: {
-      siteId: project.website.id,
-      ...accessRuleData,
-    },
-  });
-
-  const website = await db.publishedSite.update({
-    where: {
-      id: project.website.id,
-    },
-
-    data: {
-      revealMethod: parsed.data.method,
-    },
-  });
-
-  return res.json({
-    ok: true,
-    website,
-    accessRule,
-  });
 });
 
 /* =========================================================
