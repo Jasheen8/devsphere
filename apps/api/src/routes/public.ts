@@ -53,41 +53,50 @@ r.post("/:slug/unlock", async (req, res) => {
     where: { slug: req.params.slug },
     include: { accessRule: true },
   });
-  if (!site || site.status !== "ACTIVE" || !site.accessRule)
-    return res.status(404).json({ error: "Website not found" });
+
+  if (
+    !site ||
+    site.status !== "ACTIVE" ||
+    !site.accessRule
+  ) {
+    return res.status(404).json({
+      error: "Website not found",
+    });
+  }
+
   const rule = site.accessRule;
-  if (rule.attempts >= 10)
-    return res
-      .status(429)
-      .json({ error: "Too many attempts. Try again later." });
   const { pin, answer } = req.body || {};
+
   let ok = false;
+
   if (
     site.revealMethod === "PIN" &&
     site.accessRule.pinHash &&
     typeof pin === "string"
-  )
-    ok = await bcrypt.compare(pin, site.accessRule.pinHash);
+  ) {
+    ok = await bcrypt.compare(
+      pin.trim(),
+      site.accessRule.pinHash,
+    );
+  }
+
   if (
     site.revealMethod === "PUZZLE" &&
     site.accessRule.puzzleAnswerHash &&
     typeof answer === "string"
-  )
+  ) {
     ok = await bcrypt.compare(
       answer.trim().toLowerCase(),
       site.accessRule.puzzleAnswerHash,
     );
-  if (!ok) {
-    await db.siteAccessRule.update({
-      where: { id: rule.id },
-      data: { attempts: { increment: 1 } },
-    });
-    return res.status(401).json({ error: "That unlock is not correct" });
   }
-  await db.siteAccessRule.update({
-    where: { id: rule.id },
-    data: { attempts: 0 },
-  });
+
+  if (!ok) {
+    return res.status(401).json({
+      error: "That unlock is not correct",
+    });
+  }
+
   res.json({ ok: true });
 });
 export default r;
