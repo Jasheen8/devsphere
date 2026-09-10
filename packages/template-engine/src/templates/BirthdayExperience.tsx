@@ -888,24 +888,32 @@ setCurrentTimelineStep(step);
     }
   }
 
-  function unlockSurprise() {
-    const enteredName = unlockName.trim().toLowerCase();
+  function normalizeUnlockName(value: string) {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-    const correctName = (birthday.name || "").trim().toLowerCase();
+function unlockSurprise() {
+  const enteredName = normalizeUnlockName(unlockName);
+  const correctName = normalizeUnlockName(birthday.name || "");
 
-    if (!enteredName) {
-      setUnlockError("Type the name first ❤️");
-      return;
-    }
-
-    if (enteredName === correctName) {
-      setUnlockError("");
-      setSurpriseUnlocked(true);
-      return;
-    }
-
-    setUnlockError("Hmm... that's not the name I'm looking for 💕");
+  if (!enteredName) {
+    setUnlockError("Type the name first ❤️");
+    return;
   }
+
+  if (enteredName === correctName) {
+    setUnlockError("");
+    setSurpriseUnlocked(true);
+    return;
+  }
+
+  setUnlockError("Hmm... that's not the name I'm looking for 💕");
+}
 
   useEffect(() => {
     return () => {
@@ -1975,7 +1983,7 @@ setCurrentTimelineStep(step);
 
             <h2>Happy Birthday, {name} ❤️</h2>
 
-            <p>Make a wish and blow out every candle ✨</p>
+            <p>Make a wish and Click On every candle to blow out ✨</p>
           </div>
 
           <div className="birthday-vintage-cake-scene">
