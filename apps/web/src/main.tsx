@@ -433,19 +433,21 @@ function Auth() {
             {mode === "login" ? "Login" : "Create account"}
           </button>
         </form>
-        <button
-          onClick={() => setMode(mode === "login" ? "register" : "login")}
-          style={{
-            marginTop: 14,
-            background: "none",
-            border: 0,
-            color: "#725a51",
-          }}
-        >
-          {mode === "login"
-            ? "Need an account? Create one"
-            : "Already have an account? Login"}
-        </button>
+        <div className="auth-switch">
+  <span>
+    {mode === "login"
+      ? "Don't have an account?"
+      : "Already have an account?"}
+  </span>
+
+  <button
+    type="button"
+    className="auth-switch-btn"
+    onClick={() => setMode(mode === "login" ? "register" : "login")}
+  >
+    {mode === "login" ? "Sign up" : "Log in"}
+  </button>
+</div>
       </div>
     </div>
   );
