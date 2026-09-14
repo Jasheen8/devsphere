@@ -2174,3 +2174,46 @@ body {
 .auth-switch-btn:active {
   transform: translateY(0);
 }
+
+.global-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(255, 248, 238, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #382f2c;
+}
+
+.global-loader-spinner {
+  width: 38px;
+  height: 38px;
+  border: 3px solid rgba(56, 47, 44, 0.14);
+  border-top-color: #382f2c;
+  border-radius: 50%;
+  animation: devsphereLoaderSpin 0.8s linear infinite;
+}
+
+.global-loader span {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  opacity: 0.72;
+}
+
+@keyframes devsphereLoaderSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+body.is-loading,
+body.is-loading * {
+  cursor: wait !important;
+}

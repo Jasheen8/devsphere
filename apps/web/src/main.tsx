@@ -45,6 +45,17 @@ type Template = {
     slug: string;
   };
 };
+function GlobalLoader({ show }: { show: boolean }) {
+  if (!show) return null;
+
+  return (
+    <div className="global-loader">
+      <div className="global-loader-spinner" />
+      <span>Loading…</span>
+    </div>
+  );
+}
+
 function Nav() {
   const [user, setUser] = React.useState<any>(null);
 
@@ -2893,18 +2904,32 @@ function BackButton({ label = "Back" }: { label?: string }) {
   );
 }
 
-function GlobalLoader({ show }: { show: boolean }) {
-  if (!show) return null;
-
-  return (
-    <div className="global-loader">
-      <div className="global-loader-spinner" />
-      <span>Loading…</span>
-    </div>
-  );
-}
-
 function App() {
+  const [globalLoading, setGlobalLoading] = useState(false);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const customEvent =
+        event as CustomEvent<{ loading?: boolean }>;
+
+      setGlobalLoading(Boolean(customEvent.detail?.loading));
+    };
+
+    window.addEventListener("devsphere-loading", handler);
+
+    return () => {
+      window.removeEventListener("devsphere-loading", handler);
+    };
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("is-loading", globalLoading);
+
+    return () => {
+      document.body.classList.remove("is-loading");
+    };
+  }, [globalLoading]);
+
   return (
     <>
       <GlobalLoader show={globalLoading} />
@@ -2917,7 +2942,10 @@ function App() {
         <Route path="/register" element={<Auth />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={<Admin />} />
-        <Route path="/admin/templates/:id" element={<AdminTemplateEditor />} />
+        <Route
+          path="/admin/templates/:id"
+          element={<AdminTemplateEditor />}
+        />
         <Route path="/create/:id" element={<Create />} />
         <Route path="/edit/:id" element={<Editor />} />
         <Route path="/checkout/:id" element={<Checkout />} />
