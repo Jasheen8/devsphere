@@ -19,19 +19,26 @@ function notifyLoading() {
 
 export async function api<T = any>(
   path: string,
-  options: RequestInit = {},
+  options: ApiOptions = {},
 ) {
-  activeRequests += 1;
-  notifyLoading();
+  const {
+    skipLoader = false,
+    ...requestOptions
+  } = options;
+
+  if (!skipLoader) {
+    activeRequests += 1;
+    notifyLoading();
+  }
 
   try {
     const res = await fetch(`${API}${path}`, {
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        ...(options.headers || {}),
+        ...(requestOptions.headers || {}),
       },
-      ...options,
+      ...requestOptions,
     });
 
     const data = await res.json().catch(() => ({}));
@@ -42,8 +49,10 @@ export async function api<T = any>(
 
     return data as T;
   } finally {
-    activeRequests = Math.max(0, activeRequests - 1);
-    notifyLoading();
+    if (!skipLoader) {
+      activeRequests = Math.max(0, activeRequests - 1);
+      notifyLoading();
+    }
   }
 }
 

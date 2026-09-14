@@ -445,20 +445,20 @@ function Auth() {
           </button>
         </form>
         <div className="auth-switch">
-  <span>
-    {mode === "login"
-      ? "Don't have an account?"
-      : "Already have an account?"}
-  </span>
+          <span>
+            {mode === "login"
+              ? "Don't have an account?"
+              : "Already have an account?"}
+          </span>
 
-  <button
-    type="button"
-    className="auth-switch-btn"
-    onClick={() => setMode(mode === "login" ? "register" : "login")}
-  >
-    {mode === "login" ? "Sign up" : "Log in"}
-  </button>
-</div>
+          <button
+            type="button"
+            className="auth-switch-btn"
+            onClick={() => setMode(mode === "login" ? "register" : "login")}
+          >
+            {mode === "login" ? "Sign up" : "Log in"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1117,6 +1117,7 @@ function Editor() {
         api(`/projects/${project.id}`, {
           method: "PATCH",
           body: JSON.stringify({ data, customization }),
+          skipLoader: true,
         })
           .then(() => setSaved("Saved just now ✓"))
           .catch(() => setSaved("Could not save"));
@@ -1391,13 +1392,13 @@ function Checkout() {
 
   const birthdayPrice = specialRevealSelected ? 119 : movieEnabled ? 109 : 99;
   const displayPrice =
-  currency === "USD"
-    ? specialRevealSelected
-      ? 2.99
-      : movieEnabled
-        ? 2.49
-        : 1.99
-    : birthdayPrice;
+    currency === "USD"
+      ? specialRevealSelected
+        ? 2.99
+        : movieEnabled
+          ? 2.49
+          : 1.99
+      : birthdayPrice;
   const priceLabel = specialRevealSelected
     ? "SPECIAL REVEAL"
     : movieEnabled
@@ -1444,12 +1445,12 @@ function Checkout() {
       const order = await api("/payments/create-order", {
         method: "POST",
         body: JSON.stringify({
-  projectId: id,
-  planId: birthdayPlan.id,
-  revealMethod,
-  scannerStyle: revealMethod === "QR" ? scannerStyle : null,
-  currency,
-}),
+          projectId: id,
+          planId: birthdayPlan.id,
+          revealMethod,
+          scannerStyle: revealMethod === "QR" ? scannerStyle : null,
+          currency,
+        }),
       });
 
       /*
@@ -1536,8 +1537,8 @@ function Checkout() {
         name: "Devsphere",
 
         description: `Birthday Website — ${
-  currency === "USD" ? "$" : "₹"
-}${displayPrice}`,
+          currency === "USD" ? "$" : "₹"
+        }${displayPrice}`,
 
         order_id: order.providerOrderId,
 
@@ -1612,34 +1613,32 @@ function Checkout() {
         </div>
 
         <div className="checkout-currency-section">
-  <h3>Choose Currency</h3>
+          <h3>Choose Currency</h3>
 
-  <p className="muted">
-    Select how you want to pay.
-  </p>
+          <p className="muted">Select how you want to pay.</p>
 
-  <div className="actions">
-    <button
-      type="button"
-      className={`btn ${
-        currency === "INR" ? "btn-primary" : "btn-soft"
-      }`}
-      onClick={() => setCurrency("INR")}
-    >
-      🇮🇳 INR ₹
-    </button>
+          <div className="actions">
+            <button
+              type="button"
+              className={`btn ${
+                currency === "INR" ? "btn-primary" : "btn-soft"
+              }`}
+              onClick={() => setCurrency("INR")}
+            >
+              🇮🇳 INR ₹
+            </button>
 
-    <button
-      type="button"
-      className={`btn ${
-        currency === "USD" ? "btn-primary" : "btn-soft"
-      }`}
-      onClick={() => setCurrency("USD")}
-    >
-      🌎 USD $
-    </button>
-  </div>
-</div>
+            <button
+              type="button"
+              className={`btn ${
+                currency === "USD" ? "btn-primary" : "btn-soft"
+              }`}
+              onClick={() => setCurrency("USD")}
+            >
+              🌎 USD $
+            </button>
+          </div>
+        </div>
 
         {/* ===================================================
             REVEAL STYLE
@@ -1865,11 +1864,17 @@ function Checkout() {
         >
           <span className="pill">{priceLabel}</span>
 
-          <h3>Your package: {currency === "USD" ? "$" : "₹"}{displayPrice}</h3>
+          <h3>
+            Your package: {currency === "USD" ? "$" : "₹"}
+            {displayPrice}
+          </h3>
 
           <p className="muted">{priceDescription}</p>
 
-          <div className="birthday-current-price">{currency === "USD" ? "$" : "₹"}{displayPrice}</div>
+          <div className="birthday-current-price">
+            {currency === "USD" ? "$" : "₹"}
+            {displayPrice}
+          </div>
 
           {/* MOVIE NOTE */}
 
@@ -1892,8 +1897,7 @@ function Checkout() {
                     : revealMethod === "GIFT"
                       ? "Gift Box selected."
                       : "Puzzle selected."}{" "}
-              Your package price is{" "}
-{currency === "USD" ? "$2.99" : "₹119"}.
+              Your package price is {currency === "USD" ? "$2.99" : "₹119"}.
             </p>
           )}
 
@@ -1909,10 +1913,10 @@ function Checkout() {
             disabled={!birthdayPlan?.id || loading === "birthday"}
           >
             {loading === "birthday"
-  ? "Opening payment…"
-  : birthdayPlan?.id
-    ? `Pay ${currency === "USD" ? "$" : "₹"}${displayPrice}`
-    : "Run db seed to load plan"}
+              ? "Opening payment…"
+              : birthdayPlan?.id
+                ? `Pay ${currency === "USD" ? "$" : "₹"}${displayPrice}`
+                : "Run db seed to load plan"}
           </button>
         </div>
       </div>
@@ -2908,22 +2912,45 @@ function App() {
   const [globalLoading, setGlobalLoading] = useState(false);
 
   useEffect(() => {
+    let timer: number | undefined;
+
     const handler = (event: Event) => {
       const customEvent =
         event as CustomEvent<{ loading?: boolean }>;
 
-      setGlobalLoading(Boolean(customEvent.detail?.loading));
+      const loading =
+        Boolean(customEvent.detail?.loading);
+
+      window.clearTimeout(timer);
+
+      if (loading) {
+        timer = window.setTimeout(() => {
+          setGlobalLoading(true);
+        }, 180);
+      } else {
+        setGlobalLoading(false);
+      }
     };
 
-    window.addEventListener("devsphere-loading", handler);
+    window.addEventListener(
+      "devsphere-loading",
+      handler,
+    );
 
     return () => {
-      window.removeEventListener("devsphere-loading", handler);
+      window.clearTimeout(timer);
+      window.removeEventListener(
+        "devsphere-loading",
+        handler,
+      );
     };
   }, []);
 
   useEffect(() => {
-    document.body.classList.toggle("is-loading", globalLoading);
+    document.body.classList.toggle(
+      "is-loading",
+      globalLoading,
+    );
 
     return () => {
       document.body.classList.remove("is-loading");
@@ -2937,7 +2964,10 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/templates" element={<Templates />} />
-        <Route path="/templates/:id" element={<TemplatePreview />} />
+        <Route
+          path="/templates/:id"
+          element={<TemplatePreview />}
+        />
         <Route path="/login" element={<Auth />} />
         <Route path="/register" element={<Auth />} />
         <Route path="/dashboard" element={<Dashboard />} />
@@ -2949,7 +2979,10 @@ function App() {
         <Route path="/create/:id" element={<Create />} />
         <Route path="/edit/:id" element={<Editor />} />
         <Route path="/checkout/:id" element={<Checkout />} />
-        <Route path="/published/:id" element={<RoutePublished />} />
+        <Route
+          path="/published/:id"
+          element={<RoutePublished />}
+        />
         <Route path="/r/:slug" element={<Public />} />
       </Routes>
     </>
