@@ -2059,6 +2059,7 @@ function RoutePublished() {
 
   const [status, setStatus] = useState("");
   const [sharing, setSharing] = useState(false);
+  const [globalLoading, setGlobalLoading] = useState(false);
 
   const qrRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -2892,23 +2893,38 @@ function BackButton({ label = "Back" }: { label?: string }) {
   );
 }
 
+function GlobalLoader({ show }: { show: boolean }) {
+  if (!show) return null;
+
+  return (
+    <div className="global-loader">
+      <div className="global-loader-spinner" />
+      <span>Loading…</span>
+    </div>
+  );
+}
+
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/templates" element={<Templates />} />
-      <Route path="/templates/:id" element={<TemplatePreview />} />
-      <Route path="/login" element={<Auth />} />
-      <Route path="/register" element={<Auth />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/admin" element={<Admin />} />
-      <Route path="/admin/templates/:id" element={<AdminTemplateEditor />} />
-      <Route path="/create/:id" element={<Create />} />
-      <Route path="/edit/:id" element={<Editor />} />
-      <Route path="/checkout/:id" element={<Checkout />} />
-      <Route path="/published/:id" element={<RoutePublished />} />
-      <Route path="/r/:slug" element={<Public />} />
-    </Routes>
+    <>
+      <GlobalLoader show={globalLoading} />
+
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/templates" element={<Templates />} />
+        <Route path="/templates/:id" element={<TemplatePreview />} />
+        <Route path="/login" element={<Auth />} />
+        <Route path="/register" element={<Auth />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/templates/:id" element={<AdminTemplateEditor />} />
+        <Route path="/create/:id" element={<Create />} />
+        <Route path="/edit/:id" element={<Editor />} />
+        <Route path="/checkout/:id" element={<Checkout />} />
+        <Route path="/published/:id" element={<RoutePublished />} />
+        <Route path="/r/:slug" element={<Public />} />
+      </Routes>
+    </>
   );
 }
 

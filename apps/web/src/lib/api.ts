@@ -1,26 +1,56 @@
 const API =
   import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
+type ApiOptions = RequestInit & {
+  skipLoader?: boolean;
+};
+
+let activeRequests = 0;
+
+function notifyLoading() {
+  window.dispatchEvent(
+    new CustomEvent("devsphere-loading", {
+      detail: {
+        loading: activeRequests > 0,
+      },
+    }),
+  );
+}
+
 export async function api<T = any>(
   path: string,
-  options: RequestInit = {},
+  options: ApiOptions = {},
 ) {
-  const res = await fetch(`${API}${path}`, {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+  const { skipLoader = false, ...requestOptions } = options;
 
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    throw new Error(data.error || "Request failed");
+  if (!skipLoader) {
+    activeRequests += 1;
+    notifyLoading();
   }
 
-  return data as T;
+  try {
+    const res = await fetch(`${API}${path}`, {
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(requestOptions.headers || {}),
+      },
+      ...requestOptions,
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || "Request failed");
+    }
+
+    return data as T;
+  } finally {
+    if (!skipLoader) {
+      activeRequests = Math.max(0, activeRequests - 1);
+      notifyLoading();
+    }
+  }
 }
 
 export const apiBase = API;
@@ -37,19 +67,11 @@ type CachedTemplates = {
 let templatesCache: CachedTemplates | null = null;
 let templatesRequest: Promise<any[]> | null = null;
 
-// Keep templates cached for 5 minutes.
 const TEMPLATE_CACHE_TIME = 5 * 60 * 1000;
 
-/**
- * Loads templates quickly using an in-memory cache.
- *
- * The first request goes to the API.
- * Later requests within 5 minutes return instantly.
- */
 export async function getTemplates(): Promise<any[]> {
   const now = Date.now();
 
-  // Return cached templates immediately.
   if (
     templatesCache &&
     now - templatesCache.timestamp < TEMPLATE_CACHE_TIME
@@ -57,7 +79,6 @@ export async function getTemplates(): Promise<any[]> {
     return templatesCache.items;
   }
 
-  // Prevent multiple simultaneous requests.
   if (templatesRequest) {
     return templatesRequest;
   }
@@ -80,17 +101,10 @@ export async function getTemplates(): Promise<any[]> {
   return templatesRequest;
 }
 
-/**
- * Start loading templates before the Templates page opens.
- */
 export function preloadTemplates() {
   void getTemplates();
 }
 
-/**
- * Clear the template cache.
- * Useful after admin template changes.
- */
 export function clearTemplatesCache() {
   templatesCache = null;
 }
