@@ -842,36 +842,37 @@ async function main() {
 
     // =======================================================
     // ANNIVERSARY
-    // =======================================================
-
+    // =======================================================8
     {
-      slug: "anniversary-romantic-01",
-      name: "Romantic Journey",
-      description: "A cinematic story for anniversaries.",
-      cat: anniversary,
-      price: 490,
-      tags: ["romantic", "journey", "cinematic"],
-      featured: true,
+    slug: "anniversary-romantic-01",
+    name: "Anniversary Bloom",
+    description: "A cinematic story for anniversaries.",
+    cat: anniversary,
+    price: 519,
+    tags: ["romantic", "journey", "cinematic"],
+    featured: true,
 
-      data: {
-        name: "Aarav",
-        partnerName: "Meera",
-        subtitle: "Together is our favorite place.",
+    thumbnailUrl:
+      "/images/anniversary.png",
 
-        timeline: [
-          {
-            date: "12 June 2024",
-            title: "The First Hello",
-            description: "A simple beginning that became everything.",
-          },
-        ],
+    liveDemoUrl:
+      "https://anniversarydemo.vercel.app/",
 
-        photos: [],
-
-        letter: "Write from your heart.",
-
-        finalMessage: "To be continued…",
-      },
+    data: {
+      name: "Aarav",
+      partnerName: "Meera",
+      subtitle: "Together is our favorite place.",
+      timeline: [
+        {
+          date: "12 June 2024",
+          title: "The First Hello",
+          description: "A simple beginning that became everything.",
+        },
+      ],
+      photos: [],
+      letter: "Write from your heart.",
+      finalMessage: "To be continued…",
+    },
     },
 
     {

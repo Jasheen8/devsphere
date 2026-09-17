@@ -116,6 +116,17 @@ function Home() {
         console.error("Failed to load templates:", error);
       });
   }, []);
+  const birthdayTemplate = templates.find(
+  (t) => t.category?.name?.toLowerCase() === "birthday",
+);
+
+const anniversaryTemplate = templates.find(
+  (t) => t.slug === "anniversary-romantic-01",
+);
+
+const otherTemplates = templates.filter(
+  (t) => t !== birthdayTemplate && t !== anniversaryTemplate,
+);
   return (
     <>
       <Nav />
@@ -176,10 +187,79 @@ function Home() {
               </div>
               <Link to="/templates">See all →</Link>
             </div>
-            <div className="grid">
-              {templates.map((t) => (
+            <div
+              className="grid"
+              style={{
+                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              }}
+            >
+              {/* 1. Birthday */}
+              {birthdayTemplate && (
+                <TemplateCard key={birthdayTemplate.id} t={birthdayTemplate} />
+              )}
+
+              {/* 2. Anniversary */}
+              {anniversaryTemplate && (
+                <TemplateCard
+                  key={anniversaryTemplate.id}
+                  t={anniversaryTemplate}
+                />
+              )}
+
+              {/* 3. Wedding Invitation */}
+              <article className="card">
+                <img
+                  src="/images/invitation.png"
+                  alt="Wedding Invitation"
+                  style={{
+                    width: "100%",
+                    display: "block",
+                    objectFit: "cover",
+                  }}
+                />
+
+                <div className="card-body">
+                  <span className="muted">Wedding</span>
+
+                  <h3>Wedding Invitation</h3>
+
+                  <p className="muted">
+                    A beautiful digital wedding invitation crafted for your
+                    special day.
+                  </p>
+
+                  <div className="tags">
+                    <span className="tag">wedding</span>
+                    <span className="tag">invitation</span>
+                    <span className="tag">romantic</span>
+                  </div>
+
+                  <div className="actions">
+                    <a
+                      className="btn btn-primary"
+                      href="YOUR_WEDDING_LIVE_DEMO_URL"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Live Demo
+                    </a>
+
+                    <a
+                      className="btn btn-soft"
+                      href="https://instagram.com/devsphere.in"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      DM @devsphere.in
+                    </a>
+                  </div>
+                </div>
+              </article>
+
+              {/* Remaining templates */}
+              {otherTemplates.map((t) => (
                 <TemplateCard key={t.id} t={t} />
-              ))}{" "}
+              ))}
             </div>
           </section>
           <section className="section">
@@ -222,45 +302,87 @@ function InfoCard({ n, t, d }: { n: string; t: string; d: string }) {
   );
 }
 function TemplateCard({ t }: { t: Template }) {
-  return (
-    <article className="card">
-      <img
-        src={
-          t.thumbnailUrl ||
-          `https://placehold.co/800x500/f1e4dc/513c34?text=${encodeURIComponent(t.name)}`
-        }
-        alt=""
-      />
-      <div className="card-body">
-        <span className="muted">{t.category.name}</span>
-        <h3>{t.name}</h3>
-        <p className="muted">{t.description}</p>
-        <div className="tags">
-          {t.tags.map((x) => (
-            <span className="tag" key={x}>
-              {x}
-            </span>
-          ))}
-        </div>
-        <div className="actions">
-          <Link className="btn btn-soft" to={`/templates/${t.slug}`}>
-            Preview
-          </Link>
+  const isAnniversary = t.slug === "anniversary-romantic-01";
 
-          {t.liveDemoUrl && (
+  const imageUrl = isAnniversary
+    ? "/images/anniversary.png"
+    : t.thumbnailUrl ||
+      `https://placehold.co/800x500/f1e4dc/513c34?text=${encodeURIComponent(
+        t.name,
+      )}`;
+
+  return (
+    <article className={`card ${isAnniversary ? "anniversary-card" : ""}`}>
+      <img src={imageUrl} alt={isAnniversary ? "Bloom Anniversary" : t.name} />
+
+      <div className="card-body">
+        <span className="muted">
+          {isAnniversary ? "Anniversary" : t.category.name}
+        </span>
+
+        <h3>{isAnniversary ? "Bloom Anniversary" : t.name}</h3>
+
+        <p className="muted">
+          {isAnniversary
+            ? "A cinematic journey of love, memories and beautiful moments created to celebrate your anniversary."
+            : t.description}
+        </p>
+
+        <div className="tags">
+          {(isAnniversary ? ["romantic", "journey", "cinematic"] : t.tags).map(
+            (tag) => (
+              <span className="tag" key={tag}>
+                {tag}
+              </span>
+            ),
+          )}
+        </div>
+
+        <div className="actions">
+          {!isAnniversary && (
+            <Link className="btn btn-soft" to={`/templates/${t.slug}`}>
+              Preview
+            </Link>
+          )}
+
+          {!isAnniversary && (
             <a
-              className="btn btn-live"
-              href={t.liveDemoUrl}
+              className="btn btn-primary"
+              href={t.liveDemoUrl || t.previewUrl || "#"}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Live Demo 120800
+              Live Demo
             </a>
           )}
 
-          <Link className="btn btn-primary" to={`/create/${t.id}`}>
-            Use Template
-          </Link>
+          {isAnniversary && (
+            <>
+              <a
+                className="btn btn-primary"
+                href="https://anniversarydemo.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Live Demo
+              </a>
+
+              <a
+                className="btn btn-soft"
+                href="https://instagram.com/devsphere.in"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                DM @devsphere.in
+              </a>
+            </>
+          )}
+
+          {!isAnniversary && (
+            <Link className="btn btn-primary" to={`/create/${t.id}`}>
+              Use Template
+            </Link>
+          )}
         </div>
       </div>
     </article>
@@ -316,8 +438,112 @@ function Templates() {
               </button>
             ))}
           </div>
-          <div className="grid">
-            {items.map((t) => (
+          <div
+            className="grid"
+            style={{
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            }}
+          >
+            {items.length > 0 && <TemplateCard t={items[0]} />}
+
+            <article className="card">
+              <img
+                src="/images/anniversary.png"
+                alt="Bloom Anniversary"
+                style={{
+                  width: "100%",
+                  display: "block",
+                  objectFit: "cover",
+                }}
+              />
+
+              <div className="card-body">
+                <span className="muted">Anniversary</span>
+
+                <h3>Bloom Anniversary</h3>
+
+                <p className="muted">
+                  A cinematic journey of love, memories and beautiful moments.
+                </p>
+
+                <div className="tags">
+                  <span className="tag">romantic</span>
+                  <span className="tag">journey</span>
+                  <span className="tag">cinematic</span>
+                </div>
+
+                <div className="actions">
+                  <a
+                    className="btn btn-primary"
+                    href="https://anniversarydemo.vercel.app/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Live Demo
+                  </a>
+
+                  <a
+                    className="btn btn-soft"
+                    href="https://instagram.com/devsphere.in"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    DM @devsphere.in
+                  </a>
+                </div>
+              </div>
+            </article>
+
+            <article className="card">
+              <img
+                src="/images/invitation.png"
+                alt="Wedding Invitation"
+                style={{
+                  width: "100%",
+                  display: "block",
+                  objectFit: "cover",
+                }}
+              />
+
+              <div className="card-body">
+                <span className="muted">Wedding</span>
+
+                <h3>Wedding Invitation</h3>
+
+                <p className="muted">
+                  A beautiful digital wedding invitation crafted for your
+                  special day.
+                </p>
+
+                <div className="tags">
+                  <span className="tag">wedding</span>
+                  <span className="tag">invitation</span>
+                  <span className="tag">romantic</span>
+                </div>
+
+                <div className="actions">
+                  <a
+                    className="btn btn-primary"
+                    href="wedding-invitation-kbcqoc7dn-jasheen.vercel.app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Live Demo
+                  </a>
+
+                  <a
+                    className="btn btn-soft"
+                    href="https://instagram.com/devsphere.in"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    DM @devsphere.in
+                  </a>
+                </div>
+              </div>
+            </article>
+
+            {items.slice(1).map((t) => (
               <TemplateCard key={t.id} t={t} />
             ))}
           </div>
@@ -379,36 +605,88 @@ function TemplatePreview() {
 }
 function Auth() {
   const nav = useNavigate();
+
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [err, setErr] = useState("");
+
   async function submit(e: any) {
     e.preventDefault();
+    setErr("");
+
     try {
       await api(`/auth/${mode}`, {
         method: "POST",
         body: JSON.stringify({
-          email,
+          email: email.trim().toLowerCase(),
           password,
-          name: mode === "register" ? name : undefined,
+          name: mode === "register" ? name.trim() : undefined,
         }),
       });
+
+      const session = await api("/auth/me");
+
+      if (!session?.user) {
+        throw new Error("Login session was not created.");
+      }
+
       nav("/dashboard");
     } catch (e: any) {
-      setErr(e.message);
+      console.error("Authentication failed:", e);
+      setErr(e?.message || "Authentication failed.");
     }
   }
+
   return (
     <div className="login-shell">
       <div className="auth-card">
         <BackButton label="Back to Home" />
+
         <Link className="brand" to="/">
           <span className="brand-mark">D</span> Devsphere
         </Link>
+
         <h2>{mode === "login" ? "Welcome back" : "Create your Forever"}</h2>
-        {err && <p style={{ color: "#a64242" }}>{err}</p>}
+
+        {err && (
+          <div className="auth-error">
+            <span>{err}</span>
+
+            {mode === "login" && err === "Account not found." && (
+              <button
+                type="button"
+                className="auth-error-link"
+                onClick={() => {
+                  setMode("register");
+                  setErr("");
+                  setPassword("");
+                  setShowPassword(false);
+                }}
+              >
+                Sign up
+              </button>
+            )}
+
+            {mode === "register" && err === "Email already registered." && (
+              <button
+                type="button"
+                className="auth-error-link"
+                onClick={() => {
+                  setMode("login");
+                  setErr("");
+                  setPassword("");
+                  setShowPassword(false);
+                }}
+              >
+                Log in
+              </button>
+            )}
+          </div>
+        )}
+
         <form onSubmit={submit}>
           {mode === "register" && (
             <div className="field">
@@ -420,6 +698,7 @@ function Auth() {
               />
             </div>
           )}
+
           <div className="field">
             <label>Email</label>
             <input
@@ -429,21 +708,71 @@ function Auth() {
               required
             />
           </div>
+
           <div className="field">
             <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              minLength={8}
-              required
-            />
+
+            <div className="password-input-wrap">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={8}
+                required
+              />
+
+              <button
+                type="button"
+                className="password-eye-btn"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 3l18 18" />
+                    <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                    <path d="M9.9 4.2A10.8 10.8 0 0 1 12 4c5.2 0 9 4 10 8-0.4 1.4-1.2 2.6-2.3 3.8" />
+                    <path d="M6.2 6.2C4.7 7.3 3.6 6.2 2 12c1 4 4.8 8 10 8 1.8 0 3.4-.5 4.8-1.2" />
+                  </svg>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" />
+                    <circle cx="12" cy="12" r="2.8" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
-          <button className="btn btn-primary" style={{ width: "100%" }}>
+
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{ width: "100%" }}
+          >
             <LogIn size={17} />
             {mode === "login" ? "Login" : "Create account"}
           </button>
         </form>
+
         <div className="auth-switch">
           <span>
             {mode === "login"
@@ -454,7 +783,11 @@ function Auth() {
           <button
             type="button"
             className="auth-switch-btn"
-            onClick={() => setMode(mode === "login" ? "register" : "login")}
+            onClick={() => {
+              setMode(mode === "login" ? "register" : "login");
+              setShowPassword(false);
+              setErr("");
+            }}
           >
             {mode === "login" ? "Sign up" : "Log in"}
           </button>
@@ -473,7 +806,16 @@ function Dashboard() {
         setMe(m.user);
         setProjects(p.items);
       })
-      .catch(() => nav("/login"));
+      .catch((error) => {
+        console.error("Dashboard load failed:", error);
+
+        if (error?.message === "Unauthorized") {
+          nav("/login");
+          return;
+        }
+
+        alert(error?.message || "Unable to load dashboard.");
+      });
   }, [nav]);
   return (
     <>
@@ -2785,17 +3127,21 @@ function Admin() {
   const [orders, setOrders] = useState<any[]>([]);
   const nav = useNavigate();
   useEffect(() => {
-    Promise.all([
-      api("/admin/dashboard"),
-      api("/admin/orders"),
-      api("/templates"),
-    ])
-      .then(([a, o, t]) => {
-        setStats(a);
-        setOrders(o.items);
-        setTemplates(t.items);
+    Promise.all([api("/auth/me"), api("/projects")])
+      .then(([m, p]) => {
+        setMe(m.user);
+        setProjects(p.items);
       })
-      .catch(() => nav("/login"));
+      .catch((error) => {
+        console.error("Dashboard load failed:", error);
+
+        if (error?.message === "Unauthorized") {
+          nav("/login");
+          return;
+        }
+
+        alert(error?.message || "Unable to load your dashboard.");
+      });
   }, [nav]);
   return (
     <>
@@ -2915,11 +3261,9 @@ function App() {
     let timer: number | undefined;
 
     const handler = (event: Event) => {
-      const customEvent =
-        event as CustomEvent<{ loading?: boolean }>;
+      const customEvent = event as CustomEvent<{ loading?: boolean }>;
 
-      const loading =
-        Boolean(customEvent.detail?.loading);
+      const loading = Boolean(customEvent.detail?.loading);
 
       window.clearTimeout(timer);
 
@@ -2932,25 +3276,16 @@ function App() {
       }
     };
 
-    window.addEventListener(
-      "devsphere-loading",
-      handler,
-    );
+    window.addEventListener("devsphere-loading", handler);
 
     return () => {
       window.clearTimeout(timer);
-      window.removeEventListener(
-        "devsphere-loading",
-        handler,
-      );
+      window.removeEventListener("devsphere-loading", handler);
     };
   }, []);
 
   useEffect(() => {
-    document.body.classList.toggle(
-      "is-loading",
-      globalLoading,
-    );
+    document.body.classList.toggle("is-loading", globalLoading);
 
     return () => {
       document.body.classList.remove("is-loading");
@@ -2964,25 +3299,16 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/templates" element={<Templates />} />
-        <Route
-          path="/templates/:id"
-          element={<TemplatePreview />}
-        />
+        <Route path="/templates/:id" element={<TemplatePreview />} />
         <Route path="/login" element={<Auth />} />
         <Route path="/register" element={<Auth />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={<Admin />} />
-        <Route
-          path="/admin/templates/:id"
-          element={<AdminTemplateEditor />}
-        />
+        <Route path="/admin/templates/:id" element={<AdminTemplateEditor />} />
         <Route path="/create/:id" element={<Create />} />
         <Route path="/edit/:id" element={<Editor />} />
         <Route path="/checkout/:id" element={<Checkout />} />
-        <Route
-          path="/published/:id"
-          element={<RoutePublished />}
-        />
+        <Route path="/published/:id" element={<RoutePublished />} />
         <Route path="/r/:slug" element={<Public />} />
       </Routes>
     </>

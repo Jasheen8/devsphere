@@ -2217,3 +2217,92 @@ body.is-loading,
 body.is-loading * {
   cursor: wait !important;
 }
+
+.password-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.password-input-wrap input {
+  width: 100%;
+  padding-right: 50px;
+}
+
+.password-eye-btn {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #725a51;
+  border-radius: 10px;
+
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.password-eye-btn:hover {
+  background: rgba(56, 47, 44, 0.07);
+  color: #382f2c;
+}
+
+.password-eye-btn:active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+.password-eye-btn svg {
+  display: block;
+  pointer-events: none;
+}
+
+.auth-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-wrap: wrap;
+
+  margin-bottom: 18px;
+  padding: 11px 14px;
+
+  border: 1px solid rgba(166, 66, 66, 0.22);
+  border-radius: 12px;
+
+  background: rgba(166, 66, 66, 0.07);
+  color: #a64242;
+
+  font-size: 14px;
+}
+
+.auth-error-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+
+  color: #382f2c;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+
+  cursor: pointer;
+}
+.anniversary-card {
+  overflow: hidden;
+}
+
+.anniversary-card > img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+}

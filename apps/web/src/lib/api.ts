@@ -86,7 +86,9 @@ export async function getTemplates(): Promise<any[]> {
     return templatesRequest;
   }
 
-  templatesRequest = api<{ items: any[] }>("/templates")
+  templatesRequest = api<{ items: any[] }>("/templates", {
+  skipLoader: true,
+})
     .then((response) => {
       const items = response.items || [];
 

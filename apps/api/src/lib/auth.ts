@@ -14,19 +14,24 @@ export function makeToken(userId: string) {
   return jwt.sign({ sub: userId }, secret, { expiresIn: "7d" });
 }
 export function setAuthCookie(res: Response, token: string) {
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.cookie("memora_session", token, {
     httpOnly: true,
-    sameSite: "none",
-    secure: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 7 * 86400000,
     path: "/",
   });
 }
+
 export function clearAuthCookie(res: Response) {
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.clearCookie("memora_session", {
     httpOnly: true,
-    sameSite: "none",
-    secure: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     path: "/",
   });
 }

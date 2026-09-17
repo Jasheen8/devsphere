@@ -15,9 +15,22 @@ const app = express();
 const port = Number(process.env.PORT || 4000);
 app.set("trust proxy", 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://devsphere-s97l.onrender.com",
+  process.env.APP_URL,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.APP_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true,
   }),
 );
