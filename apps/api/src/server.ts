@@ -35,7 +35,13 @@ app.use(
   }),
 );
 app.use(cookieParser());
-app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
+app.use(
+  "/api/payments/webhook",
+  express.raw({
+    type: "application/json",
+    limit: "2mb",
+  }),
+);
 app.use(express.json({ limit: "2mb" }));
 app.use(
   rateLimit({
@@ -46,7 +52,7 @@ app.use(
   }),
 );
 app.get("/health", (_req, res) =>
-  res.json({ ok: true, service: "memora-api" }),
+  res.json({ ok: true, service: "devsphere-api" })
 );
 app.use("/api/auth", authRoutes);
 app.use("/api", catalogRoutes);

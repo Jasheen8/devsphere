@@ -1,12 +1,16 @@
 import { Router } from "express";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 
 import { db } from "../lib/db.js";
 import { auth } from "../lib/auth.js";
-import bcrypt from "bcryptjs";
+import { TemplateSchema } from "@memora/shared";
+import { publishPaidProject } from "../lib/fulfillment.js";
 
 const r = Router();
+
+r.use(auth);
 
 const revealMethodSchema = z.enum([
   "NORMAL",
@@ -17,14 +21,19 @@ const revealMethodSchema = z.enum([
   "PUZZLE",
 ]);
 
+const SPECIAL_REVEAL_METHODS = [
+  "QR",
+  "PIN",
+  "LETTER",
+  "GIFT",
+  "PUZZLE",
+] as const;
+
 const projectInput = z.object({
   templateId: z.string(),
-  name: z.string().min(1),
-
+  name: z.string().min(1).max(160),
   data: z.record(z.unknown()).default({}),
-
   customization: z.record(z.unknown()).default({}),
-
   revealMethod: revealMethodSchema.default("NORMAL"),
 });
 
@@ -32,388 +41,439 @@ const projectInput = z.object({
    CREATE PROJECT
    ========================================================= */
 
-r.post("/", auth, async (req, res) => {
-  const p = projectInput.safeParse(req.body);
+r.post("/", async (req, res) => {
+  try {
+    const parsed = projectInput.safeParse(req.body);
 
-  if (!p.success) {
-    return res.status(400).json({
-      error: "Invalid project",
-    });
-  }
-
-  const u = (req as any).user;
-
-  const t = await db.template.findUnique({
-    where: {
-      id: p.data.templateId,
-    },
-  });
-
-  if (!t || !t.published) {
-    return res.status(404).json({
-      error: "Template not found",
-    });
-  }
-
-  const project = await db.project.create({
-    data: {
-      userId: u.id,
-
-      templateId: t.id,
-
-      name: p.data.name,
-
-      data: p.data.data as Prisma.InputJsonValue,
-
-      customization: p.data.customization as Prisma.InputJsonValue,
-
-      revealMethod: p.data.revealMethod,
-    },
-  });
-
-  return res.status(201).json({
-    project,
-  });
-});
-
-/* =========================================================
-   UPDATE PROJECT
-   ========================================================= */
-
-r.patch("/:id", auth, async (req, res) => {
-  const u = (req as any).user;
-
-  const p = projectInput.partial().safeParse(req.body);
-
-  if (!p.success) {
-    return res.status(400).json({
-      error: "Invalid project",
-    });
-  }
-
-  const projectId = String(req.params.id);
-
-  const existing = await db.project.findFirst({
-    where: {
-      id: projectId,
-      userId: u.id,
-    },
-  });
-
-  if (!existing) {
-    return res.status(404).json({
-      error: "Project not found",
-    });
-  }
-
-  const project = await db.$transaction(async (tx) => {
-    await tx.projectRevision.create({
-      data: {
-        projectId: existing.id,
-
-        data:
-          existing.data === null
-            ? Prisma.JsonNull
-            : (existing.data as Prisma.InputJsonValue),
-
-        customization:
-          existing.customization === null
-            ? Prisma.JsonNull
-            : (existing.customization as Prisma.InputJsonValue),
-
-        status: existing.status,
-      },
-    });
-
-    const updateData: Prisma.ProjectUpdateInput = {};
-
-    if (p.data.name !== undefined) {
-      updateData.name = p.data.name;
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: "Invalid project",
+      });
     }
 
-    if (p.data.data !== undefined) {
-      updateData.data = p.data.data as Prisma.InputJsonValue;
-    }
+    const u = (req as any).user;
 
-    if (p.data.customization !== undefined) {
-      updateData.customization = p.data.customization as Prisma.InputJsonValue;
-    }
-
-    if (p.data.revealMethod !== undefined) {
-      updateData.revealMethod = p.data.revealMethod;
-    }
-
-    if (p.data.templateId !== undefined) {
-      updateData.template = {
-        connect: {
-          id: p.data.templateId,
-        },
-      };
-    }
-
-    return tx.project.update({
+    const template = await db.template.findUnique({
       where: {
-        id: existing.id,
+        id: parsed.data.templateId,
       },
-
-      data: updateData,
     });
-  });
 
-  return res.json({
-    project,
-  });
+    if (!template || !template.published) {
+      return res.status(404).json({
+        error: "Template not found",
+      });
+    }
+
+    const project = await db.project.create({
+      data: {
+        userId: u.id,
+        templateId: template.id,
+        name: parsed.data.name,
+        data: parsed.data.data as Prisma.InputJsonValue,
+        customization:
+          parsed.data.customization as Prisma.InputJsonValue,
+        revealMethod: parsed.data.revealMethod,
+      },
+    });
+
+    return res.status(201).json({
+      project,
+    });
+  } catch (error) {
+    console.error("Create project failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to create project",
+    });
+  }
 });
 
 /* =========================================================
    GET ALL USER PROJECTS
    ========================================================= */
 
-r.get("/", auth, async (req, res) => {
-  const u = (req as any).user;
+r.get("/", async (req, res) => {
+  try {
+    const u = (req as any).user;
 
-  const projects = await db.project.findMany({
-    where: {
-      userId: u.id,
-    },
-    include: {
-      template: true,
-      website: true,
-    },
-    orderBy: {
-      updatedAt: "desc",
-    },
-  });
+    const projects = await db.project.findMany({
+      where: {
+        userId: u.id,
+      },
+      include: {
+        template: true,
+        website: true,
+        orders: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 1,
+        },
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+    });
 
-  return res.json({
-    items: projects,
-  });
+    return res.json({
+      items: projects,
+    });
+  } catch (error) {
+    console.error("Get projects failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to load projects",
+    });
+  }
+});
+
+/* =========================================================
+   GET SINGLE PROJECT
+   ========================================================= */
+
+r.get("/:id", async (req, res) => {
+  try {
+    const u = (req as any).user;
+
+    const project = await db.project.findFirst({
+      where: {
+        id: String(req.params.id),
+        userId: u.id,
+      },
+      include: {
+        template: true,
+        media: {
+          orderBy: {
+            sortOrder: "asc",
+          },
+        },
+        website: true,
+        orders: true,
+      },
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        error: "Project not found",
+      });
+    }
+
+    return res.json({
+      project,
+    });
+  } catch (error) {
+    console.error("Get project failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to load project",
+    });
+  }
+});
+
+/* =========================================================
+   UPDATE PROJECT
+   ========================================================= */
+
+r.patch("/:id", async (req, res) => {
+  try {
+    const u = (req as any).user;
+
+    const parsed = projectInput
+      .partial()
+      .safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: "Invalid project",
+      });
+    }
+
+    const projectId = String(req.params.id);
+
+    const existing = await db.project.findFirst({
+      where: {
+        id: projectId,
+        userId: u.id,
+      },
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        error: "Project not found",
+      });
+    }
+
+    /*
+     * A published project should not be edited through the
+     * normal project editor. Reveal settings have their own route.
+     */
+    if (existing.status === "PUBLISHED") {
+      return res.status(409).json({
+        error: "Published websites cannot be edited here.",
+      });
+    }
+
+    const updateData: Prisma.ProjectUpdateInput = {};
+
+    if (parsed.data.templateId !== undefined) {
+      const template = await db.template.findFirst({
+        where: {
+          id: parsed.data.templateId,
+          published: true,
+        },
+      });
+
+      if (!template) {
+        return res.status(404).json({
+          error: "Template not found",
+        });
+      }
+
+      updateData.template = {
+        connect: {
+          id: template.id,
+        },
+      };
+    }
+
+    if (parsed.data.name !== undefined) {
+      updateData.name = parsed.data.name;
+    }
+
+    if (parsed.data.data !== undefined) {
+      updateData.data =
+        parsed.data.data as Prisma.InputJsonValue;
+    }
+
+    if (parsed.data.customization !== undefined) {
+      updateData.customization =
+        parsed.data.customization as Prisma.InputJsonValue;
+    }
+
+    if (parsed.data.revealMethod !== undefined) {
+      updateData.revealMethod =
+        parsed.data.revealMethod;
+    }
+
+    /*
+     * Nothing changed.
+     */
+    if (Object.keys(updateData).length === 0) {
+      return res.json({
+        project: existing,
+      });
+    }
+
+    const project = await db.$transaction(
+      async (tx) => {
+        await tx.projectRevision.create({
+          data: {
+            projectId: existing.id,
+            data:
+              existing.data === null
+                ? Prisma.JsonNull
+                : (existing.data as Prisma.InputJsonValue),
+            customization:
+              existing.customization === null
+                ? Prisma.JsonNull
+                : (existing.customization as Prisma.InputJsonValue),
+            status: existing.status,
+          },
+        });
+
+        return tx.project.update({
+          where: {
+            id: existing.id,
+          },
+          data: updateData,
+        });
+      },
+    );
+
+    return res.json({
+      project,
+    });
+  } catch (error) {
+    console.error("Update project failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to update project",
+    });
+  }
 });
 
 /* =========================================================
    FINALIZE PROJECT
    ========================================================= */
-r.post("/:id/finalize", auth, async (req, res) => {
-  const u = (req as any).user;
 
-  const project = await db.project.findFirst({
-    where: {
-      id: String(req.params.id),
-      userId: u.id,
-    },
-  });
+r.post("/:id/finalize", async (req, res) => {
+  try {
+    const u = (req as any).user;
 
-  if (!project) {
-    return res.status(404).json({
-      error: "Project not found",
+    const project = await db.project.findFirst({
+      where: {
+        id: String(req.params.id),
+        userId: u.id,
+      },
+      include: {
+        template: true,
+      },
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        error: "Project not found",
+      });
+    }
+
+    if (project.status !== "DRAFT") {
+      if (project.status === "FINALIZED") {
+        return res.json({
+          project,
+        });
+      }
+
+      return res.status(409).json({
+        error: "Project cannot be finalized in its current state",
+      });
+    }
+
+    let schema: any;
+
+    try {
+      schema = TemplateSchema.parse(
+        project.template.schema,
+      );
+    } catch (error) {
+      console.error(
+        "Invalid template schema:",
+        error,
+      );
+
+      return res.status(500).json({
+        error: "Template configuration is invalid",
+      });
+    }
+
+    const missing = schema.fields
+      .filter(
+        (field: any) =>
+          field.required &&
+          (
+            project.data as any
+          )?.[field.id] === undefined ||
+          (
+            field.required &&
+            String(
+              (project.data as any)?.[field.id] ?? "",
+            ).trim() === ""
+          ),
+      )
+      .map((field: any) => field.label);
+
+    if (missing.length > 0) {
+      return res.status(400).json({
+        error: `Please complete: ${missing.join(", ")}`,
+      });
+    }
+
+    const updatedProject =
+      await db.project.update({
+        where: {
+          id: project.id,
+        },
+        data: {
+          status: "FINALIZED",
+          finalizedAt: new Date(),
+        },
+      });
+
+    return res.json({
+      project: updatedProject,
+    });
+  } catch (error) {
+    console.error("Finalize project failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to finalize project",
     });
   }
-
-  const updated = await db.project.update({
-    where: {
-      id: project.id,
-    },
-    data: {
-      status: "FINALIZED",
-    },
-  });
-
-  return res.json({
-    project: updated,
-  });
 });
 
 /* =========================================================
    PUBLISH PROJECT
    ========================================================= */
 
-function makeSlug(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 70);
-}
-
-r.post("/:id/publish", auth, async (req, res) => {
+r.post("/:id/publish", async (req, res) => {
   const u = (req as any).user;
-  const projectId = String(req.params.id);
 
-  const project = await db.project.findFirst({
-    where: {
-      id: projectId,
-      userId: u.id,
-    },
-    include: {
-      website: true,
-    },
-  });
+  try {
+    const result = await publishPaidProject(
+      String(req.params.id),
+      u.id,
+    );
 
-  if (!project) {
-    return res.status(404).json({
-      error: "Project not found",
+    return res.json(result);
+  } catch (error: any) {
+    const message =
+      error?.message ||
+      "Unable to publish website";
+
+    const status =
+      message === "Project not found"
+        ? 404
+        : message === "Payment required"
+          ? 402
+          : message.includes("finalized")
+            ? 409
+            : 500;
+
+    return res.status(status).json({
+      error: message,
     });
   }
-
-  if (project.status !== "FINALIZED") {
-    return res.status(409).json({
-      error: "Finalize the project first",
-    });
-  }
-
-  /*
-   * Only a paid project can be published.
-   */
-  const paidOrder = await db.order.findFirst({
-    where: {
-      projectId: project.id,
-      userId: u.id,
-      status: "PAID",
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
-
-  if (!paidOrder) {
-    return res.status(402).json({
-      error: "Payment required before publishing",
-    });
-  }
-
-  const projectData =
-    project.data && typeof project.data === "object"
-      ? (project.data as Record<string, any>)
-      : {};
-
-  const scannerStyle =
-    projectData.scannerStyle === "SQUARE" ? "SQUARE" : "HEART";
-
-  /*
-   * Already published:
-   * keep the same permanent URL.
-   */
-  if (project.website) {
-    const website = await db.publishedSite.update({
-      where: {
-        id: project.website.id,
-      },
-      data: {
-        status: "ACTIVE",
-        revealMethod: project.revealMethod,
-      },
-    });
-
-    await db.project.update({
-      where: {
-        id: project.id,
-      },
-      data: {
-        status: "PUBLISHED",
-        publishedAt: project.publishedAt || new Date(),
-      },
-    });
-
-    const appUrl = process.env.APP_URL || "http://localhost:5173";
-
-    return res.json({
-      url: `${appUrl}/r/${website.slug}`,
-
-      website,
-
-      packagePrice: paidOrder.amount,
-
-      revealMethod: project.revealMethod,
-
-      scannerStyle: project.revealMethod === "QR" ? scannerStyle : null,
-    });
-  }
-
-  /*
-   * Create a unique permanent slug.
-   */
-  const baseSlug = makeSlug(project.name) || `surprise-${project.id.slice(-8)}`;
-
-  let slug = baseSlug;
-  let counter = 2;
-
-  while (
-    await db.publishedSite.findUnique({
-      where: {
-        slug,
-      },
-      select: {
-        id: true,
-      },
-    })
-  ) {
-    slug = `${baseSlug}-${counter++}`;
-  }
-
-  /*
-   * Create the permanent website.
-   *
-   * expiresAt is intentionally left null,
-   * so the website does not expire.
-   */
-  const website = await db.publishedSite.create({
-    data: {
-      projectId: project.id,
-
-      slug,
-
-      status: "ACTIVE",
-
-      revealMethod: project.revealMethod,
-    },
-  });
-
-  await db.project.update({
-    where: {
-      id: project.id,
-    },
-
-    data: {
-      status: "PUBLISHED",
-
-      publishedAt: new Date(),
-    },
-  });
-
-  const appUrl = process.env.APP_URL || "http://localhost:5173";
-
-  return res.status(201).json({
-    url: `${appUrl}/r/${website.slug}`,
-
-    website,
-
-    packagePrice: paidOrder.amount,
-
-    revealMethod: project.revealMethod,
-
-    scannerStyle: project.revealMethod === "QR" ? scannerStyle : null,
-  });
 });
 
 /* =========================================================
    SAVE REVEAL SETTINGS
    ========================================================= */
 
-r.patch("/:id/reveal", auth, async (req, res) => {
+r.patch("/:id/reveal", async (req, res) => {
   try {
     const u = (req as any).user;
+
     const projectId = String(req.params.id);
 
     const parsed = z
       .object({
         method: revealMethodSchema,
 
-        pin: z.string().optional().default(""),
+        pin: z
+          .string()
+          .min(4)
+          .max(64)
+          .optional(),
 
-        puzzleQuestion: z.string().optional().default(""),
+        puzzleQuestion: z
+          .string()
+          .max(240)
+          .optional(),
 
-        puzzleAnswer: z.string().optional().default(""),
+        puzzleAnswer: z
+          .string()
+          .max(240)
+          .optional(),
+
+        letterTitle: z
+          .string()
+          .max(160)
+          .optional(),
+
+        letterIntro: z
+          .string()
+          .max(500)
+          .optional(),
       })
       .safeParse(req.body);
 
@@ -422,6 +482,8 @@ r.patch("/:id/reveal", auth, async (req, res) => {
         error: "Invalid reveal settings",
       });
     }
+
+    const data = parsed.data;
 
     const project = await db.project.findFirst({
       where: {
@@ -433,122 +495,188 @@ r.patch("/:id/reveal", auth, async (req, res) => {
       },
     });
 
-    if (!project || !project.website) {
+    if (!project) {
       return res.status(404).json({
-        error: "Published website not found",
+        error: "Project not found",
       });
     }
 
     /*
-     * Update project reveal method.
+     * Reveal configuration is intended for a published website.
      */
-    await db.project.update({
-      where: {
-        id: project.id,
-      },
-
-      data: {
-        revealMethod: parsed.data.method,
-      },
-    });
+    if (!project.website) {
+      return res.status(409).json({
+        error:
+          "Publish the website before configuring its reveal",
+      });
+    }
 
     /*
-     * Create/update access rule.
+     * Special reveal methods are part of the paid package.
+     *
+     * INR:
+     *   Basic          = ₹99
+     *   Movie          = ₹109
+     *   Special Reveal = ₹119
+     *
+     * USD:
+     *   Basic          = $1.99
+     *   Movie          = $2.49
+     *   Special Reveal = $2.99
      */
-    const accessRuleData: any = {
-      attempts: 0,
-    };
+    if (
+      SPECIAL_REVEAL_METHODS.includes(
+        data.method as
+          (typeof SPECIAL_REVEAL_METHODS)[number],
+      )
+    ) {
+      const paidOrder =
+        await db.order.findFirst({
+          where: {
+            projectId: project.id,
+            userId: u.id,
+            status: "PAID",
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        });
 
-    /* =====================================================
-       PIN
-       ===================================================== */
-
-    if (parsed.data.method === "PIN") {
-      const pin = parsed.data.pin.trim();
-
-      if (!pin || pin.length < 4) {
-        return res.status(400).json({
-          error: "PIN must contain at least 4 characters",
+      if (!paidOrder) {
+        return res.status(402).json({
+          error:
+            "Payment is required for this reveal method.",
         });
       }
 
-      accessRuleData.pinHash = await bcrypt.hash(pin, 12);
+      const requiredAmount =
+  paidOrder.currency === "USD"
+    ? 1000
+    : 11900;
 
-      accessRuleData.puzzleQuestion = null;
-      accessRuleData.puzzleAnswerHash = null;
-    }
-
-    /* =====================================================
-       PUZZLE
-       ===================================================== */
-
-    if (parsed.data.method === "PUZZLE") {
-      const puzzleQuestion = parsed.data.puzzleQuestion.trim();
-      const puzzleAnswer = parsed.data.puzzleAnswer
-        .trim()
-        .toLowerCase();
-
-      if (!puzzleQuestion || !puzzleAnswer) {
-        return res.status(400).json({
-          error: "Puzzle question and answer are required",
+      if (paidOrder.amount < requiredAmount) {
+        return res.status(403).json({
+          error:
+            "This reveal method is not included in your purchased package.",
         });
       }
-
-      accessRuleData.pinHash = null;
-
-      accessRuleData.puzzleQuestion = puzzleQuestion;
-
-      accessRuleData.puzzleAnswerHash = await bcrypt.hash(
-        puzzleAnswer,
-        12,
-      );
     }
 
-    /* =====================================================
-       NORMAL / QR / LETTER / GIFT
-       ===================================================== */
+    /*
+     * Validate method-specific data BEFORE changing the DB.
+     */
+    if (
+      data.method === "PIN" &&
+      !data.pin
+    ) {
+      return res.status(400).json({
+        error: "PIN is required",
+      });
+    }
 
     if (
-      parsed.data.method === "NORMAL" ||
-      parsed.data.method === "QR" ||
-      parsed.data.method === "LETTER" ||
-      parsed.data.method === "GIFT"
+      data.method === "PUZZLE" &&
+      (
+        !data.puzzleQuestion?.trim() ||
+        !data.puzzleAnswer?.trim()
+      )
     ) {
-      accessRuleData.pinHash = null;
-      accessRuleData.puzzleQuestion = null;
-      accessRuleData.puzzleAnswerHash = null;
+      return res.status(400).json({
+        error:
+          "Puzzle question and answer are required",
+      });
     }
 
-    const accessRule = await db.siteAccessRule.upsert({
-      where: {
-        siteId: project.website.id,
-      },
+    const result =
+      await db.$transaction(async (tx) => {
+        await tx.project.update({
+          where: {
+            id: project.id,
+          },
+          data: {
+            revealMethod: data.method,
+          },
+        });
 
-      update: accessRuleData,
+        await tx.publishedSite.update({
+          where: {
+            id: project.website!.id,
+          },
+          data: {
+            revealMethod: data.method,
+          },
+        });
 
-      create: {
-        siteId: project.website.id,
-        ...accessRuleData,
-      },
-    });
+        /*
+         * Always clear previous access settings first.
+         *
+         * This prevents:
+         * PIN → NORMAL
+         * PUZZLE → NORMAL
+         * PIN → PUZZLE
+         *
+         * from leaving stale credentials behind.
+         */
+        const accessRuleData = {
+          pinHash: null as string | null,
+          puzzleQuestion: null as string | null,
+          puzzleAnswerHash:
+            null as string | null,
+          letterTitle: null as string | null,
+          letterIntro: null as string | null,
+          attempts: 0,
+        };
 
-    const website = await db.publishedSite.update({
-      where: {
-        id: project.website.id,
-      },
+        if (data.method === "PIN") {
+          accessRuleData.pinHash =
+            await bcrypt.hash(
+              data.pin!,
+              12,
+            );
+        }
 
-      data: {
-        revealMethod: parsed.data.method,
-      },
-    });
+        if (data.method === "PUZZLE") {
+          accessRuleData.puzzleQuestion =
+            data.puzzleQuestion!.trim();
+
+          accessRuleData.puzzleAnswerHash =
+            await bcrypt.hash(
+              data.puzzleAnswer!
+                .trim()
+                .toLowerCase(),
+              12,
+            );
+        }
+
+        if (data.method === "LETTER") {
+          accessRuleData.letterTitle =
+            data.letterTitle?.trim() || null;
+
+          accessRuleData.letterIntro =
+            data.letterIntro?.trim() || null;
+        }
+
+        return tx.siteAccessRule.upsert({
+          where: {
+            siteId: project.website!.id,
+          },
+          update: accessRuleData,
+          create: {
+            siteId: project.website!.id,
+            ...accessRuleData,
+          },
+        });
+      });
 
     return res.json({
       ok: true,
-      website,
-      accessRule,
+      accessRule: result,
     });
   } catch (error) {
-    console.error("Failed to save reveal settings:", error);
+    console.error(
+      "Failed to save reveal settings:",
+      error,
+    );
 
     return res.status(500).json({
       error: "Unable to save reveal settings",
@@ -557,44 +685,13 @@ r.patch("/:id/reveal", auth, async (req, res) => {
 });
 
 /* =========================================================
-   GET SINGLE PROJECT
+   DELETE UNPAID DRAFT / FINALIZED PROJECT
    ========================================================= */
 
-r.get("/:id", auth, async (req, res) => {
-  const projectId = String(req.params.id);
-
-  const u = (req as any).user;
-
-  const project = await db.project.findFirst({
-    where: {
-      id: projectId,
-      userId: u.id,
-    },
-
-    include: {
-      template: true,
-      website: true,
-    },
-  });
-
-  if (!project) {
-    return res.status(404).json({
-      error: "Project not found",
-    });
-  }
-
-  return res.json({
-    project,
-  });
-});
-
-/* =========================================================
-   DELETE DRAFT PROJECT
-   ========================================================= */
-
-r.delete("/:id", auth, async (req, res) => {
+r.delete("/:id", async (req, res) => {
   try {
     const projectId = String(req.params.id);
+
     const u = (req as any).user;
 
     const project = await db.project.findFirst({
@@ -620,71 +717,87 @@ r.delete("/:id", auth, async (req, res) => {
     }
 
     /*
-     * Paid websites can NEVER be deleted.
+     * NEVER allow a paid project to be deleted.
      */
     if (project.orders.length > 0) {
       return res.status(403).json({
-        error: "Paid websites cannot be deleted.",
+        error:
+          "Paid websites cannot be deleted.",
       });
     }
 
     /*
-     * Only incomplete DRAFT projects can be deleted.
-     */
-    if (project.status !== "DRAFT" && project.status !== "FINALIZED") {
-      return res.status(403).json({
-        error: "Only unpaid draft or finalized websites can be deleted.",
-      });
-    }
-
-    /*
-     * A published website should never be deleted.
-     * This is an additional safety check.
+     * Published projects should never be deleted.
      */
     if (project.website) {
       return res.status(403).json({
-        error: "Published websites cannot be deleted.",
+        error:
+          "Published websites cannot be deleted.",
+      });
+    }
+
+    /*
+     * Only unpaid draft/finalized projects can be deleted.
+     */
+    if (
+      project.status !== "DRAFT" &&
+      project.status !== "FINALIZED"
+    ) {
+      return res.status(403).json({
+        error:
+          "Only unpaid draft or finalized websites can be deleted.",
       });
     }
 
     await db.$transaction(async (tx) => {
-  // Delete unpaid orders attached to this project first.
-  await tx.order.deleteMany({
-    where: {
-      projectId: project.id,
-      status: {
-        not: "PAID",
-      },
-    },
-  });
+      /*
+       * Delete unpaid orders first.
+       */
+      await tx.order.deleteMany({
+        where: {
+          projectId: project.id,
+          status: {
+            not: "PAID",
+          },
+        },
+      });
 
-  // Delete project-related media.
-  await tx.projectMedia.deleteMany({
-    where: {
-      projectId: project.id,
-    },
-  });
+      /*
+       * Delete project media.
+       */
+      await tx.projectMedia.deleteMany({
+        where: {
+          projectId: project.id,
+        },
+      });
 
-  // Delete project revisions.
-  await tx.projectRevision.deleteMany({
-    where: {
-      projectId: project.id,
-    },
-  });
+      /*
+       * Delete revisions.
+       */
+      await tx.projectRevision.deleteMany({
+        where: {
+          projectId: project.id,
+        },
+      });
 
-  // Finally delete the project.
-  await tx.project.delete({
-    where: {
-      id: project.id,
-    },
-  });
-});
+      /*
+       * Finally delete the project.
+       */
+      await tx.project.delete({
+        where: {
+          id: project.id,
+        },
+      });
+    });
 
     return res.json({
       ok: true,
     });
   } catch (error) {
-    console.error("Delete project failed:", error);
+    console.error(
+      "Delete project failed:",
+      error,
+    );
 
     return res.status(500).json({
       error: "Unable to delete draft",

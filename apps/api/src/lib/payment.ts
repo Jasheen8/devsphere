@@ -1,8 +1,6 @@
 import Razorpay from "razorpay";
 import crypto from "node:crypto";
 
-type RazorpayCurrency = "INR" | "USD";
-
 function getRazorpayClient() {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -19,40 +17,60 @@ function getRazorpayClient() {
   });
 }
 
+function requireRazorpay() {
+  return getRazorpayClient();
+}
+
 export async function createRazorpayOrder(
-  amount: number,
+  amountMinor: number,
   receipt: string,
-  currency: RazorpayCurrency = "INR",
 ) {
-  // Razorpay expects the smallest currency unit:
-  // INR 99  -> 9900 paise
-  // USD $1.99 -> 199 cents
-  if (!Number.isInteger(amount) || amount < 100) {
+  if (!Number.isInteger(amountMinor) || amountMinor <= 0) {
     throw new Error("Invalid Razorpay amount");
   }
 
-  if (currency !== "INR" && currency !== "USD") {
-    throw new Error("Unsupported Razorpay currency");
-  }
-
-  const client = getRazorpayClient();
+  const client = requireRazorpay();
 
   return client.orders.create({
-    amount,
-    currency,
-    receipt,
+    amount: amountMinor,
+    currency: "INR",
+    receipt: receipt.slice(0, 40),
     payment_capture: true,
   });
 }
 
-export function verifyPaymentSignature(
+export async function fetchRazorpayOrder(providerOrderId: string) {
+  if (!providerOrderId) {
+    throw new Error("Razorpay order ID is required");
+  }
+
+  return requireRazorpay().orders.fetch(providerOrderId);
+}
+
+export async function fetchRazorpayPayments(providerOrderId: string) {
+  if (!providerOrderId) {
+    throw new Error("Razorpay order ID is required");
+  }
+
+  return requireRazorpay().orders.fetchPayments(providerOrderId);
+}
+
+export async function fetchRazorpayPayment(providerPaymentId: string) {
+  if (!providerPaymentId) {
+    throw new Error("Razorpay payment ID is required");
+  }
+
+  return requireRazorpay().payments.fetch(providerPaymentId);
+}
+
+export function verifyRazorpayPaymentSignature(
   orderId: string,
   paymentId: string,
   signature: string,
 ) {
   const secret = process.env.RAZORPAY_KEY_SECRET;
 
-  if (!secret || !signature) {
+  if (!secret || !orderId || !paymentId || !signature) {
     return false;
   }
 
@@ -62,42 +80,42 @@ export function verifyPaymentSignature(
     .digest("hex");
 
   const expectedBuffer = Buffer.from(expected, "utf8");
-  const signatureBuffer = Buffer.from(signature, "utf8");
+  const receivedBuffer = Buffer.from(signature, "utf8");
 
-  if (expectedBuffer.length !== signatureBuffer.length) {
+  if (expectedBuffer.length !== receivedBuffer.length) {
     return false;
   }
 
   return crypto.timingSafeEqual(
     expectedBuffer,
-    signatureBuffer,
+    receivedBuffer,
   );
 }
 
-export function verifyWebhookSignature(
-  body: string,
+export function verifyRazorpayWebhookSignature(
+  rawBody: string,
   signature: string,
 ) {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
-  if (!secret || !signature) {
+  if (!secret || !rawBody || !signature) {
     return false;
   }
 
   const expected = crypto
     .createHmac("sha256", secret)
-    .update(body)
+    .update(rawBody)
     .digest("hex");
 
   const expectedBuffer = Buffer.from(expected, "utf8");
-  const signatureBuffer = Buffer.from(signature, "utf8");
+  const receivedBuffer = Buffer.from(signature, "utf8");
 
-  if (expectedBuffer.length !== signatureBuffer.length) {
+  if (expectedBuffer.length !== receivedBuffer.length) {
     return false;
   }
 
   return crypto.timingSafeEqual(
     expectedBuffer,
-    signatureBuffer,
+    receivedBuffer,
   );
 }
