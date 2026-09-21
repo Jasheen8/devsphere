@@ -18,15 +18,17 @@ export function calculateBirthdayPackage(args: {
   currency: CheckoutCurrency;
 }) {
   const movieEnabled = args.projectData.movieEnabled === true;
+
   const specialReveal = SPECIAL_REVEAL_METHODS.includes(
-    args.revealMethod as any,
+    args.revealMethod as (typeof SPECIAL_REVEAL_METHODS)[number],
   );
 
   const packagePrice = specialReveal ? 119 : movieEnabled ? 109 : 99;
+
   const providerAmount =
-  args.currency === "USD"
-    ? 10
-    : packagePrice;
+    args.currency === "USD"
+      ? 10
+      : packagePrice;
 
   return {
     packagePrice,
@@ -50,6 +52,7 @@ function slugBase(value: string) {
 
 async function makeUniqueSlug(tx: any, base: string) {
   const clean = slugBase(base);
+
   const reserved = new Set([
     "api",
     "admin",
@@ -61,10 +64,15 @@ async function makeUniqueSlug(tx: any, base: string) {
   ]);
 
   const root = reserved.has(clean) ? `${clean}-gift` : clean;
+
   let slug = root;
   let counter = 2;
 
-  while (await tx.publishedSite.findUnique({ where: { slug } })) {
+  while (
+    await tx.publishedSite.findUnique({
+      where: { slug },
+    })
+  ) {
     slug = `${root}-${counter++}`;
   }
 
@@ -74,23 +82,36 @@ async function makeUniqueSlug(tx: any, base: string) {
 async function publishInsideTransaction(tx: any, order: any) {
   const project = order.project;
 
-  if (project.status !== "FINALIZED" && project.status !== "PUBLISHED") {
+  if (
+    project.status !== "FINALIZED" &&
+    project.status !== "PUBLISHED"
+  ) {
     throw new Error("Project must be finalized before publishing");
   }
 
-  const limits = (order.plan?.limits || {}) as Record<string, unknown>;
+  const limits = (order.plan?.limits || {}) as Record<
+    string,
+    unknown
+  >;
+
   const expirationDays = limits.expirationDays;
+
   const expiresAt =
     typeof expirationDays === "number"
       ? new Date(Date.now() + expirationDays * 86_400_000)
       : null;
 
   let site = await tx.publishedSite.findUnique({
-    where: { projectId: project.id },
+    where: {
+      projectId: project.id,
+    },
   });
 
   if (!site) {
-    const slug = await makeUniqueSlug(tx, project.name);
+    const slug = await makeUniqueSlug(
+      tx,
+      project.name,
+    );
 
     site = await tx.publishedSite.create({
       data: {
@@ -103,7 +124,9 @@ async function publishInsideTransaction(tx: any, order: any) {
     });
   } else {
     site = await tx.publishedSite.update({
-      where: { id: site.id },
+      where: {
+        id: site.id,
+      },
       data: {
         status: "ACTIVE",
         revealMethod: project.revealMethod,
@@ -114,10 +137,13 @@ async function publishInsideTransaction(tx: any, order: any) {
 
   if (project.status !== "PUBLISHED") {
     await tx.project.update({
-      where: { id: project.id },
+      where: {
+        id: project.id,
+      },
       data: {
         status: "PUBLISHED",
-        publishedAt: project.publishedAt || new Date(),
+        publishedAt:
+          project.publishedAt || new Date(),
       },
     });
   }
@@ -125,21 +151,26 @@ async function publishInsideTransaction(tx: any, order: any) {
   return site;
 }
 
-function getProviderAmountMinor(
-  provider: "razorpay" | "paypal",
-  providerAmount: number,
-) {
-  if (!Number.isFinite(providerAmount) || providerAmount <= 0) {
+/**
+ * finalizePaidOrder receives providerAmount in MAJOR currency units.
+ *
+ * Razorpay:
+ *   119 INR -> providerAmount = 119
+ *   database order.amount = 11900
+ *
+ * PayPal:
+ *   10 USD -> providerAmount = 10
+ *   database order.amount = 1000
+ *
+ * Convert providerAmount to minor units before comparing.
+ */
+function getProviderAmountMinor(providerAmount: number) {
+  if (
+    !Number.isFinite(providerAmount) ||
+    providerAmount <= 0
+  ) {
     throw new Error("Invalid provider amount");
   }
-
-  // finalizePaidOrder receives providerAmount in major currency units:
-  // Razorpay: 119 INR
-  // PayPal:   10 USD
-  //
-  // Database order.amount is always stored in minor units:
-  // ₹119 -> 11900
-  // $10  -> 1000
 
   return Math.round(providerAmount * 100);
 }
@@ -154,151 +185,242 @@ export async function finalizePaidOrder(args: {
   providerAmount: number;
   providerCurrency: "INR" | "USD";
 }) {
-  return db.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({
-      where: { id: args.orderId },
-      include: {
-        project: true,
-        plan: true,
-      },
-    });
+  return db.$transaction(
+    async (tx) => {
+      const order = await tx.order.findUnique({
+        where: {
+          id: args.orderId,
+        },
+        include: {
+          project: true,
+          plan: true,
+        },
+      });
 
-    if (!order) {
-      throw new Error("Order not found");
-    }
+      if (!order) {
+        throw new Error("Order not found");
+      }
 
-    if (args.userId && order.userId !== args.userId) {
-      throw new Error("Order not found");
-    }
+      if (
+        args.userId &&
+        order.userId !== args.userId
+      ) {
+        throw new Error("Order not found");
+      }
 
-    if (order.provider !== args.provider) {
-      throw new Error("Payment provider mismatch");
-    }
+      if (order.provider !== args.provider) {
+        throw new Error("Payment provider mismatch");
+      }
 
-    if (order.currency !== args.providerCurrency) {
-      throw new Error("Payment currency mismatch");
-    }
+      if (
+        order.currency !== args.providerCurrency
+      ) {
+        throw new Error("Payment currency mismatch");
+      }
 
-    const providerAmountMinor = getProviderAmountMinor(
-  args.provider,
-  args.providerAmount,
-);
+      /*
+       * Compare both sides in MINOR units.
+       *
+       * Example:
+       * Razorpay payment = ₹119
+       * providerAmount = 119
+       * providerAmountMinor = 11900
+       * order.amount = 11900
+       */
+      const providerAmountMinor =
+        getProviderAmountMinor(
+          args.providerAmount,
+        );
 
-const expectedAmountMinor = Number(order.amount);
+      const expectedAmountMinor =
+        Number(order.amount);
 
-if (providerAmountMinor !== expectedAmountMinor) {
-  throw new Error(
-    `Payment amount mismatch: received ${providerAmountMinor}, expected ${expectedAmountMinor}`,
+      if (
+        providerAmountMinor !==
+        expectedAmountMinor
+      ) {
+        throw new Error(
+          `Payment amount mismatch: received ${providerAmountMinor}, expected ${expectedAmountMinor}`,
+        );
+      }
+
+      /*
+       * Prevent replacing an already-paid order
+       * with a different payment.
+       */
+      if (
+        order.status === "PAID" &&
+        order.providerPaymentId &&
+        order.providerPaymentId !==
+          args.providerPaymentId
+      ) {
+        throw new Error(
+          "Order has already been paid with another payment",
+        );
+      }
+
+      const paymentId = `${args.provider}-${crypto
+        .createHash("sha256")
+        .update(args.providerPaymentId)
+        .digest("hex")}`;
+
+      await tx.payment.upsert({
+        where: {
+          id: paymentId,
+        },
+        update: {
+          status: "CAPTURED",
+          providerPaymentId:
+            args.providerPaymentId,
+          signature:
+            args.signature || undefined,
+          amount: order.amount,
+          currency: order.currency,
+          raw: args.raw as any,
+        },
+        create: {
+          id: paymentId,
+          orderId: order.id,
+          provider: args.provider,
+          status: "CAPTURED",
+          amount: order.amount,
+          currency: order.currency,
+          providerPaymentId:
+            args.providerPaymentId,
+          signature:
+            args.signature || undefined,
+          raw: {
+            providerAmount:
+              args.providerAmount,
+            providerCurrency:
+              args.providerCurrency,
+            payload:
+              args.raw ?? null,
+          } as any,
+        },
+      });
+
+      /*
+       * Mark the order as PAID.
+       */
+      const paidOrder =
+        order.status === "PAID"
+          ? order
+          : await tx.order.update({
+              where: {
+                id: order.id,
+              },
+              data: {
+                status: "PAID",
+                providerPaymentId:
+                  args.providerPaymentId,
+              },
+              include: {
+                project: true,
+                plan: true,
+              },
+            });
+
+      /*
+       * Publish website inside the same transaction.
+       */
+      const site =
+        await publishInsideTransaction(
+          tx,
+          paidOrder,
+        );
+
+      return {
+        ok: true,
+        orderId: paidOrder.id,
+        status: "PAID" as const,
+        alreadyPaid:
+          order.status === "PAID",
+        slug: site.slug,
+        url: `${
+          process.env.APP_URL ||
+          "http://localhost:5173"
+        }/r/${site.slug}`,
+      };
+    },
+    {
+      /*
+       * Production database can be slower than localhost.
+       * Give the transaction enough time to finish
+       * all payment + publishing queries.
+       */
+      maxWait: 10_000,
+      timeout: 20_000,
+    },
   );
 }
 
-    if (
-      order.status === "PAID" &&
-      order.providerPaymentId &&
-      order.providerPaymentId !== args.providerPaymentId
-    ) {
-      throw new Error("Order has already been paid with another payment");
-    }
-
-    const paymentId = `${args.provider}-${crypto
-      .createHash("sha256")
-      .update(args.providerPaymentId)
-      .digest("hex")}`;
-
-    await tx.payment.upsert({
-      where: { id: paymentId },
-      update: {
-        status: "CAPTURED",
-        providerPaymentId: args.providerPaymentId,
-        signature: args.signature || undefined,
-        amount: order.amount,
-        currency: order.currency,
-        raw: args.raw as any,
-      },
-      create: {
-        id: paymentId,
-        orderId: order.id,
-        provider: args.provider,
-        status: "CAPTURED",
-        amount: order.amount,
-        currency: order.currency,
-        providerPaymentId: args.providerPaymentId,
-        signature: args.signature || undefined,
-        raw: {
-          providerAmount: args.providerAmount,
-          providerCurrency: args.providerCurrency,
-          payload: args.raw ?? null,
-        } as any,
-      },
-    });
-
-    const paidOrder =
-      order.status === "PAID"
-        ? order
-        : await tx.order.update({
-            where: { id: order.id },
-            data: {
-              status: "PAID",
-              providerPaymentId: args.providerPaymentId,
+export async function publishPaidProject(
+  projectId: string,
+  userId: string,
+) {
+  return db.$transaction(
+    async (tx) => {
+      const project =
+        await tx.project.findFirst({
+          where: {
+            id: projectId,
+            userId,
+          },
+          include: {
+            orders: {
+              where: {
+                status: "PAID",
+              },
+              orderBy: {
+                createdAt: "desc",
+              },
+              take: 1,
+              include: {
+                plan: true,
+              },
             },
-            include: {
-              project: true,
-              plan: true,
-            },
-          });
+            website: true,
+          },
+        });
 
-    const site = await publishInsideTransaction(tx, paidOrder);
+      if (!project) {
+        throw new Error("Project not found");
+      }
 
-    return {
-      ok: true,
-      orderId: paidOrder.id,
-      status: "PAID" as const,
-      alreadyPaid: order.status === "PAID",
-      slug: site.slug,
-      url: `${process.env.APP_URL || "http://localhost:5173"}/r/${site.slug}`,
-    };
-  });
-}
+      const paidOrder = project.orders[0];
 
-export async function publishPaidProject(projectId: string, userId: string) {
-  return db.$transaction(async (tx) => {
-    const project = await tx.project.findFirst({
-      where: { id: projectId, userId },
-      include: {
-        orders: {
-          where: { status: "PAID" },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          include: { plan: true },
-        },
-        website: true,
-      },
-    });
+      if (!paidOrder) {
+        throw new Error("Payment required");
+      }
 
-    if (!project) {
-      throw new Error("Project not found");
-    }
+      const order = {
+        ...paidOrder,
+        project,
+        plan: paidOrder.plan,
+      };
 
-    const paidOrder = project.orders[0];
+      const site =
+        await publishInsideTransaction(
+          tx,
+          order,
+        );
 
-    if (!paidOrder) {
-      throw new Error("Payment required");
-    }
-
-    const order = {
-      ...paidOrder,
-      project,
-      plan: paidOrder.plan,
-    };
-
-    const site = await publishInsideTransaction(tx, order);
-
-    return {
-      ok: true,
-      alreadyPublished:
-        project.status === "PUBLISHED" && Boolean(project.website),
-      slug: site.slug,
-      url: `${process.env.APP_URL || "http://localhost:5173"}/r/${site.slug}`,
-    };
-  });
+      return {
+        ok: true,
+        alreadyPublished:
+          project.status === "PUBLISHED" &&
+          Boolean(project.website),
+        slug: site.slug,
+        url: `${
+          process.env.APP_URL ||
+          "http://localhost:5173"
+        }/r/${site.slug}`,
+      };
+    },
+    {
+      maxWait: 10_000,
+      timeout: 20_000,
+    },
+  );
 }
