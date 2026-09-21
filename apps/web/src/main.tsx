@@ -1806,6 +1806,22 @@ function Checkout() {
           currency: "INR",
         }),
       });
+      console.log("Razorpay order response:", order);
+
+      if (!order?.keyId) {
+        throw new Error("Razorpay keyId missing from server response.");
+      }
+
+      if (!order?.providerOrderId) {
+        throw new Error("Razorpay order ID missing from server response.");
+      }
+
+      if (
+        !Number.isInteger(Number(order.amount)) ||
+        Number(order.amount) <= 0
+      ) {
+        throw new Error(`Invalid Razorpay amount: ${order?.amount}`);
+      }
 
       if (order?.alreadyPaid) {
         nav(`/published/${id}`);

@@ -180,19 +180,16 @@ r.post("/create-order", auth, async (req, res) => {
       orderBy: { createdAt: "desc" },
     });
 
-    if (existingPending?.providerOrderId) {
+    // Reuse pending orders only for PayPal.
+    // For Razorpay, always create a fresh provider order.
+    if (existingPending?.providerOrderId && provider === "paypal") {
       return res.status(200).json({
         orderId: existingPending.id,
         provider: existingPending.provider,
         providerOrderId: existingPending.providerOrderId,
-        amount:
-          data.currency === "USD"
-            ? existingPending.amount / 100
-            : existingPending.amount,
+        amount: existingPending.amount / 100,
         currency: existingPending.currency,
-        ...(provider === "razorpay"
-          ? { keyId: process.env.RAZORPAY_KEY_ID || "" }
-          : { clientId: getPayPalClientId() }),
+        clientId: getPayPalClientId(),
       });
     }
 
