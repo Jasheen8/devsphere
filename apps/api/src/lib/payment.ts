@@ -35,7 +35,6 @@ export async function createRazorpayOrder(
     amount: amountMinor,
     currency: "INR",
     receipt: receipt.slice(0, 40),
-    payment_capture: true,
   });
 }
 
@@ -86,10 +85,7 @@ export function verifyRazorpayPaymentSignature(
     return false;
   }
 
-  return crypto.timingSafeEqual(
-    expectedBuffer,
-    receivedBuffer,
-  );
+  return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
 }
 
 export function verifyRazorpayWebhookSignature(
@@ -114,8 +110,5 @@ export function verifyRazorpayWebhookSignature(
     return false;
   }
 
-  return crypto.timingSafeEqual(
-    expectedBuffer,
-    receivedBuffer,
-  );
+  return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
 }

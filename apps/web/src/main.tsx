@@ -1752,10 +1752,7 @@ function Checkout() {
    */
 
   const birthdayPrice = specialRevealSelected ? 119 : movieEnabled ? 109 : 99;
-  const displayPrice =
-  currency === "USD"
-    ? 10
-    : birthdayPrice;
+  const displayPrice = currency === "USD" ? 10 : birthdayPrice;
   const priceLabel = specialRevealSelected
     ? "SPECIAL REVEAL"
     : movieEnabled
@@ -1882,8 +1879,25 @@ function Checkout() {
             });
 
             nav(`/published/${id}`);
+            return;
           } catch (error: any) {
             console.error("Razorpay verification failed:", error);
+
+            // Payment may already be captured even if the browser
+            // verification request failed or timed out.
+            try {
+              const resume = await api<any>(`/payments/resume/${id}`, {
+                method: "POST",
+              });
+
+              if (resume?.paid) {
+                nav(`/published/${id}`);
+                return;
+              }
+            } catch (resumeError) {
+              console.error("Razorpay payment recovery failed:", resumeError);
+            }
+
             setCheckoutError(
               error?.message ||
                 "Payment was received, but confirmation is still processing. Please wait a moment and refresh this page.",
