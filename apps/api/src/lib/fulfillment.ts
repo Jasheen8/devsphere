@@ -133,16 +133,14 @@ function getProviderAmountMinor(
     throw new Error("Invalid provider amount");
   }
 
-  // Razorpay amount is already in the smallest currency unit.
-  if (provider === "razorpay") {
-    if (!Number.isInteger(providerAmount)) {
-      throw new Error("Invalid Razorpay amount");
-    }
+  // finalizePaidOrder receives providerAmount in major currency units:
+  // Razorpay: 119 INR
+  // PayPal:   10 USD
+  //
+  // Database order.amount is always stored in minor units:
+  // ₹119 -> 11900
+  // $10  -> 1000
 
-    return providerAmount;
-  }
-
-  // PayPal amount is received as USD decimal amount, e.g. 2.99.
   return Math.round(providerAmount * 100);
 }
 
@@ -182,13 +180,17 @@ export async function finalizePaidOrder(args: {
     }
 
     const providerAmountMinor = getProviderAmountMinor(
-      args.provider,
-      args.providerAmount,
-    );
+  args.provider,
+  args.providerAmount,
+);
 
-    if (providerAmountMinor !== order.amount) {
-      throw new Error("Payment amount mismatch");
-    }
+const expectedAmountMinor = Number(order.amount);
+
+if (providerAmountMinor !== expectedAmountMinor) {
+  throw new Error(
+    `Payment amount mismatch: received ${providerAmountMinor}, expected ${expectedAmountMinor}`,
+  );
+}
 
     if (
       order.status === "PAID" &&
