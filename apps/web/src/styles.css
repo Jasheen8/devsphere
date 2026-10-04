@@ -253,6 +253,24 @@ button {
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
 }
+.template-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+.template-grid > .card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.template-grid .card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.template-grid .card-body > .actions {
+  margin-top: auto;
+  padding-top: 8px;
+}
 .card {
   background: #fff;
   border: 1px solid #eadfd8;
@@ -781,6 +799,11 @@ body {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .template-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
   .editor {
     display: block;
     position: relative;
@@ -872,6 +895,25 @@ body {
 @media (max-width: 600px) {
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .template-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .template-grid > .card {
+    border-radius: 20px;
+  }
+
+  .template-grid .card-body {
+    padding: 16px;
+  }
+
+  .template-grid .actions > .btn {
+    flex: 1 1 130px;
+    justify-content: center;
+    text-align: center;
   }
 
   .site-nav {

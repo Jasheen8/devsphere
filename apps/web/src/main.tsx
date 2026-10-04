@@ -196,12 +196,7 @@ function Home() {
               </div>
               <Link to="/templates">See all →</Link>
             </div>
-            <div
-              className="grid"
-              style={{
-                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-              }}
-            >
+            <div className="grid template-grid">
               {/* 1. Royal Memory Birthday */}
               {royalBirthdayTemplate && (
                 <TemplateCard
@@ -484,12 +479,7 @@ function Templates() {
               </button>
             ))}
           </div>
-          <div
-            className="grid"
-            style={{
-              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            }}
-          >
+          <div className="grid template-grid">
             {freeOnly ? (
               items.map((t) => <TemplateCard key={t.id} t={t} />)
             ) : (
