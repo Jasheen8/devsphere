@@ -41,6 +41,7 @@ type Template = {
   thumbnailUrl?: string;
   previewUrl?: string;
   liveDemoUrl?: string;
+  isFree?: boolean;
   category: {
     name: string;
     slug: string;
@@ -117,17 +118,24 @@ function Home() {
         console.error("Failed to load templates:", error);
       });
   }, []);
-  const birthdayTemplate = templates.find(
-    (t) => t.category?.name?.toLowerCase() === "birthday",
+  const royalBirthdayTemplate = templates.find(
+    (t) => t.slug === "birthday-royal-memory",
+  );
+
+  const freeBirthdayTemplate = templates.find(
+    (t) => t.slug === "cutie-birthday" && t.isFree,
   );
 
   const anniversaryTemplate = templates.find(
     (t) => t.slug === "anniversary-romantic-01",
   );
 
-  const otherTemplates = templates.filter(
-    (t) => t !== birthdayTemplate && t !== anniversaryTemplate,
-  );
+  const featuredTemplates = new Set([
+    royalBirthdayTemplate,
+    freeBirthdayTemplate,
+    anniversaryTemplate,
+  ]);
+  const otherTemplates = templates.filter((t) => !featuredTemplates.has(t));
   return (
     <>
       <Nav />
@@ -194,12 +202,23 @@ function Home() {
                 gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
               }}
             >
-              {/* 1. Birthday */}
-              {birthdayTemplate && (
-                <TemplateCard key={birthdayTemplate.id} t={birthdayTemplate} />
+              {/* 1. Royal Memory Birthday */}
+              {royalBirthdayTemplate && (
+                <TemplateCard
+                  key={royalBirthdayTemplate.id}
+                  t={royalBirthdayTemplate}
+                />
               )}
 
-              {/* 2. Anniversary */}
+              {/* 2. Free Birthday */}
+              {freeBirthdayTemplate && (
+                <TemplateCard
+                  key={freeBirthdayTemplate.id}
+                  t={freeBirthdayTemplate}
+                />
+              )}
+
+              {/* 3. Anniversary */}
               {anniversaryTemplate && (
                 <TemplateCard
                   key={anniversaryTemplate.id}
@@ -320,6 +339,7 @@ function TemplateCard({ t }: { t: Template }) {
         <span className="muted">
           {isAnniversary ? "Anniversary" : t.category.name}
         </span>
+        {t.isFree && <span className="free-template-badge">FREE</span>}
 
         <h3>{isAnniversary ? "Bloom Anniversary" : t.name}</h3>
 
@@ -346,7 +366,7 @@ function TemplateCard({ t }: { t: Template }) {
             </Link>
           )}
 
-          {!isAnniversary && (
+          {!isAnniversary && (t.liveDemoUrl || t.previewUrl) && (
             <a
               className="btn btn-primary"
               href={t.liveDemoUrl || t.previewUrl || "#"}
@@ -381,7 +401,7 @@ function TemplateCard({ t }: { t: Template }) {
 
           {!isAnniversary && (
             <Link className="btn btn-primary" to={`/create/${t.id}`}>
-              Use Template
+              {t.isFree ? "Use Free Template" : "Use Template"}
             </Link>
           )}
         </div>
@@ -394,19 +414,36 @@ function Templates() {
   const [q, setQ] = useState("");
   const [cats, setCats] = useState<any[]>([]);
   const [cat, setCat] = useState("");
+  const [freeOnly, setFreeOnly] = useState(false);
   useEffect(() => {
     api("/categories").then((x) => setCats(x.items));
   }, []);
   useEffect(() => {
-    const id = setTimeout(
-      () =>
-        api<{ items: Template[] }>(
-          `/templates?search=${encodeURIComponent(q)}${cat ? `&category=${cat}` : ""}`,
-        ).then((x) => setItems(x.items)),
-      180,
-    );
+    const id = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (q) params.set("search", q);
+      if (cat) params.set("category", cat);
+      if (freeOnly) params.set("free", "true");
+
+      api<{ items: Template[] }>(`/templates?${params.toString()}`).then((x) =>
+        setItems(x.items),
+      );
+    }, 180);
     return () => clearTimeout(id);
-  }, [q, cat]);
+  }, [q, cat, freeOnly]);
+
+  const royalBirthdayTemplate = items.find(
+    (t) => t.slug === "birthday-royal-memory",
+  );
+  const freeBirthdayTemplate = items.find(
+    (t) => t.slug === "cutie-birthday" && t.isFree,
+  );
+  const remainingTemplates = items.filter(
+    (t) =>
+      t !== royalBirthdayTemplate &&
+      t !== freeBirthdayTemplate &&
+      t.slug !== "anniversary-romantic-01",
+  );
   return (
     <>
       <Nav />
@@ -429,6 +466,14 @@ function Templates() {
                 borderRadius: 12,
               }}
             />
+            <button
+              type="button"
+              onClick={() => setFreeOnly((current) => !current)}
+              className={`btn ${freeOnly ? "btn-primary" : "btn-soft"}`}
+              aria-pressed={freeOnly}
+            >
+              Free
+            </button>
             {cats.map((c) => (
               <button
                 key={c.slug}
@@ -445,7 +490,22 @@ function Templates() {
               gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
             }}
           >
-            {items.length > 0 && <TemplateCard t={items[0]} />}
+            {freeOnly ? (
+              items.map((t) => <TemplateCard key={t.id} t={t} />)
+            ) : (
+              <>
+                {royalBirthdayTemplate && (
+                  <TemplateCard
+                    key={royalBirthdayTemplate.id}
+                    t={royalBirthdayTemplate}
+                  />
+                )}
+                {freeBirthdayTemplate && (
+                  <TemplateCard
+                    key={freeBirthdayTemplate.id}
+                    t={freeBirthdayTemplate}
+                  />
+                )}
 
             <article className="card">
               <img
@@ -544,9 +604,11 @@ function Templates() {
               </div>
             </article>
 
-            {items.slice(1).map((t) => (
-              <TemplateCard key={t.id} t={t} />
-            ))}
+                {remainingTemplates.map((t) => (
+                  <TemplateCard key={t.id} t={t} />
+                ))}
+              </>
+            )}
           </div>
         </section>
       </div>
@@ -585,7 +647,7 @@ function TemplatePreview() {
             <p className="muted">{t.description}</p>
           </div>
           <Link className="btn btn-primary" to={`/create/${t.id}`}>
-            Use This Template
+            {t.isFree ? "Use Free Template" : "Use This Template"}
           </Link>
         </div>
         <div className="preview-frame">
@@ -881,7 +943,7 @@ function Dashboard() {
                     </div>
                   )}
 
-                {p.status === "FINALIZED" && !p.isPaid && (
+                {p.status === "FINALIZED" && !p.isPaid && !p.template.isFree && (
                   <button
                     className="btn btn-primary"
                     onClick={() => nav(`/checkout/${p.id}`)}
@@ -1472,11 +1534,20 @@ function Editor() {
   const schema = project.template.schema as TemplateDefinition;
   async function finalize() {
     try {
+      await api(`/projects/${project.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ data, customization }),
+      });
+
       await api(`/projects/${project.id}/finalize`, {
         method: "POST",
       });
 
-      nav(`/checkout/${project.id}`);
+      nav(
+        project.template.isFree
+          ? `/published/${project.id}`
+          : `/checkout/${project.id}`,
+      );
     } catch (e: any) {
       console.error("Finalize failed:", e);
       alert(e.message || "Could not finalize the project.");
@@ -1502,37 +1573,43 @@ function Editor() {
             onChange={(v) => setData((d: any) => ({ ...d, [f.id]: v }))}
           />
         ))}
-        <div className="field">
-          <label>Accent</label>
-          <input
-            type="color"
-            value={customization.accent || "#9b6b5d"}
-            onChange={(e) =>
-              setCustomization((x: any) => ({ ...x, accent: e.target.value }))
-            }
-          />
-        </div>
-        <div className="field">
-          <label>Animation</label>
-          <select
-            value={customization.animation || "smooth"}
-            onChange={(e) =>
-              setCustomization((x: any) => ({
-                ...x,
-                animation: e.target.value,
-              }))
-            }
-          >
-            <option>minimal</option>
-            <option>smooth</option>
-          </select>
-        </div>
+        {!project.template.isFree && (
+          <>
+            <div className="field">
+              <label>Accent</label>
+              <input
+                type="color"
+                value={customization.accent || "#9b6b5d"}
+                onChange={(e) =>
+                  setCustomization((x: any) => ({ ...x, accent: e.target.value }))
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Animation</label>
+              <select
+                value={customization.animation || "smooth"}
+                onChange={(e) =>
+                  setCustomization((x: any) => ({
+                    ...x,
+                    animation: e.target.value,
+                  }))
+                }
+              >
+                <option>minimal</option>
+                <option>smooth</option>
+              </select>
+            </div>
+          </>
+        )}
         <button
           className="btn btn-primary"
           style={{ width: "100%" }}
           onClick={finalize}
         >
-          Finalize & Continue
+          {project.template.isFree
+            ? "Finalize & Get Free Link"
+            : "Finalize & Continue"}
         </button>
         <p className="muted" style={{ fontSize: ".8rem" }}>
           {saved}
@@ -1616,8 +1693,9 @@ function Create() {
         <span className="pill">{template.category.name}</span>
         <h2>Start your {template.name}</h2>
         <p className="muted">
-          Give this project a name, then we'll guide you through only the fields
-          this template needs.
+          Give this project a name, then we’ll guide you through only the fields
+          this template needs.{" "}
+          {template.isFree && "This template is free to use and publish."}
         </p>
         <div className="field">
           <label>Project name</label>
@@ -1628,7 +1706,8 @@ function Create() {
           />
         </div>
         <button className="btn btn-primary" onClick={create}>
-          Use this template <ArrowRight size={17} />
+          {template.isFree ? "Start Free Template" : "Use this template"}{" "}
+          <ArrowRight size={17} />
         </button>
       </div>
     </div>
@@ -1670,6 +1749,15 @@ function Checkout() {
         const loadedProject = projectResponse.project;
 
         setProject(loadedProject);
+
+        if (loadedProject?.template?.isFree) {
+          nav(
+            loadedProject?.status === "PUBLISHED" && loadedProject?.website
+              ? `/published/${id}`
+              : `/edit/${id}`,
+          );
+          return;
+        }
 
         if (loadedProject?.status === "PUBLISHED" && loadedProject?.website) {
           nav(`/published/${id}`);

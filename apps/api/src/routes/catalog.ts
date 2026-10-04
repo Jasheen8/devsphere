@@ -40,6 +40,11 @@ r.get("/templates", async (req, res) => {
       ? req.query.featured
       : undefined;
 
+  const free =
+    typeof req.query.free === "string"
+      ? req.query.free
+      : undefined;
+
   const items = await db.template.findMany({
     where: {
       published: true,
@@ -47,6 +52,12 @@ r.get("/templates", async (req, res) => {
       ...(featured === "true"
         ? {
             featured: true,
+          }
+        : {}),
+
+      ...(free === "true"
+        ? {
+            isFree: true,
           }
         : {}),
 

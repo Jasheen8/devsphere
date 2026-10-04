@@ -21,6 +21,8 @@ type TemplateSeed = {
 
   featured?: boolean;
 
+  isFree?: boolean;
+
   liveDemoUrl?: string;
 
   data: Record<string, unknown>;
@@ -633,11 +635,75 @@ async function main() {
     },
   ];
 
+  const cutieBirthdaySections: Array<Record<string, unknown>> = [
+    {
+      id: "cutie-birthday-experience",
+      type: "cutie-birthday-experience",
+      enabled: true,
+      props: {},
+    },
+  ];
+
   // =========================================================
   // TEMPLATES
   // =========================================================
 
   const templates: TemplateSeed[] = [
+    {
+      slug: "cutie-birthday",
+      name: "Cutie Birthday",
+      thumbnailUrl: "/images/cutie-pink.png",
+      description:
+        "A sweet, interactive birthday story with a gift, candles and a personal letter. Free to create and share.",
+      cat: birthday,
+      price: 0,
+      isFree: true,
+      tags: ["birthday", "free", "interactive", "letter"],
+      featured: true,
+      data: {
+        recipientName: "Cutie",
+        greetingMessage:
+          "thank you for being you — for the patience, the late-night talks, the silly inside jokes. i hope today feels as gentle and special as you’ve always made my days feel.",
+        letterMessage:
+          "there’s no card big enough for everything i’d like to say, so i made you a little garden — with a song, our pictures, and a few of my favourite wishes for the year ahead.\n\nthank you for the small and unseen things — the way you check in, the jokes only we get, the quiet patience when i’m being too much. i noticed. i still notice.\n\ni hope today you feel celebrated. i hope you eat something delicious that you didn’t have to make, and someone tells you you’re loved (you are). most of all, i hope this year ahead feels — for one whole trip around the sun — exactly the way you’ve always made me feel: completely, completely loved.",
+        senderName: "Your Friend",
+      },
+      schema: demoSchema(
+        [
+          {
+            id: "recipientName",
+            type: "text",
+            label: "Birthday person's name",
+            required: true,
+            placeholder: "e.g. Sam",
+          },
+          {
+            id: "greetingMessage",
+            type: "longText",
+            label: "Birthday message",
+            required: true,
+            placeholder: "Write a short birthday message...",
+          },
+          {
+            id: "letterMessage",
+            type: "longText",
+            label: "Letter",
+            required: true,
+            placeholder: "Write your letter. Leave a blank line between paragraphs.",
+          },
+          {
+            id: "senderName",
+            type: "text",
+            label: "Your name",
+            required: false,
+            placeholder: "e.g. Alex",
+          },
+        ],
+        cutieBirthdaySections,
+      ),
+      sections: cutieBirthdaySections,
+    },
+
     // =======================================================
     // BIRTHDAY - ROYAL MEMORY
     // =======================================================
@@ -1047,6 +1113,9 @@ async function main() {
     featured:
       t.featured ?? false,
 
+    isFree:
+      t.isFree ?? false,
+
     premium:
       t.price >= 799,
 
@@ -1086,6 +1155,9 @@ async function main() {
 
     featured:
       t.featured ?? false,
+
+    isFree:
+      t.isFree ?? false,
 
     premium:
       t.price >= 799,

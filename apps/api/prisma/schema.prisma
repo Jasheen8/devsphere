@@ -132,6 +132,7 @@ model Template {
   tags          String[]
   featured      Boolean  @default(false)
   premium       Boolean  @default(false)
+  isFree        Boolean  @default(false)
   published     Boolean  @default(true)
   schema        Json
   defaultData   Json?

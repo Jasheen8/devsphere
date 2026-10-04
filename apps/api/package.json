@@ -8,7 +8,9 @@
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:seed:cutie": "tsx prisma/seed-cutie-birthday.ts",
     "test": "vitest run"
   },
   "dependencies": {

@@ -286,6 +286,18 @@ button {
   background: #f6eee9;
   color: #6b564d;
 }
+.free-template-badge {
+  display: inline-flex;
+  margin-left: 8px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #eaf7ef;
+  color: #267044;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}
 .actions {
   display: flex;
   gap: 8px;

@@ -6,7 +6,10 @@ import { Prisma } from "@prisma/client";
 import { db } from "../lib/db.js";
 import { auth } from "../lib/auth.js";
 import { TemplateSchema } from "@memora/shared";
-import { publishPaidProject } from "../lib/fulfillment.js";
+import {
+  publishFreeProject,
+  publishPaidProject,
+} from "../lib/fulfillment.js";
 
 const r = Router();
 
@@ -318,6 +321,7 @@ r.post("/:id/finalize", async (req, res) => {
       },
       include: {
         template: true,
+        website: true,
       },
     });
 
@@ -327,12 +331,25 @@ r.post("/:id/finalize", async (req, res) => {
       });
     }
 
-    if (project.status !== "DRAFT") {
-      if (project.status === "FINALIZED") {
-        return res.json({
-          project,
-        });
+    if (project.status === "PUBLISHED" && project.template.isFree) {
+      return res.json({ project });
+    }
+
+    if (project.status === "FINALIZED") {
+      if (!project.template.isFree) {
+        return res.json({ project });
       }
+
+      const publication = await publishFreeProject(project.id, u.id);
+      const publishedProject = await db.project.findUnique({
+        where: { id: project.id },
+        include: { template: true, website: true },
+      });
+
+      return res.json({ project: publishedProject, publication });
+    }
+
+    if (project.status !== "DRAFT") {
 
       return res.status(409).json({
         error: "Project cannot be finalized in its current state",
@@ -388,6 +405,16 @@ r.post("/:id/finalize", async (req, res) => {
           finalizedAt: new Date(),
         },
       });
+
+    if (project.template.isFree) {
+      const publication = await publishFreeProject(project.id, u.id);
+      const publishedProject = await db.project.findUnique({
+        where: { id: project.id },
+        include: { template: true, website: true },
+      });
+
+      return res.json({ project: publishedProject, publication });
+    }
 
     return res.json({
       project: updatedProject,

@@ -48,6 +48,7 @@ async function failIfPaid(projectId: string, userId: string, res: any) {
   const project = await db.project.findFirst({
     where: { id: projectId, userId },
     include: {
+      template: true,
       website: true,
       orders: {
         where: { status: "PAID" },
@@ -59,6 +60,11 @@ async function failIfPaid(projectId: string, userId: string, res: any) {
 
   if (!project) {
     res.status(404).json({ error: "Project not found" });
+    return true;
+  }
+
+  if (project.template.isFree) {
+    res.status(409).json({ error: "This free template publishes without checkout." });
     return true;
   }
 
@@ -121,12 +127,17 @@ r.post("/create-order", auth, async (req, res) => {
     const [project, plan] = await Promise.all([
       db.project.findFirst({
         where: { id: data.projectId, userId: user.id },
+        include: { template: true },
       }),
       db.pricingPlan.findUnique({ where: { id: data.planId } }),
     ]);
 
     if (!project || !plan || !plan.active) {
       return res.status(404).json({ error: "Project or plan not found" });
+    }
+
+    if (project.template.isFree) {
+      return res.status(409).json({ error: "This free template publishes without checkout." });
     }
 
     if (project.status !== "FINALIZED") {

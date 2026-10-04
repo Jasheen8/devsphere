@@ -1,5 +1,6 @@
 import React from "react";
 import { BirthdayExperience } from "./templates/BirthdayExperience";
+import { CutieBirthdayExperience } from "./templates/CutieBirthdayExperience";
 
 type Props = {
   data: Record<string, any>;
@@ -108,4 +109,5 @@ export const SectionRegistry: Record<string, React.ComponentType<Props>> = {
   final: FinalMessage,
 
   "birthday-experience": BirthdayExperience,
+  "cutie-birthday-experience": CutieBirthdayExperience,
 };

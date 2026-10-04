@@ -424,3 +424,63 @@ export async function publishPaidProject(
     },
   );
 }
+
+/**
+ * Publish a template that the catalog explicitly marks as free.
+ * This path creates no order and can only be used after the project is
+ * finalized. The database flag is the authority; client-side pricing labels
+ * never grant free publication on their own.
+ */
+export async function publishFreeProject(
+  projectId: string,
+  userId: string,
+) {
+  return db.$transaction(
+    async (tx) => {
+      const project = await tx.project.findFirst({
+        where: {
+          id: projectId,
+          userId,
+        },
+        include: {
+          template: true,
+          website: true,
+        },
+      });
+
+      if (!project) {
+        throw new Error("Project not found");
+      }
+
+      if (!project.template.isFree) {
+        throw new Error("Payment required");
+      }
+
+      if (
+        project.status !== "FINALIZED" &&
+        project.status !== "PUBLISHED"
+      ) {
+        throw new Error("Project must be finalized before publishing");
+      }
+
+      const site = await publishInsideTransaction(tx, {
+        project,
+        plan: { limits: {} },
+      });
+
+      return {
+        ok: true,
+        alreadyPublished:
+          project.status === "PUBLISHED" && Boolean(project.website),
+        slug: site.slug,
+        url: `${
+          process.env.APP_URL || "http://localhost:5173"
+        }/r/${site.slug}`,
+      };
+    },
+    {
+      maxWait: 10_000,
+      timeout: 20_000,
+    },
+  );
+}
