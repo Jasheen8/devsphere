@@ -413,13 +413,11 @@ function TemplateCard({ t }: { t: Template }) {
         </div>
 
         <div className="actions">
-          {!isAnniversary && (
-            <Link className="btn btn-soft" to={`/templates/${t.slug}`}>
-              Preview
-            </Link>
-          )}
+          <Link className="btn btn-soft" to={`/templates/${t.slug}`}>
+            Preview
+          </Link>
 
-          {!isAnniversary && (t.liveDemoUrl || t.previewUrl) && (
+          {(t.liveDemoUrl || t.previewUrl) && (
             <a
               className="btn btn-primary"
               href={t.liveDemoUrl || t.previewUrl || "#"}
@@ -430,33 +428,9 @@ function TemplateCard({ t }: { t: Template }) {
             </a>
           )}
 
-          {isAnniversary && (
-            <>
-              <a
-                className="btn btn-primary"
-                href="https://anniversarydemo.vercel.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Live Demo
-              </a>
-
-              <a
-                className="btn btn-soft"
-                href="https://instagram.com/devsphere.in"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                DM @devsphere.in
-              </a>
-            </>
-          )}
-
-          {!isAnniversary && (
-            <Link className="btn btn-primary" to={`/create/${t.id}`}>
-              {t.isFree ? "Use Free Template" : "Use Template"}
-            </Link>
-          )}
+          <Link className="btn btn-primary" to={`/create/${t.id}`}>
+            {t.isFree ? "Use Free Template" : "Use Template"}
+          </Link>
         </div>
       </div>
     </article>
@@ -491,11 +465,14 @@ function Templates() {
   const freeBirthdayTemplate = items.find(
     (t) => t.slug === "cutie-birthday" && t.isFree,
   );
+  const anniversaryTemplate = items.find(
+    (t) => t.slug === "anniversary-romantic-01",
+  );
   const remainingTemplates = items.filter(
     (t) =>
       t !== royalBirthdayTemplate &&
       t !== freeBirthdayTemplate &&
-      t.slug !== "anniversary-romantic-01",
+      t !== anniversaryTemplate,
   );
   return (
     <>
@@ -555,53 +532,9 @@ function Templates() {
                   />
                 )}
 
-            <article className="card">
-              <img
-                src="/images/anniversary.png"
-                alt="Bloom Anniversary"
-                style={{
-                  width: "100%",
-                  display: "block",
-                  objectFit: "cover",
-                }}
-              />
-
-              <div className="card-body">
-                <span className="muted">Anniversary</span>
-
-                <h3>Bloom Anniversary</h3>
-
-                <p className="muted">
-                  A cinematic journey of love, memories and beautiful moments.
-                </p>
-
-                <div className="tags">
-                  <span className="tag">romantic</span>
-                  <span className="tag">journey</span>
-                  <span className="tag">cinematic</span>
-                </div>
-
-                <div className="actions">
-                  <a
-                    className="btn btn-primary"
-                    href="https://anniversarydemo.vercel.app/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Live Demo
-                  </a>
-
-                  <a
-                    className="btn btn-soft"
-                    href="https://instagram.com/devsphere.in"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    DM @devsphere.in
-                  </a>
-                </div>
-              </div>
-            </article>
+                {anniversaryTemplate && (
+                  <TemplateCard key={anniversaryTemplate.id} t={anniversaryTemplate} />
+                )}
 
             <article className="card">
               <img
@@ -1289,6 +1222,8 @@ function FieldEditor({
   onChange: (v: any) => void;
 }) {
   if (field.id === "movieEnabled") {
+    const isBloomAnniversary =
+      field.templateSlug === "anniversary-romantic-01";
     return (
       <div className="field">
         <div className="movie-option-card">
@@ -1299,9 +1234,9 @@ function FieldEditor({
           </div>
 
           <p>
-            Basic website: ₹99
+            {isBloomAnniversary ? "Anniversary Bloom: ₹449" : "Basic website: ₹99"}
             <br />
-            With Our Movie: ₹109
+            {isBloomAnniversary ? "With Our Movie: ₹459" : "With Our Movie: ₹109"}
           </p>
 
           <label className="movie-option-toggle">
@@ -1327,6 +1262,7 @@ function FieldEditor({
         value={value}
         onChange={onChange}
         projectId={field.projectId}
+        templateSlug={field.templateSlug}
       />
     );
   }
@@ -1470,11 +1406,13 @@ function Repeater({
   value,
   onChange,
   projectId,
+  templateSlug,
 }: {
   field: any;
   value: any[];
   onChange: (v: any[]) => void;
   projectId?: string;
+  templateSlug?: string;
 }) {
   const items = Array.isArray(value) ? value : [];
 
@@ -1533,6 +1471,7 @@ function Repeater({
               field={{
                 ...nestedField,
                 projectId,
+                templateSlug,
               }}
               value={item?.[nestedField.id]}
               onChange={(newValue) =>
@@ -1552,6 +1491,74 @@ function Repeater({
     </div>
   );
 }
+function getEditorData(template: any, projectData: any) {
+  const saved = projectData && typeof projectData === "object" ? projectData : {};
+
+  if (template?.slug !== "anniversary-romantic-01") return saved;
+
+  const defaults =
+    template.defaultData && typeof template.defaultData === "object"
+      ? template.defaultData
+      : {};
+  const isLegacyBloomData =
+    !saved.senderName &&
+    (saved.partnerName || saved.subtitle || saved.letter || saved.finalMessage);
+  const data = { ...defaults, ...saved };
+
+  if (isLegacyBloomData) {
+    if (saved.partnerName) data.name = saved.partnerName;
+    if (saved.name) data.senderName = saved.name;
+    if (saved.subtitle) data.heroSubtitle = saved.subtitle;
+    if (saved.finalMessage) data.closingMessage = saved.finalMessage;
+  }
+
+  const fallbackTimeline = Array.isArray(defaults.timeline) ? defaults.timeline : [];
+  const savedTimeline = Array.isArray(saved.timeline) ? saved.timeline : [];
+  const timelineSource = savedTimeline.length ? savedTimeline : fallbackTimeline;
+  data.timeline = timelineSource.map((item: any, index: number) => {
+    const fallback = fallbackTimeline[index] || {};
+    const dateYear = String(item?.date || "").match(/\d{4}/)?.[0];
+    return {
+      ...fallback,
+      ...(item && typeof item === "object" ? item : {}),
+      year: item?.year || dateYear || fallback.year || "",
+      text: item?.text || item?.description || fallback.text || "",
+      image: item?.image || fallback.image || "",
+    };
+  });
+
+  const fallbackPhotos = Array.isArray(defaults.photos) ? defaults.photos : [];
+  const savedPhotos = Array.isArray(saved.photos) ? saved.photos : [];
+  const photoSource = savedPhotos.length ? savedPhotos : fallbackPhotos;
+  data.photos = photoSource.map((photo: any, index: number) => {
+    const fallback = fallbackPhotos[index] || {};
+    if (typeof photo === "string") {
+      return { ...fallback, image: photo, caption: fallback.caption || `Memory ${index + 1}` };
+    }
+    return {
+      ...fallback,
+      ...(photo && typeof photo === "object" ? photo : {}),
+      image: photo?.image || fallback.image || "",
+      caption: photo?.caption || fallback.caption || `Memory ${index + 1}`,
+    };
+  });
+
+  const fallbackLetters = Array.isArray(defaults.letters) ? defaults.letters : [];
+  const savedLetters = Array.isArray(saved.letters) ? saved.letters : [];
+  data.letters = savedLetters.length
+    ? savedLetters.map((letter: any, index: number) => ({
+        ...(fallbackLetters[index] || {}),
+        ...(letter && typeof letter === "object" ? letter : {}),
+      }))
+    : fallbackLetters.map((letter: any, index: number) =>
+        index === 0 && isLegacyBloomData && saved.letter
+          ? { ...letter, text: saved.letter }
+          : letter,
+      );
+
+  return data;
+}
+
 function Editor() {
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<any>();
@@ -1568,7 +1575,7 @@ function Editor() {
     if (id)
       api(`/projects/${id}`).then((x) => {
         setProject(x.project);
-        setData(x.project.data);
+        setData(getEditorData(x.project.template, x.project.data));
         setCustomization(x.project.customization || {});
       });
   }, [id]);
@@ -1588,6 +1595,10 @@ function Editor() {
   }, [data, customization]);
   if (!project) return <div className="container section">Loading editor…</div>;
   const schema = project.template.schema as TemplateDefinition;
+  const supportsWatermarkRemoval = [
+    "birthday-royal-memory",
+    "anniversary-romantic-01",
+  ].includes(project.template.slug);
   async function finalize() {
     try {
       await api(`/projects/${project.id}`, {
@@ -1624,7 +1635,7 @@ function Editor() {
         {schema.fields.map((f: any) => (
           <FieldEditor
             key={f.id}
-            field={{ ...f, projectId: project.id }}
+            field={{ ...f, projectId: project.id, templateSlug: project.template.slug }}
             value={data[f.id]}
             onChange={(v) => setData((d: any) => ({ ...d, [f.id]: v }))}
           />
@@ -1658,7 +1669,7 @@ function Editor() {
             </div>
           </>
         )}
-        {project.template.slug === "birthday-royal-memory" && (
+        {supportsWatermarkRemoval && (
           <div className="field remove-watermark-option">
             <label className="remove-watermark-control">
               <input
@@ -1675,8 +1686,8 @@ function Editor() {
                 <strong>Remove watermark · +₹99</strong>
                 <small>
                   Removes the Devsphere credit, Instagram link and “Create your
-                  own” link from the final page. International PayPal checkout
-                  adds $1.
+                  own” link from the final page. Bloom Anniversary checkout is
+                  in INR only; Birthday international checkout adds $1.
                 </small>
               </span>
             </label>
@@ -1908,11 +1919,15 @@ function Checkout() {
 
   const projectData =
     (project?.data as Record<string, unknown> | undefined) || {};
+  const isBloomAnniversary =
+    project?.template?.slug === "anniversary-romantic-01";
 
   const projectCustomization =
     (project?.customization as Record<string, unknown> | undefined) || {};
   const removeWatermarkSelected =
-    project?.template?.slug === "birthday-royal-memory" &&
+    ["birthday-royal-memory", "anniversary-romantic-01"].includes(
+      project?.template?.slug,
+    ) &&
     projectCustomization.removeWatermark === true;
 
   const movieEnabled = projectData.movieEnabled === true;
@@ -1932,17 +1947,34 @@ function Checkout() {
    */
 
   const birthdayPrice = specialRevealSelected ? 119 : movieEnabled ? 109 : 99;
+  const bloomAnniversaryPrice =
+    449 +
+    (movieEnabled ? 10 : 0) +
+    (specialRevealSelected ? 10 : 0) +
+    (removeWatermarkSelected ? 99 : 0);
   const displayPrice =
-    currency === "USD"
+    isBloomAnniversary
+      ? bloomAnniversaryPrice
+      : currency === "USD"
       ? 10 + (removeWatermarkSelected ? 1 : 0)
       : birthdayPrice + (removeWatermarkSelected ? 99 : 0);
-  const priceLabel = specialRevealSelected
+  const priceLabel = isBloomAnniversary
+    ? specialRevealSelected && movieEnabled
+      ? "MOVIE + SHARE METHOD"
+      : specialRevealSelected
+        ? "SHARE METHOD"
+        : movieEnabled
+          ? "OUR MOVIE"
+          : "ANNIVERSARY BLOOM"
+    : specialRevealSelected
     ? "SPECIAL REVEAL"
     : movieEnabled
       ? "OUR MOVIE"
       : "BASIC";
 
-  const basePriceDescription = specialRevealSelected
+  const basePriceDescription = isBloomAnniversary
+    ? `Anniversary Bloom${movieEnabled ? " with your movie/video" : ""}${specialRevealSelected ? " with your chosen share method" : ""}.`
+    : specialRevealSelected
     ? "Birthday website + your chosen magical reveal method."
     : movieEnabled
       ? "Birthday website + your personal movie/video."
@@ -1955,7 +1987,7 @@ function Checkout() {
      DATABASE PLAN
 
      Only one real pricing plan is required.
-     Backend calculates ₹99 / ₹109 / ₹119.
+     Backend calculates the template total and optional add-ons.
      ========================================================= */
 
   const birthdayPlan =
@@ -2062,7 +2094,7 @@ function Checkout() {
         amount: order.amount,
         currency: "INR",
         name: "Devsphere",
-        description: `Birthday Website — ₹${displayPrice}`,
+        description: `${isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} — ₹${displayPrice}`,
         order_id: order.providerOrderId,
 
         handler: async (response: any) => {
@@ -2141,17 +2173,19 @@ function Checkout() {
         <BackButton label="Back to Editor" />
         <div className="section-head">
           <div>
-            <span className="pill">Birthday Website</span>
+            <span className="pill">{isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"}</span>
 
-            <h2>Your birthday package</h2>
+            <h2>{isBloomAnniversary ? "Your anniversary package" : "Your birthday package"}</h2>
 
             <p className="muted">
-              Choose your reveal style and review your final price.
+              {isBloomAnniversary
+                ? "Choose optional extras and review your Anniversary Bloom price."
+                : "Choose your reveal style and review your final price."}
             </p>
           </div>
         </div>
 
-        <div className="checkout-currency-section">
+        {!isBloomAnniversary && <div className="checkout-currency-section">
           <h3>Choose Currency</h3>
 
           <p className="muted">Select how you want to pay.</p>
@@ -2177,7 +2211,7 @@ function Checkout() {
               🌎 USD $
             </button>
           </div>
-        </div>
+        </div>}
 
         {/* ===================================================
             REVEAL STYLE
@@ -2187,8 +2221,9 @@ function Checkout() {
           <h3>Choose how to share your surprise</h3>
 
           <p className="muted">
-            Normal is included. Any magical reveal method makes the package
-            ₹119.
+            {isBloomAnniversary
+              ? "Normal sharing is included. Add any special reveal method for ₹10."
+              : "Normal is included. Any magical reveal method makes the package ₹119."}
           </p>
 
           <div className="actions">
@@ -2234,8 +2269,9 @@ function Checkout() {
               <h3>Choose your Magical Scanner</h3>
 
               <p className="muted">
-                Choose how your birthday website link will appear when you share
-                it.
+                {isBloomAnniversary
+                  ? "Choose the style for sharing your anniversary story."
+                  : "Choose how your birthday website link will appear when you share it."}
               </p>
             </div>
 
@@ -2312,6 +2348,39 @@ function Checkout() {
             THREE PRICE OPTIONS
            =================================================== */}
 
+        {isBloomAnniversary ? (
+          <>
+            <div className="birthday-checkout-pricing bloom-checkout-pricing">
+              <div className="birthday-price-card is-selected">
+                <span className="birthday-price-badge">ANNIVERSARY BLOOM</span>
+                <div className="birthday-price-icon">🌸</div>
+                <h3>Personalized anniversary story</h3>
+                <p>Includes the complete interactive story, your photos, letters, playlist and final link.</p>
+                <strong className="birthday-price">₹449</strong>
+                <span className="birthday-price-note">Base price</span>
+              </div>
+              <div className={`birthday-price-card ${movieEnabled ? "is-selected" : ""}`}>
+                <span className="birthday-price-badge birthday-price-premium">OPTIONAL MOVIE</span>
+                <div className="birthday-price-icon">🎬</div>
+                <h3>Movie or video section</h3>
+                <p>{movieEnabled ? "Enabled in the editor and added to this package." : "Turn it on in the editor and upload your movie."}</p>
+                <strong className="birthday-price">+₹10</strong>
+                <span className="birthday-price-note">₹459 with the movie</span>
+              </div>
+              <div className={`birthday-price-card birthday-price-special ${specialRevealSelected ? "is-selected" : ""}`}>
+                <span className="birthday-price-badge birthday-price-luxury">OPTIONAL SHARE METHOD</span>
+                <div className="birthday-price-icon">✨</div>
+                <h3>Special reveal method</h3>
+                <p>Choose a QR, code lock, letter, gift box or puzzle reveal.</p>
+                <strong className="birthday-price">+₹10</strong>
+                <span className="birthday-price-note">Add ₹10 to the selected options</span>
+              </div>
+            </div>
+            <p className="birthday-checkout-note">
+              Optional Devsphere credit removal: +₹99, selected in the editor.
+            </p>
+          </>
+        ) : (
         <div className="birthday-checkout-pricing">
           {/* =========================
               ₹99
@@ -2393,6 +2462,7 @@ function Checkout() {
             </span>
           </div>
         </div>
+        )}
 
         {/* ===================================================
             CURRENT PACKAGE
@@ -2407,8 +2477,8 @@ function Checkout() {
           <span className="pill">{priceLabel}</span>
 
           <h3>
-            Your package: {currency === "USD" ? "$" : "₹"}
-            {displayPrice}
+            {isBloomAnniversary ? "Your Anniversary Bloom total: " : "Your package: "}
+            {currency === "USD" ? "$" : "₹"}{displayPrice}
           </h3>
 
           <p className="muted">{priceDescription}</p>
@@ -2420,9 +2490,11 @@ function Checkout() {
 
           {/* MOVIE NOTE */}
 
-          {movieEnabled && !specialRevealSelected && (
+          {movieEnabled && (isBloomAnniversary || !specialRevealSelected) && (
             <p className="birthday-checkout-note">
-              Our Movie is enabled — ₹10 added to the ₹99 base price.
+              {isBloomAnniversary
+                ? "Movie section enabled — ₹10 added to the ₹449 base price."
+                : "Our Movie is enabled — ₹10 added to the ₹99 base price."}
             </p>
           )}
 
@@ -2439,7 +2511,8 @@ function Checkout() {
                     : revealMethod === "GIFT"
                       ? "Gift Box selected."
                       : "Puzzle selected."}{" "}
-              Your package price is {currency === "USD" ? "$" : "₹"}
+              {isBloomAnniversary ? "Special reveal selected (+₹10). " : "Your package price is "}
+              {currency === "USD" ? "$" : "₹"}
               {displayPrice}.
             </p>
           )}
@@ -2447,7 +2520,9 @@ function Checkout() {
           {removeWatermarkSelected && (
             <p className="birthday-checkout-note">
               Remove watermark: +₹99
-              {currency === "USD" ? " (international checkout: +$1)" : ""}.
+              {currency === "USD" && !isBloomAnniversary
+                ? " (international checkout: +$1)"
+                : ""}.
             </p>
           )}
 
@@ -2530,7 +2605,7 @@ function Public() {
 
         setGate(
           x.accessRequired &&
-            (x.site.revealMethod === "PIN" || x.site.revealMethod === "PUZZLE"),
+            ["PIN", "PUZZLE", "LETTER", "GIFT"].includes(x.site.revealMethod),
         );
 
         if (x.site.seoTitle) {
@@ -3375,20 +3450,25 @@ function Admin() {
   const [orders, setOrders] = useState<any[]>([]);
   const nav = useNavigate();
   useEffect(() => {
-    Promise.all([api("/auth/me"), api("/projects")])
-      .then(([m, p]) => {
-        setMe(m.user);
-        setProjects(p.items);
+    Promise.all([
+      api("/admin/dashboard"),
+      api("/templates"),
+      api("/admin/orders"),
+    ])
+      .then(([dashboard, templateResponse, orderResponse]) => {
+        setStats(dashboard);
+        setTemplates(templateResponse.items || []);
+        setOrders(orderResponse.items || []);
       })
       .catch((error) => {
-        console.error("Dashboard load failed:", error);
+        console.error("Admin load failed:", error);
 
         if (error?.message === "Unauthorized") {
           nav("/login");
           return;
         }
 
-        alert(error?.message || "Unable to load your dashboard.");
+        alert(error?.message || "Unable to load the admin dashboard.");
       });
   }, [nav]);
   return (

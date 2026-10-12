@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Our 1st Anniversary ♡</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Poppins:wght@300;400;500;600&family=Allura&family=Parisienne&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- floating petals canvas (global) -->
+    <canvas id="petal-canvas"></canvas>
+
+    <!-- ============================= INTRO ============================= -->
+    <div id="intro">
+      <div class="intro-heart">♡</div>
+      <div class="intro-text">Loading our memories...</div>
+      <div class="intro-bar"></div>
+    </div>
+
+    <!-- ============================= PASSCODE ============================= -->
+    <div id="passcode">
+      <div class="pc-heading">Happy Anniversary Vansh ♡</div>
+      <div class="pc-sub">A love only we know the code to</div>
+      <div class="pc-dots" id="pc-dots">
+        <span class="pc-dot"></span><span class="pc-dot"></span
+        ><span class="pc-dot"></span> <span class="pc-dot"></span
+        ><span class="pc-dot"></span><span class="pc-dot"></span>
+      </div>
+      <div class="pc-keys" id="pc-keys"></div>
+      <div class="pc-error" id="pc-error">Try again, my love ♡</div>
+    </div>
+
+    <!-- ============================= BLOOM TRANSITION ============================= -->
+    <div id="bloom-transition">
+      <div class="bloom-center script">Our story begins...</div>
+    </div>
+
+    <!-- ============================= WELCOME ============================= -->
+    <section id="welcome" class="paper-tex reveal">
+      <div class="welcome-card">
+        <h1>Hello Beautiful <span style="color: var(--dusty-rose)">❤</span></h1>
+        <p>
+          I made something only for you. Every scroll contains another
+          memory.<br />Take your time.
+        </p>
+        <button class="btn-gold" id="bloomStoryBtn">Bloom Our Story</button>
+      </div>
+    </section>
+
+    <!-- ============================= HERO ============================= -->
+    <section id="hero">
+      <div class="hero-eyebrow script">Happy</div>
+      <h1 class="hero-title">1<span class="gold">st</span> Anniversary</h1>
+      <div class="hero-love letters-font">My Love</div>
+      <div class="hero-date">25 · JUNE · 2026</div>
+      <div class="hero-arrow">↓</div>
+      <div class="hero-forever">Forever</div>
+    </section>
+
+    <!-- ============================= TIMELINE ============================= -->
+    <section id="timeline" class="section-pad">
+      <div class="wrap center reveal">
+        <div class="eyebrow">The Journey</div>
+        <h2 class="big-heading">Our Timeline</h2>
+        <p class="sub-heading script">2025 to today, and always</p>
+      </div>
+      <div class="wrap tl-svg-wrap">
+        <svg
+          viewBox="0 0 900 900"
+          id="tl-svg"
+          preserveAspectRatio="none"
+          style="position: absolute; top: 0; left: 0; width: 100%; height: 100%"
+        >
+          <path
+            id="tl-path"
+            d="M450 0 C 200 100, 700 200, 450 300 C 200 400, 700 500, 450 600 C 200 700, 700 800, 450 900"
+          />
+        </svg>
+        <div class="tl-cards" id="tl-cards"></div>
+      </div>
+    </section>
+
+    <!-- ============================= LOVE STORY ============================= -->
+    <!-- <section id="lovestory" class="section-pad">
+      <div class="wrap center reveal">
+        <div class="eyebrow">How It Unfolded</div>
+        <h2 class="big-heading">Our Love Story</h2>
+      </div>
+      <div class="wrap ls-path" id="ls-path"></div>
+    </section> -->
+
+    <!-- ============================= 1 YEARS OF US ============================= -->
+    <section id="threeyears" class="section-pad">
+      <div class="wrap reveal">
+        <div class="eyebrow">Since 25 June 2025</div>
+        <h2 class="big-heading">1 Years of Us</h2>
+        <!-- 1year -->
+        <div class="counters">
+          <div class="counter-box">
+            <div class="counter-num" data-target="365">0</div>
+            <div class="counter-label">Days</div>
+          </div>
+          <div class="counter-box">
+            <div class="counter-num" data-target="8760">0</div>
+            <div class="counter-label">Hours</div>
+          </div>
+          <div class="counter-box">
+            <div class="counter-num" data-target="525600">0</div>
+            <div class="counter-label">Minutes</div>
+          </div>
+          <div class="counter-box">
+            <div class="counter-num" style="font-size: 2rem">∞</div>
+            <div class="counter-label">Memories</div>
+          </div>
+        </div>
+        <!-- 3year -->
+        <!-- <div class="counters">
+      <div class="counter-box"><div class="counter-num" data-target="1095">0</div><div class="counter-label">Days</div></div>
+      <div class="counter-box"><div class="counter-num" data-target="26280">0</div><div class="counter-label">Hours</div></div>
+      <div class="counter-box"><div class="counter-num" data-target="1576800">0</div><div class="counter-label">Minutes</div></div>
+      <div class="counter-box"><div class="counter-num" style="font-size:2rem;">∞</div><div class="counter-label">Memories</div></div>
+    </div> -->
+      </div>
+    </section>
+
+    <!-- ============================= LOVE STATS ============================= -->
+    <section id="lovestats" class="section-pad">
+      <div class="wrap center reveal">
+        <div class="eyebrow">Little Numbers, Big Love</div>
+        <h2 class="big-heading">Love Stats</h2>
+      </div>
+      <div class="wrap stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📷</div>
+          <div class="stat-value">842</div>
+          <div class="stat-name">Photos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📅</div>
+          <div class="stat-value">1095</div>
+          <div class="stat-name">Dates</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🤗</div>
+          <div class="stat-value">∞</div>
+          <div class="stat-name">Hugs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">😂</div>
+          <div class="stat-value">3,650+</div>
+          <div class="stat-name">Laughs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🏆</div>
+          <div class="stat-value">12</div>
+          <div class="stat-name">Arguments Won</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🕊️</div>
+          <div class="stat-value">27</div>
+          <div class="stat-name">Arguments Lost</div>
+        </div>
+        <div class="stat-card" style="grid-column: span 2">
+          <div class="stat-icon">❤️</div>
+          <div class="stat-value">Always You</div>
+          <div class="stat-name">Favorite Person</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================= PINTEREST GALLERY ============================= -->
+    <section id="gallery" class="section-pad">
+      <div class="wrap center reveal">
+        <div class="eyebrow">Our Little Universe</div>
+        <h2 class="big-heading">Pinterest Gallery</h2>
+      </div>
+      <div class="wrap masonry" id="masonry"></div>
+    </section>
+
+    <div id="lightbox">
+      <span id="lightbox-close">&times;</span>
+      <div id="lightbox-inner">
+        <div id="lightbox-img">Photo</div>
+      </div>
+    </div>
+
+    <!-- ============================= LETTERS ============================= -->
+    <section id="letters" class="section-pad">
+      <div class="wrap center reveal">
+        <div class="eyebrow">Words From The Heart</div>
+        <h2 class="big-heading">Letters To You</h2>
+      </div>
+      <div class="wrap envelopes" id="envelopes"></div>
+    </section>
+
+    <div id="letter-modal">
+      <div class="letter-paper">
+        <span class="letter-close" id="letter-close">&times;</span>
+        <h3 id="letter-title">My Dear Love</h3>
+        <p id="letter-body"></p>
+      </div>
+    </div>
+
+    <!-- ============================= MEMORY JAR ============================= -->
+    <section id="jar-section" class="section-pad">
+      <div class="wrap reveal">
+        <div class="eyebrow">100 Reasons</div>
+        <h2 class="big-heading">Memory Jar</h2>
+        <div class="jar-wrap" id="jar">
+          <div class="jar-lid"></div>
+          <div class="jar-glass">
+            <div class="jar-hearts" id="jarHearts"></div>
+          </div>
+        </div>
+        <div class="jar-count">
+          <span id="jarCount">100</span> reasons left to discover
+        </div>
+      </div>
+    </section>
+
+    <div id="jar-modal">
+      <div class="jar-card">
+        <div class="num" id="jarNum">Reason #1</div>
+        <p id="jarText"></p>
+        <div class="jar-close" id="jarClose">Close</div>
+      </div>
+    </div>
+
+    <!-- ============================= CAKE ============================= -->
+    <section id="cake-section" class="section-pad">
+      <div class="wrap reveal">
+        <div class="eyebrow">Make A Wish</div>
+        <h2 class="big-heading">Our Cake</h2>
+        <div class="cake-wrap">
+          <div class="candles" id="candles">
+            <div class="candle" data-c="1"><div class="flame"></div></div>
+            <div class="candle" data-c="2"><div class="flame"></div></div>
+            <div class="candle" data-c="3"><div class="flame"></div></div>
+          </div>
+          <div class="cake-layer l3"></div>
+          <div class="cake-layer l2"></div>
+          <div class="cake-layer l1"></div>
+        </div>
+        <div class="cake-hint">Tap each candle to light it</div>
+        <div class="cake-msg script" id="cakeMsg">Happy Anniversary</div>
+      </div>
+    </section>
+
+    <!-- ============================= MUSIC ============================= -->
+    <section id="music-section" class="section-pad">
+      <div class="wrap reveal">
+        <div class="eyebrow">Our Soundtrack</div>
+        <h2 class="big-heading">Music For Us</h2>
+        <div class="player">
+          <div class="vinyl spin" id="vinyl">
+            <div class="vinyl-center">♡</div>
+          </div>
+          <div class="track-name" id="trackName">Perfect</div>
+          <div class="track-artist">Our Song · Ed Sheeran</div>
+          <div class="visualizer">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="player-controls">
+            <div class="pc-btn" id="prevTrack">⏮</div>
+            <div class="pc-btn" id="playPause">⏸</div>
+            <div class="pc-btn" id="nextTrack">⏭</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================= ROTATING GALLERY ============================= -->
+    <section id="rotgallery" class="section-pad">
+      <div class="wrap reveal">
+        <div class="eyebrow">Spin Through Us</div>
+        <h2 class="big-heading">Rotating Gallery</h2>
+        <div class="rot-stage">
+          <div class="rot-ring" id="rotRing"></div>
+        </div>
+        <div class="rot-hint">Drag to rotate</div>
+      </div>
+    </section>
+
+    <!-- MOVIE NIGHT -->
+    <section id="movie-night" class="section-pad">
+      <div class="movie-bg-lights"></div>
+
+      <div class="wrap center">
+        <div class="eyebrow">Movie Night</div>
+        <h2 class="big-heading">A Film About Us</h2>
+        <p class="movie-sub">Every love story deserves the biggest screen.</p>
+
+        <div class="cinema">
+          <div class="curtain curtain-left" id="curtainLeft"></div>
+          <div class="curtain curtain-right" id="curtainRight"></div>
+
+          <div class="screen-frame">
+            <video id="loveMovie" poster="images/i1.jpg" controls>
+              <source src="videos/movie.mp4" type="video/mp4" />
+            </video>
+          </div>
+        </div>
+
+        <div class="movie-ticket">
+          🍿 Movie Night • Reserved For Two • Forever
+        </div>
+      </div>
+    </section>
+    <!-- SCRATCH CARD -->
+    <section id="scratch-section" class="section-pad">
+      <div class="wrap center reveal">
+        <div class="eyebrow">One More Surprise</div>
+
+        <h2 class="big-heading">Scratch To Reveal</h2>
+
+        <p class="scratch-sub">
+          Scratch away the golden foil to reveal your surprise ❤️
+        </p>
+
+        <div class="scratch-wrapper">
+          <div class="scratch-hidden">
+            <img src="images/i1.jpg" />
+
+            <h3>I Love You Forever ❤️</h3>
+
+            <p>Thank you for making every day feel magical.</p>
+          </div>
+
+          <canvas id="scratchCanvas"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PUZZLE ===================== -->
+
+    <section id="puzzle-section" class="section-pad">
+      <div class="wrap center">
+        <div class="eyebrow">One Last Challenge</div>
+
+        <h2 class="big-heading">Complete Our Memory</h2>
+
+        <p class="puzzle-sub">
+          Rearrange the pieces to reveal our favorite photo ❤️
+        </p>
+
+        <div id="puzzleBoard"></div>
+
+        <div id="puzzleDone">❤️ You completed our memory ❤️</div>
+      </div>
+    </section>
+
+    <!-- ============================= COUNTDOWN ============================= -->
+    <section id="countdown-section" class="section-pad">
+      <div class="wrap reveal">
+        <div class="eyebrow">What's Next</div>
+        <h2 class="big-heading">Countdown To Our Next Anniversary</h2>
+        <div class="cd-grid">
+          <div class="cd-box">
+            <div class="cd-num" id="cdDays">00</div>
+            <div class="cd-label">Days</div>
+          </div>
+          <div class="cd-box">
+            <div class="cd-num" id="cdHours">00</div>
+            <div class="cd-label">Hours</div>
+          </div>
+          <div class="cd-box">
+            <div class="cd-num" id="cdMins">00</div>
+            <div class="cd-label">Minutes</div>
+          </div>
+          <div class="cd-box">
+            <div class="cd-num" id="cdSecs">00</div>
+            <div class="cd-label">Seconds</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================= SECRET LOCK / FUTURE PLANS ============================= -->
+    <section id="secretlock">
+      <div class="eyebrow">One Last Lock</div>
+      <h2 class="big-heading" style="color: #fff">Only You Can Unlock It</h2>
+      <input class="sl-input" id="slInput" placeholder="Type your name..." />
+      <br />
+      <button class="sl-btn" id="slBtn">Unlock</button>
+      <div class="sl-error" id="slError">That's not quite it, try again ♡</div>
+
+      <div id="future-plans" class="wrap center">
+        <div class="eyebrow">Our Future</div>
+        <h2 class="big-heading" style="color: #fff">Future Plans</h2>
+        <div class="fp-grid">
+          <div class="fp-card">
+            <h3>Travel Together</h3>
+            <p>
+              Every country a new page in our story — mountains, oceans, and
+              cities waiting to know our footsteps.
+            </p>
+          </div>
+          <div class="fp-card">
+            <h3>Dream Home</h3>
+            <p>
+              A little home filled with warm light, our favorite books, and a
+              kitchen that always smells like Sunday mornings.
+            </p>
+          </div>
+          <div class="fp-card">
+            <h3>Forever Together</h3>
+            <p>
+              Growing old on the same porch, still choosing each other, still
+              laughing at the same silly jokes.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================= ENDING ============================= -->
+    <section id="ending">
+      <div class="end-flower">🌸</div>
+      <div class="end-msg">
+        Thank you<br />for choosing me<br />every single day.
+      </div>
+      <div class="end-script script">♡ Happy Anniversary, My Love</div>
+      <button class="replay-btn" id="replayBtn">Replay Our Story</button>
+    </section>
+
+    <footer class="bloom-devsphere-footer">
+      <p>Created by <strong>Devsphere</strong></p>
+      <a href="https://www.instagram.com/devsphere.in/" target="_blank" rel="noopener noreferrer">
+        Instagram · @devsphere.in
+      </a>
+      <a href="https://devsphere-s97l.onrender.com/" target="_blank" rel="noopener noreferrer">
+        Create your own ↗
+      </a>
+    </footer>
+
+    <audio id="bgMusic" preload="auto"></audio>
+    <!-- ============================= SCRIPT ============================= -->
+    <script src="script.js"></script>
+  </body>
+</html>

@@ -44,12 +44,49 @@ export function calculateBirthdayPackage(args: {
   };
 }
 
+export function calculateBloomAnniversaryPackage(args: {
+  projectData: Record<string, unknown>;
+  revealMethod: RevealMethod;
+  currency: CheckoutCurrency;
+  removeWatermark?: boolean;
+}) {
+  if (args.currency !== "INR") {
+    throw new Error("Anniversary Bloom checkout is available in INR only.");
+  }
+
+  const movieEnabled = args.projectData.movieEnabled === true;
+  const specialReveal = SPECIAL_REVEAL_METHODS.includes(
+    args.revealMethod as (typeof SPECIAL_REVEAL_METHODS)[number],
+  );
+  const removeWatermark = args.removeWatermark === true;
+  const basePackagePrice = 449;
+  const packagePrice =
+    basePackagePrice +
+    (movieEnabled ? 10 : 0) +
+    (specialReveal ? 10 : 0) +
+    (removeWatermark ? 99 : 0);
+
+  return {
+    basePackagePrice,
+    packagePrice,
+    removeWatermark,
+    providerAmount: packagePrice,
+    providerAmountMinor: packagePrice * 100,
+    specialReveal,
+    movieEnabled,
+  };
+}
+
 async function applyPaidWatermarkSelection(
   tx: any,
   project: any,
   order: any,
 ) {
-  if (project.template?.slug !== "birthday-royal-memory") {
+  if (
+    !["birthday-royal-memory", "anniversary-romantic-01"].includes(
+      project.template?.slug,
+    )
+  ) {
     return project;
   }
 

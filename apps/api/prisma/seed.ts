@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { bloomDefaultReasons } from "./bloom-default-reasons";
 
 const db = new PrismaClient();
 
@@ -644,6 +645,148 @@ async function main() {
     },
   ];
 
+  const bloomTextField = (
+    id: string,
+    label: string,
+    type = "text",
+    placeholder?: string,
+  ): Record<string, unknown> => ({ id, label, type, placeholder });
+  const bloomRepeaterField = (
+    id: string,
+    label: string,
+    itemFields: Array<Record<string, unknown>>,
+    maxItems?: number,
+  ): Record<string, unknown> => ({
+    id,
+    label,
+    type: "repeater",
+    itemFields,
+    ...(maxItems ? { maxItems } : {}),
+  });
+
+  const bloomAnniversaryFields: Array<Record<string, unknown>> = [
+    bloomTextField("name", "Partner's name", "text", "e.g. Meera"),
+    bloomTextField("senderName", "Your name", "text", "e.g. Aarav"),
+    bloomTextField("passcodeTitle", "Passcode page title", "text", "Happy Anniversary {name} ♡"),
+    bloomTextField("passcodeMessage", "Passcode page message"),
+    bloomTextField("passcodeError", "Passcode error message"),
+    { id: "passcodeCode", type: "text", label: "6-digit passcode", placeholder: "250626", maxLength: 6 },
+    bloomTextField("bloomTransitionMessage", "Bloom transition message"),
+    bloomTextField("anniversaryNumber", "Anniversary number", "text", "1"),
+    bloomTextField("anniversarySuffix", "Anniversary suffix", "text", "st"),
+    bloomTextField("anniversaryLabel", "Anniversary title", "text", "Anniversary"),
+    bloomTextField("relationshipDate", "Your relationship start date", "date"),
+    bloomTextField("heroDate", "Date shown on the cover", "text", "25 · JUNE · 2026"),
+    bloomTextField("introTitle", "Welcome page title"),
+    bloomTextField("introMessage", "Welcome page message", "longText"),
+    bloomTextField("introButton", "Welcome button label"),
+    bloomTextField("introLoadingMessage", "Loading screen message"),
+    bloomTextField("heroEyebrow", "Cover eyebrow"),
+    bloomTextField("heroSubtitle", "Cover message", "longText"),
+    bloomTextField("heroFooter", "Cover footer"),
+    bloomTextField("timelineEyebrow", "Timeline eyebrow"),
+    bloomTextField("timelineTitle", "Timeline title"),
+    bloomTextField("timelineSubtitle", "Timeline subtitle", "longText"),
+    bloomRepeaterField("timeline", "Timeline memories", [
+      bloomTextField("year", "Date or year"),
+      bloomTextField("title", "Memory title"),
+      bloomTextField("text", "Memory message", "longText"),
+      bloomTextField("image", "Memory photo", "image"),
+    ], 20),
+    bloomTextField("yearsEyebrow", "Years-together eyebrow"),
+    bloomTextField("yearsTitle", "Years-together heading"),
+    bloomTextField("daysCounterLabel", "Days counter label"),
+    bloomTextField("hoursCounterLabel", "Hours counter label"),
+    bloomTextField("minutesCounterLabel", "Minutes counter label"),
+    bloomTextField("memoriesCounterLabel", "Memories counter label"),
+    bloomTextField("statsEyebrow", "Stats eyebrow"),
+    bloomTextField("statsTitle", "Stats title"),
+    bloomRepeaterField("stats", "Love stats", [
+      bloomTextField("icon", "Icon or emoji"),
+      bloomTextField("value", "Stat value"),
+      bloomTextField("label", "Stat label"),
+    ], 8),
+    bloomTextField("galleryEyebrow", "Photo gallery eyebrow"),
+    bloomTextField("galleryTitle", "Photo gallery title"),
+    bloomRepeaterField("photos", "Photo gallery", [
+      bloomTextField("image", "Photo", "image"),
+      bloomTextField("caption", "Photo caption"),
+    ], 30),
+    bloomTextField("lettersEyebrow", "Letters eyebrow"),
+    bloomTextField("lettersTitle", "Letters title"),
+    bloomRepeaterField("letters", "Love letters", [
+      bloomTextField("title", "Letter title"),
+      bloomTextField("text", "Letter message", "longText"),
+    ], 12),
+    bloomTextField("reasonsEyebrow", "Memory jar eyebrow"),
+    bloomTextField("reasonsTitle", "Memory jar title"),
+    bloomTextField("reasonsCountLabel", "Memory jar count label"),
+    bloomRepeaterField("reasons", "Reasons I love you", [
+      bloomTextField("text", "Reason", "longText"),
+    ], 100),
+    bloomTextField("cakeEyebrow", "Cake section eyebrow"),
+    bloomTextField("cakeTitle", "Cake section title"),
+    bloomTextField("cakeHint", "Cake section instruction"),
+    bloomTextField("cakeMessage", "Cake wish message", "longText"),
+    bloomTextField("musicEyebrow", "Music section eyebrow"),
+    bloomTextField("musicTitle", "Music section title"),
+    bloomRepeaterField("tracks", "Music playlist", [
+      bloomTextField("title", "Song title"),
+      bloomTextField("artist", "Artist"),
+      bloomTextField("audio", "Audio file", "audio"),
+    ], 8),
+    bloomTextField("rotatingEyebrow", "Rotating gallery eyebrow"),
+    bloomTextField("rotatingTitle", "Rotating gallery title"),
+    bloomTextField("rotatingHint", "Rotating gallery instruction"),
+    bloomRepeaterField("rotatingPhotos", "Rotating gallery photos", [
+      bloomTextField("image", "Photo", "image"),
+    ], 8),
+    { id: "movieEnabled", type: "checkbox", label: "Add movie section (+₹10)" },
+    bloomTextField("movieEyebrow", "Movie section eyebrow"),
+    bloomTextField("movieTitle", "Movie section title"),
+    bloomTextField("movieDescription", "Movie section message", "longText"),
+    bloomTextField("movieTicket", "Movie ticket label"),
+    bloomTextField("moviePoster", "Movie poster", "image"),
+    bloomTextField("movieVideo", "Movie video", "video"),
+    bloomTextField("scratchEyebrow", "Scratch reveal eyebrow"),
+    bloomTextField("scratchTitle", "Scratch reveal title"),
+    bloomTextField("scratchInstruction", "Scratch reveal instruction", "longText"),
+    bloomTextField("scratchCoverLabel", "Scratch cover text"),
+    bloomTextField("scratchImage", "Scratch reveal photo", "image"),
+    bloomTextField("scratchRewardTitle", "Scratch reveal heading"),
+    bloomTextField("scratchMessage", "Scratch reveal message", "longText"),
+    bloomTextField("puzzleEyebrow", "Photo puzzle eyebrow"),
+    bloomTextField("puzzleTitle", "Photo puzzle title"),
+    bloomTextField("puzzleInstruction", "Photo puzzle instruction", "longText"),
+    bloomTextField("puzzleImage", "Photo puzzle image", "image"),
+    bloomTextField("puzzleSolvedMessage", "Photo puzzle solved message"),
+    bloomTextField("countdownEyebrow", "Countdown eyebrow"),
+    bloomTextField("countdownTitle", "Countdown title"),
+    bloomTextField("countdownDaysLabel", "Countdown days label"),
+    bloomTextField("countdownHoursLabel", "Countdown hours label"),
+    bloomTextField("countdownMinutesLabel", "Countdown minutes label"),
+    bloomTextField("countdownSecondsLabel", "Countdown seconds label"),
+    bloomTextField("finalEyebrow", "Final page eyebrow"),
+    bloomTextField("finalTitle", "Final page title"),
+    bloomTextField("finalPlaceholder", "Final page input placeholder"),
+    bloomTextField("finalButton", "Final page button label"),
+    bloomTextField("finalError", "Final page hint"),
+    bloomTextField("futureTitle", "Future plans heading"),
+    bloomTextField("futureEyebrow", "Future plans eyebrow"),
+    bloomRepeaterField("futurePlans", "Future plans", [
+      bloomTextField("title", "Plan title"),
+      bloomTextField("text", "Plan message", "longText"),
+    ], 12),
+    bloomTextField("closingMessage", "Closing message", "longText"),
+    bloomTextField("closingSignature", "Closing signature", "text", "Leave blank to use your name"),
+    bloomTextField("footerMessage", "Footer message"),
+    bloomTextField("replayButtonLabel", "Replay button label"),
+  ];
+
+  const bloomAnniversarySections: Array<Record<string, unknown>> = [
+    { id: "bloom-anniversary-experience", type: "bloom-anniversary-experience", enabled: true, props: {} },
+  ];
+
   // =========================================================
   // TEMPLATES
   // =========================================================
@@ -907,38 +1050,165 @@ async function main() {
     },
 
     // =======================================================
-    // ANNIVERSARY
-    // =======================================================8
+    // ANNIVERSARY BLOOM: full editable story template, INR base ₹449.
     {
-    slug: "anniversary-romantic-01",
-    name: "Anniversary Bloom",
-    description: "A cinematic story for anniversaries.",
-    cat: anniversary,
-    price: 519,
-    tags: ["romantic", "journey", "cinematic"],
-    featured: true,
-
-    thumbnailUrl:
-      "/images/anniversary.png",
-
-    liveDemoUrl:
-      "https://anniversarydemo.vercel.app/",
-
-    data: {
-      name: "Aarav",
-      partnerName: "Meera",
-      subtitle: "Together is our favorite place.",
-      timeline: [
-        {
-          date: "12 June 2024",
-          title: "The First Hello",
-          description: "A simple beginning that became everything.",
-        },
-      ],
-      photos: [],
-      letter: "Write from your heart.",
-      finalMessage: "To be continued…",
-    },
+      slug: "anniversary-romantic-01",
+      name: "Anniversary Bloom",
+      description: "A cinematic, interactive anniversary story you can personalize and share.",
+      cat: anniversary,
+      price: 449,
+      tags: ["romantic", "journey", "cinematic", "anniversary"],
+      featured: true,
+      thumbnailUrl: "/images/anniversary.png",
+      liveDemoUrl: "https://anniversarydemo.vercel.app/",
+      data: {
+        name: "Vansh",
+        senderName: "My Love",
+        passcodeTitle: "Happy Anniversary {name} ♡",
+        passcodeMessage: "A love only we know the code to",
+        passcodeError: "Try again, my love ♡",
+        passcodeCode: "250626",
+        bloomTransitionMessage: "Our story begins...",
+        anniversaryNumber: "1",
+        anniversarySuffix: "st",
+        anniversaryLabel: "Anniversary",
+        relationshipDate: "2025-06-25",
+        heroDate: "25 · JUNE · 2026",
+        introTitle: "Hello Beautiful",
+        introMessage: "I made something only for you. Every scroll contains another memory.\nTake your time.",
+        introButton: "Bloom Our Story",
+        introLoadingMessage: "Loading our memories...",
+        heroEyebrow: "Happy",
+        heroSubtitle: "My Love",
+        heroFooter: "Forever",
+        timelineEyebrow: "The Journey",
+        timelineTitle: "Our Timeline",
+        timelineSubtitle: "2025 to today, and always",
+        timeline: [
+          { year: "2025", title: "The First Hello", text: "A conversation that was supposed to be short turned into hours. Something in me already knew.", image: "/templates/anniversary-bloom/images/i1.jpg" },
+          { year: "2025", title: "First Meet", text: "A conversation that was supposed to be short turned into hours. Something in me already knew.", image: "/templates/anniversary-bloom/images/i5.jpg" },
+          { year: "2025", title: "Falling Deeper", text: "Every ordinary day started feeling like an adventure, simply because you were in it.", image: "/templates/anniversary-bloom/images/i2.jpg" },
+          { year: "2025", title: "Proposal", text: "Every ordinary day started feeling like an adventure, simply because you were in it.", image: "/templates/anniversary-bloom/images/i6.jpg" },
+          { year: "2025", title: "First Trip", text: "We learned each other fully — the good mornings, the hard days, and everything between.", image: "/templates/anniversary-bloom/images/i8.jpg" },
+          { year: "2025", title: "Relationship", text: "Every ordinary day started feeling like an adventure, simply because you were in it.", image: "/templates/anniversary-bloom/images/i7.jpg" },
+          { year: "2025", title: "Building Us", text: "We learned each other fully — the good mornings, the hard days, and everything between.", image: "/templates/anniversary-bloom/images/i3.jpg" },
+          { year: "2025", title: "Engagement", text: "We learned each other fully — the good mornings, the hard days, and everything between.", image: "/templates/anniversary-bloom/images/i9.jpg" },
+          { year: "2025", title: "Marriage", text: "We learned each other fully — the good mornings, the hard days, and everything between.", image: "/templates/anniversary-bloom/images/i10.jpg" },
+          { year: "2026", title: "Anniversary", text: "We learned each other fully — the good mornings, the hard days, and everything between.", image: "/templates/anniversary-bloom/images/i11.jpg" },
+          { year: "2026", title: "Today", text: "Still here. Still us. Still choosing this love, again and again.", image: "/templates/anniversary-bloom/images/i4.jpg" },
+          { year: "2026", title: "To Be Continued", text: "We learned each other fully — the good mornings, the hard days, and everything between.", image: "/templates/anniversary-bloom/images/i12.jpg" },
+        ],
+        yearsEyebrow: "Since 25 June 2025",
+        yearsTitle: "1 Years of Us",
+        daysCounterLabel: "Days",
+        hoursCounterLabel: "Hours",
+        minutesCounterLabel: "Minutes",
+        memoriesCounterLabel: "Memories",
+        statsEyebrow: "Little Numbers, Big Love",
+        statsTitle: "Love Stats",
+        stats: [
+          { icon: "📷", value: "842", label: "Photos" },
+          { icon: "📅", value: "1095", label: "Dates" },
+          { icon: "🤗", value: "∞", label: "Hugs" },
+          { icon: "😂", value: "3,650+", label: "Laughs" },
+          { icon: "🏆", value: "12", label: "Arguments Won" },
+          { icon: "🕊️", value: "27", label: "Arguments Lost" },
+          { icon: "❤️", value: "Always You", label: "Favorite Person" },
+        ],
+        galleryEyebrow: "Our Little Universe",
+        galleryTitle: "Pinterest Gallery",
+        photos: [
+          { image: "/templates/anniversary-bloom/images/i13.jpg", caption: "That golden evening" },
+          { image: "/templates/anniversary-bloom/images/i14.jpg", caption: "Us, always" },
+          { image: "/templates/anniversary-bloom/images/i15.jpg", caption: "Coffee & you" },
+          { image: "/templates/anniversary-bloom/images/i8.jpg", caption: "Our first trip" },
+          { image: "/templates/anniversary-bloom/images/i17.jpg", caption: "Laughing too hard" },
+          { image: "/templates/anniversary-bloom/images/i18.jpg", caption: "Rainy day walk" },
+          { image: "/templates/anniversary-bloom/images/i19.jpg", caption: "Home is you" },
+          { image: "/templates/anniversary-bloom/images/i20.jpg", caption: "Midnight talks" },
+          { image: "/templates/anniversary-bloom/images/i21.jpg", caption: "That little cafe" },
+          { image: "/templates/anniversary-bloom/images/i22.jpg", caption: "Forever kind of love" },
+          { image: "/templates/anniversary-bloom/images/i23.jpg", caption: "Just us" },
+          { image: "/templates/anniversary-bloom/images/i24.jpg", caption: "Sunset chasers" },
+        ],
+        lettersEyebrow: "Words From The Heart",
+        lettersTitle: "Letters To You",
+        letters: [
+          { title: "To My Best Friend", text: "From the very first day, you felt like home. Thank you for every laugh, every quiet moment, and every \"I love you\" that still makes my heart skip. one years in, and I fall for you a little more each morning." },
+          { title: "To My Forever", text: "I used to wonder what forever meant until I met you. Now I know — it means choosing you, again and again, on the easy days and the hard ones. You are my favorite person and my favorite place." },
+          { title: "To My Future", text: "There is so much more ahead of us — more cities, more mornings, more inside jokes. Whatever comes, I only want to face it with you beside me. Here is to everything we have not lived yet." },
+        ],
+        reasonsEyebrow: "100 Reasons",
+        reasonsTitle: "Memory Jar",
+        reasonsCountLabel: "reasons left to discover",
+        reasons: bloomDefaultReasons.map((text) => ({ text })),
+        cakeEyebrow: "Make A Wish",
+        cakeTitle: "Our Cake",
+        cakeHint: "Tap each candle to light it",
+        cakeMessage: "Happy Anniversary",
+        musicEyebrow: "Our Soundtrack",
+        musicTitle: "Music For Us",
+        tracks: [
+          { title: "Jab Tak", artist: "Armaan Malik", audio: "/templates/anniversary-bloom/music/jabtak.mpeg" },
+          { title: "Sitare", artist: "King", audio: "/templates/anniversary-bloom/music/sitare.mpeg" },
+          { title: "Perfect", artist: "Ed Sheeran", audio: "/templates/anniversary-bloom/music/perfect.mpeg" },
+        ],
+        rotatingEyebrow: "Spin Through Us",
+        rotatingTitle: "Rotating Gallery",
+        rotatingHint: "Drag to rotate",
+        rotatingPhotos: [
+          { image: "/templates/anniversary-bloom/images/i1.jpg" },
+          { image: "/templates/anniversary-bloom/images/i2.jpg" },
+          { image: "/templates/anniversary-bloom/images/i3.jpg" },
+          { image: "/templates/anniversary-bloom/images/i4.jpg" },
+          { image: "/templates/anniversary-bloom/images/i5.jpg" },
+          { image: "/templates/anniversary-bloom/images/i6.jpg" },
+          { image: "/templates/anniversary-bloom/images/i7.jpg" },
+          { image: "/templates/anniversary-bloom/images/i8.jpg" },
+        ],
+        movieEnabled: false,
+        movieEyebrow: "Movie Night",
+        movieTitle: "A Film About Us",
+        movieDescription: "Every love story deserves the biggest screen.",
+        movieTicket: "Movie night · Reserved for two · Forever",
+        moviePoster: "/templates/anniversary-bloom/images/i1.jpg",
+        movieVideo: "/templates/anniversary-bloom/videos/movie.mp4",
+        scratchEyebrow: "One More Surprise",
+        scratchTitle: "Scratch To Reveal",
+        scratchInstruction: "Scratch away the golden foil to reveal your surprise ❤️",
+        scratchCoverLabel: "Scratch to reveal",
+        scratchImage: "/templates/anniversary-bloom/images/i1.jpg",
+        scratchRewardTitle: "I Love You Forever ❤️",
+        scratchMessage: "Thank you for making every day feel magical.",
+        puzzleEyebrow: "One Last Challenge",
+        puzzleTitle: "Complete Our Memory",
+        puzzleInstruction: "Rearrange the pieces to reveal our favorite photo ❤️",
+        puzzleImage: "/templates/anniversary-bloom/images/i2.jpg",
+        puzzleSolvedMessage: "❤️ You completed our memory ❤️",
+        countdownEyebrow: "What's Next",
+        countdownTitle: "Countdown To Our Next Anniversary",
+        countdownDaysLabel: "Days",
+        countdownHoursLabel: "Hours",
+        countdownMinutesLabel: "Minutes",
+        countdownSecondsLabel: "Seconds",
+        finalEyebrow: "One Last Lock",
+        finalTitle: "Only You Can Unlock It",
+        finalPlaceholder: "Type your name…",
+        finalButton: "Unlock",
+        finalError: "That's not quite it, try again ♡",
+        futureTitle: "Future Plans",
+        futureEyebrow: "Our Future",
+        futurePlans: [
+          { title: "Travel Together", text: "Every country a new page in our story — mountains, oceans, and cities waiting to know our footsteps." },
+          { title: "Dream Home", text: "A little home filled with warm light, our favorite books, and a kitchen that always smells like Sunday mornings." },
+          { title: "Forever Together", text: "Growing old on the same porch, still choosing each other, still laughing at the same silly jokes." },
+        ],
+        closingMessage: "Thank you\nfor choosing me\nevery single day.",
+        closingSignature: "",
+        footerMessage: "@_devsphere__",
+      },
+      schema: demoSchema(bloomAnniversaryFields, bloomAnniversarySections),
+      sections: bloomAnniversarySections,
     },
 
     {
@@ -1076,11 +1346,16 @@ async function main() {
     },
   ];
 
+  const bloomOnly = process.argv.includes("--bloom-only");
+  const templatesToSeed = bloomOnly
+    ? templates.filter((template) => template.slug === "anniversary-romantic-01")
+    : templates;
+
   // =========================================================
   // TEMPLATE UPSERT
   // =========================================================
 
-  for (const t of templates) {
+  for (const t of templatesToSeed) {
     const templateFields =
       t.schema?.fields && Array.isArray(t.schema.fields)
         ? (t.schema.fields as Array<Record<string, unknown>>)
@@ -1122,13 +1397,13 @@ async function main() {
     liveDemoUrl:
       t.liveDemoUrl ?? null,
 
-    schema,
+    schema: schema as any,
 
     defaultData:
-      t.data,
+      t.data as any,
 
     sections:
-      templateSections,
+      templateSections as any,
 
     published:
       true,
@@ -1168,15 +1443,20 @@ async function main() {
     categoryId:
       t.cat.id,
 
-    schema,
+    schema: schema as any,
 
     defaultData:
-      t.data,
+      t.data as any,
 
     sections:
-      templateSections,
+      templateSections as any,
   },
 });
+  }
+
+  if (bloomOnly) {
+    console.log("Anniversary Bloom template seed complete");
+    return;
   }
 
   // =========================================================

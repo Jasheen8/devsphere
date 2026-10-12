@@ -20,6 +20,7 @@ import {
 } from "../lib/paypal.js";
 import {
   calculateBirthdayPackage,
+  calculateBloomAnniversaryPackage,
   finalizePaidOrder,
   publishPaidProject,
 } from "../lib/fulfillment.js";
@@ -144,6 +145,15 @@ r.post("/create-order", auth, async (req, res) => {
       return res.status(409).json({ error: "Finalize the project first" });
     }
 
+    const isBloomAnniversary =
+      project.template.slug === "anniversary-romantic-01";
+
+    if (isBloomAnniversary && data.currency !== "INR") {
+      return res.status(400).json({
+        error: "Anniversary Bloom checkout is currently available in INR only.",
+      });
+    }
+
     if (data.currency === "USD" && !getPayPalClientId()) {
       return res
         .status(503)
@@ -158,15 +168,24 @@ r.post("/create-order", auth, async (req, res) => {
         ? (project.customization as Record<string, unknown>)
         : {};
     const removeWatermark =
-      project.template.slug === "birthday-royal-memory" &&
+      ["birthday-royal-memory", "anniversary-romantic-01"].includes(
+        project.template.slug,
+      ) &&
       projectCustomization.removeWatermark === true;
 
-    const pricing = calculateBirthdayPackage({
-      projectData,
-      revealMethod: data.revealMethod,
-      currency: data.currency,
-      removeWatermark,
-    });
+    const pricing = isBloomAnniversary
+      ? calculateBloomAnniversaryPackage({
+          projectData,
+          revealMethod: data.revealMethod,
+          currency: data.currency,
+          removeWatermark,
+        })
+      : calculateBirthdayPackage({
+          projectData,
+          revealMethod: data.revealMethod,
+          currency: data.currency,
+          removeWatermark,
+        });
 
     const updatedData = {
       ...projectData,
@@ -263,7 +282,7 @@ r.post("/create-order", auth, async (req, res) => {
     const paypalOrder = await createPayPalOrder({
       amountUsd: pricing.providerAmount,
       referenceId: order.id,
-      description: `Devsphere Birthday Website - ${
+      description: `Devsphere ${isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} - ${
         pricing.specialReveal
           ? "Special Reveal"
           : pricing.movieEnabled

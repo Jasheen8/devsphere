@@ -9960,10 +9960,13 @@ span {
   align-items: center;
   justify-content: center;
   gap: 10px 22px;
-  width: min(1000px, 94vw);
-  margin: 42px auto 0;
-  padding: 22px 12px 0;
-  border-top: 1px solid rgba(212, 180, 131, 0.25);
+  width: 100%;
+  min-height: 150px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 32px 20px;
+  border-top: 1px solid rgba(212, 180, 131, 0.4);
+  background: linear-gradient(135deg, var(--birthday-wine), #32131d, var(--birthday-maroon));
   color: rgba(245, 239, 230, 0.72);
   font-family: "Crimson Text", Georgia, serif;
   font-size: 1.05rem;
@@ -9971,6 +9974,7 @@ span {
 
 .birthday-experience .birthday-devsphere-credit p {
   margin: 0;
+  color: rgba(245, 239, 230, 0.78);
 }
 
 .birthday-experience .birthday-devsphere-credit strong {
@@ -9994,6 +9998,6 @@ span {
   .birthday-experience .birthday-devsphere-credit {
     flex-direction: column;
     gap: 10px;
-    margin-top: 32px;
+    margin-top: 0;
   }
 }
