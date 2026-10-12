@@ -16,26 +16,62 @@ export function calculateBirthdayPackage(args: {
   projectData: Record<string, unknown>;
   revealMethod: RevealMethod;
   currency: CheckoutCurrency;
+  removeWatermark?: boolean;
 }) {
   const movieEnabled = args.projectData.movieEnabled === true;
+  const removeWatermark = args.removeWatermark === true;
 
   const specialReveal = SPECIAL_REVEAL_METHODS.includes(
     args.revealMethod as (typeof SPECIAL_REVEAL_METHODS)[number],
   );
 
-  const packagePrice = specialReveal ? 119 : movieEnabled ? 109 : 99;
+  const basePackagePrice = specialReveal ? 119 : movieEnabled ? 109 : 99;
+  const packagePrice = basePackagePrice + (removeWatermark ? 99 : 0);
 
   const providerAmount =
     args.currency === "USD"
-      ? 10
+      ? 10 + (removeWatermark ? 1 : 0)
       : packagePrice;
 
   return {
+    basePackagePrice,
     packagePrice,
+    removeWatermark,
     providerAmount,
     providerAmountMinor: Math.round(providerAmount * 100),
     specialReveal,
     movieEnabled,
+  };
+}
+
+async function applyPaidWatermarkSelection(
+  tx: any,
+  project: any,
+  order: any,
+) {
+  if (project.template?.slug !== "birthday-royal-memory") {
+    return project;
+  }
+
+  const customization =
+    project.customization &&
+    typeof project.customization === "object" &&
+    !Array.isArray(project.customization)
+      ? project.customization
+      : {};
+  const updatedCustomization = {
+    ...customization,
+    removeWatermarkPaid: order.removeWatermark === true,
+  };
+
+  const updatedProject = await tx.project.update({
+    where: { id: project.id },
+    data: { customization: updatedCustomization as any },
+  });
+
+  return {
+    ...project,
+    customization: updatedProject.customization,
   };
 }
 
@@ -192,7 +228,9 @@ export async function finalizePaidOrder(args: {
           id: args.orderId,
         },
         include: {
-          project: true,
+          project: {
+            include: { template: true },
+          },
           plan: true,
         },
       });
@@ -303,7 +341,7 @@ export async function finalizePaidOrder(args: {
       /*
        * Mark the order as PAID.
        */
-      const paidOrder =
+      const updatedOrder =
         order.status === "PAID"
           ? order
           : await tx.order.update({
@@ -320,6 +358,17 @@ export async function finalizePaidOrder(args: {
                 plan: true,
               },
             });
+
+      const projectWithPaidWatermarkSelection =
+        await applyPaidWatermarkSelection(
+          tx,
+          order.project,
+          order,
+        );
+      const paidOrder = {
+        ...updatedOrder,
+        project: projectWithPaidWatermarkSelection,
+      };
 
       /*
        * Publish website inside the same transaction.
@@ -368,6 +417,7 @@ export async function publishPaidProject(
             userId,
           },
           include: {
+            template: true,
             orders: {
               where: {
                 status: "PAID",
@@ -394,9 +444,15 @@ export async function publishPaidProject(
         throw new Error("Payment required");
       }
 
+      const projectWithPaidWatermarkSelection =
+        await applyPaidWatermarkSelection(
+          tx,
+          project,
+          paidOrder,
+        );
       const order = {
         ...paidOrder,
-        project,
+        project: projectWithPaidWatermarkSelection,
         plan: paidOrder.plan,
       };
 

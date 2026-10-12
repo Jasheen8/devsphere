@@ -48,6 +48,12 @@ type Template = {
     slug: string;
   };
 };
+
+const heroMarqueeRows = [
+  ["BIRTHDAYS", "LOVE STORIES", "ANNIVERSARIES", "WEDDINGS", "MEMORIES", "LITTLE SURPRISES"],
+  ["MADE PERSONAL", "MADE BEAUTIFUL", "MADE WITH HEART", "SHARE THE MOMENT", "CREATE YOUR SURPRISE", "CELEBRATE TOGETHER"],
+];
+
 function GlobalLoader({ show }: { show: boolean }) {
   if (!show) return null;
 
@@ -137,14 +143,37 @@ function Home() {
     anniversaryTemplate,
   ]);
   const otherTemplates = templates.filter((t) => !featuredTemplates.has(t));
+  const heroWords = "Turn Your Memories Into Something Beautiful".split(" ");
+  let heroLetterIndex = 0;
+
   return (
     <>
       <Nav />
       <main>
         <section className="hero-home">
           <span className="pill">Digital gifts, made personal</span>
-          <h1>
-            Turn Your Memories Into Something Beautiful <span>❤️</span>
+          <h1 aria-label="Turn Your Memories Into Something Beautiful">
+            {heroWords.map((word, wordIndex) => (
+              <span className="hero-title-word" key={`${word}-${wordIndex}`}>
+                {Array.from(word).map((letter, letterIndex) => {
+                  const delay = heroLetterIndex++ * 55;
+
+                  return (
+                    <span
+                      className="hero-title-letter"
+                      key={`${wordIndex}-${letterIndex}`}
+                      style={{ animationDelay: `${delay}ms` }}
+                      aria-hidden="true"
+                    >
+                      {letter}
+                    </span>
+                  );
+                })}
+              </span>
+            ))}{" "}
+            <span className="hero-title-heart" aria-hidden="true">
+
+            </span>
           </h1>
           <p>
             Create personalized birthday, anniversary, love, wedding and
@@ -163,6 +192,34 @@ function Home() {
             </Link>
           </div>
         </section>
+        <div className="hero-marquee" aria-hidden="true">
+          {heroMarqueeRows.map((words, rowIndex) => (
+            <div
+              className={`hero-marquee-lane ${
+                rowIndex === 0 ? "hero-marquee-lane-primary" : "hero-marquee-lane-secondary"
+              }`}
+              key={rowIndex}
+            >
+              <div
+                className={`hero-marquee-track ${rowIndex === 1 ? "is-reverse" : ""}`}
+              >
+                {[0, 1].map((copy) => (
+                  <div
+                    className="hero-marquee-group"
+                    key={copy}
+                    aria-hidden={copy === 1}
+                  >
+                    {words.map((word) => (
+                      <span className="hero-marquee-item" key={word}>
+                        {word}
+                      </span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
         <div className="container">
           <section className="section">
             <div className="section-head">
@@ -281,10 +338,10 @@ function Home() {
           <section className="section">
             <div
               className="card"
-              style={{ padding: 32, background: "#2b211e", color: "#fff" }}
+              style={{ padding: 32, background: "var(--ds-cherry)", color: "var(--ds-cream-soft)" }}
             >
               <span className="pill">Interactive reveals</span>
-              <h2 style={{ color: "#fff" }}>
+              <h2 style={{ color: "var(--ds-cream-soft)" }}>
                 Make opening the website part of the gift.
               </h2>
               <p style={{ maxWidth: 650, color: "#ded0ca", lineHeight: 1.7 }}>
@@ -1601,6 +1658,30 @@ function Editor() {
             </div>
           </>
         )}
+        {project.template.slug === "birthday-royal-memory" && (
+          <div className="field remove-watermark-option">
+            <label className="remove-watermark-control">
+              <input
+                type="checkbox"
+                checked={customization.removeWatermark === true}
+                onChange={(event) =>
+                  setCustomization((current: any) => ({
+                    ...current,
+                    removeWatermark: event.target.checked,
+                  }))
+                }
+              />
+              <span className="remove-watermark-copy">
+                <strong>Remove watermark · +₹99</strong>
+                <small>
+                  Removes the Devsphere credit, Instagram link and “Create your
+                  own” link from the final page. International PayPal checkout
+                  adds $1.
+                </small>
+              </span>
+            </label>
+          </div>
+        )}
         <button
           className="btn btn-primary"
           style={{ width: "100%" }}
@@ -1828,6 +1909,12 @@ function Checkout() {
   const projectData =
     (project?.data as Record<string, unknown> | undefined) || {};
 
+  const projectCustomization =
+    (project?.customization as Record<string, unknown> | undefined) || {};
+  const removeWatermarkSelected =
+    project?.template?.slug === "birthday-royal-memory" &&
+    projectCustomization.removeWatermark === true;
+
   const movieEnabled = projectData.movieEnabled === true;
 
   /* =========================================================
@@ -1845,18 +1932,24 @@ function Checkout() {
    */
 
   const birthdayPrice = specialRevealSelected ? 119 : movieEnabled ? 109 : 99;
-  const displayPrice = currency === "USD" ? 10 : birthdayPrice;
+  const displayPrice =
+    currency === "USD"
+      ? 10 + (removeWatermarkSelected ? 1 : 0)
+      : birthdayPrice + (removeWatermarkSelected ? 99 : 0);
   const priceLabel = specialRevealSelected
     ? "SPECIAL REVEAL"
     : movieEnabled
       ? "OUR MOVIE"
       : "BASIC";
 
-  const priceDescription = specialRevealSelected
+  const basePriceDescription = specialRevealSelected
     ? "Birthday website + your chosen magical reveal method."
     : movieEnabled
       ? "Birthday website + your personal movie/video."
       : "Complete interactive birthday website.";
+  const priceDescription = removeWatermarkSelected
+    ? `${basePriceDescription} Devsphere credit removal is included.`
+    : basePriceDescription;
 
   /* =========================================================
      DATABASE PLAN
@@ -1969,7 +2062,7 @@ function Checkout() {
         amount: order.amount,
         currency: "INR",
         name: "Devsphere",
-        description: `Birthday Website — ₹${birthdayPrice}`,
+        description: `Birthday Website — ₹${displayPrice}`,
         order_id: order.providerOrderId,
 
         handler: async (response: any) => {
@@ -2207,7 +2300,10 @@ function Checkout() {
             <div className="scanner-style-price">
               <span>Magical Scanner</span>
 
-              <strong>{currency === "USD" ? "$10" : "₹119"}</strong>
+              <strong>
+                {currency === "USD" ? "$" : "₹"}
+                {displayPrice}
+              </strong>
             </div>
           </div>
         )}
@@ -2343,7 +2439,15 @@ function Checkout() {
                     : revealMethod === "GIFT"
                       ? "Gift Box selected."
                       : "Puzzle selected."}{" "}
-              Your package price is {currency === "USD" ? "$10" : "₹119"}.
+              Your package price is {currency === "USD" ? "$" : "₹"}
+              {displayPrice}.
+            </p>
+          )}
+
+          {removeWatermarkSelected && (
+            <p className="birthday-checkout-note">
+              Remove watermark: +₹99
+              {currency === "USD" ? " (international checkout: +$1)" : ""}.
             </p>
           )}
 
@@ -2368,7 +2472,7 @@ function Checkout() {
                 : loading === "verifying"
                   ? "Confirming payment…"
                   : birthdayPlan?.id
-                    ? `Pay ₹${birthdayPrice} with Razorpay`
+                    ? `Pay ₹${displayPrice} with Razorpay`
                     : "Run db seed to load plan"}
             </button>
           ) : (

@@ -151,16 +151,28 @@ r.post("/create-order", auth, async (req, res) => {
     }
 
     const projectData = (project.data as Record<string, unknown> | null) || {};
+    const projectCustomization =
+      project.customization &&
+      typeof project.customization === "object" &&
+      !Array.isArray(project.customization)
+        ? (project.customization as Record<string, unknown>)
+        : {};
+    const removeWatermark =
+      project.template.slug === "birthday-royal-memory" &&
+      projectCustomization.removeWatermark === true;
 
     const pricing = calculateBirthdayPackage({
       projectData,
       revealMethod: data.revealMethod,
       currency: data.currency,
+      removeWatermark,
     });
 
     const updatedData = {
       ...projectData,
+      packageBasePrice: pricing.basePackagePrice,
       packagePrice: pricing.packagePrice,
+      removeWatermark: pricing.removeWatermark,
       packageCurrency: data.currency,
       packageProvider: data.currency === "USD" ? "paypal" : "razorpay",
       packageProviderAmount: pricing.providerAmount,
@@ -187,6 +199,7 @@ r.post("/create-order", auth, async (req, res) => {
         planId: plan.id,
         amount: pricing.providerAmountMinor,
         currency: data.currency,
+        removeWatermark: pricing.removeWatermark,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -220,6 +233,7 @@ r.post("/create-order", auth, async (req, res) => {
         amount: pricing.providerAmountMinor,
         currency: data.currency,
         provider,
+        removeWatermark: pricing.removeWatermark,
       },
     });
 
@@ -255,7 +269,7 @@ r.post("/create-order", auth, async (req, res) => {
           : pricing.movieEnabled
             ? "Our Movie"
             : "Basic"
-      }`,
+      }${pricing.removeWatermark ? " + Remove Devsphere Credit" : ""}`,
     });
 
     const saved = await db.order.update({

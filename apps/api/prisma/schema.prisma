@@ -291,6 +291,7 @@ model Order {
   provider        String      @default("razorpay")
   providerOrderId String?
   providerPaymentId String?
+  removeWatermark Boolean     @default(false)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 

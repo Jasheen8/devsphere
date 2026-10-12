@@ -104,6 +104,13 @@ export function CutieBirthdayExperience({
     }
   }
 
+  function lightAllCandles() {
+    if (candlesOut || litCandles.every(Boolean)) return;
+
+    setLitCandles([true, true, true]);
+    celebrate();
+  }
+
   function blowCandles() {
     setCandlesOut(true);
     celebrate();
@@ -135,9 +142,7 @@ export function CutieBirthdayExperience({
     ? "wish made ♡"
     : remainingCandles === 0
       ? "make a wish ♡"
-      : remainingCandles === 1
-        ? "one more little flame ♡"
-        : `just ${remainingCandles} more candles to light`;
+      : "tap to light up the candles ♡";
 
   return (
     <div className="cutie-birthday">
@@ -242,17 +247,14 @@ export function CutieBirthdayExperience({
               </div>
             </div>
             <div className="candle-controls">
-              {litCandles.map((isLit, index) => (
-                <button
-                  key={index}
-                  className="outline-btn"
-                  type="button"
-                  aria-pressed={isLit}
-                  onClick={() => lightCandle(index)}
-                >
-                  ✧ CANDLE {index + 1}
-                </button>
-              ))}
+              <button
+                className="outline-btn light-up-btn"
+                type="button"
+                disabled={remainingCandles === 0 || candlesOut}
+                onClick={lightAllCandles}
+              >
+                ✧ LIGHT UP
+              </button>
             </div>
             <p className="script small-script">{candleHint}</p>
             {remainingCandles === 0 && !candlesOut && (

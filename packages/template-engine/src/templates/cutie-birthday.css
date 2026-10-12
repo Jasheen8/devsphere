@@ -689,6 +689,14 @@
   letter-spacing: 0.1em;
   box-shadow: 0 7px 17px rgba(128, 85, 108, 0.06);
 }
+.cutie-birthday .light-up-btn {
+  min-width: 156px;
+}
+.cutie-birthday .outline-btn:disabled {
+  cursor: default;
+  opacity: 0.58;
+  transform: none;
+}
 .cutie-birthday .small-script {
   font-size: 1.2rem;
   margin-top: 13px;

@@ -1,0 +1,2 @@
+ALTER TABLE "Order"
+ADD COLUMN "removeWatermark" BOOLEAN NOT NULL DEFAULT false;

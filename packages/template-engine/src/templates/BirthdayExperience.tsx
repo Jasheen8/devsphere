@@ -100,9 +100,13 @@ type BirthdayExperienceProps = {
 
 export function BirthdayExperience({
   data,
+  theme,
   isPreview = false,
 }: BirthdayExperienceProps) {
   const birthday = data as BirthdayData;
+  const hideDevsphereCredit = isPreview
+    ? theme?.removeWatermark === true
+    : theme?.removeWatermarkPaid === true;
 
 
 
@@ -2278,7 +2282,30 @@ function unlockSurprise() {
                   </div>
                 </section>
               )}
+
             </>
+          )}
+
+          {!hideDevsphereCredit && (
+            <footer className="birthday-devsphere-credit">
+              <p>
+                Created by <strong>Devsphere</strong>
+              </p>
+              <a
+                href="https://www.instagram.com/devsphere.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Instagram · @devsphere.in
+              </a>
+              <a
+                href="https://devsphere-s97l.onrender.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Create your own ↗
+              </a>
+            </footer>
           )}
         </section>
       </main>

@@ -9953,3 +9953,47 @@ span {
   }
 
 }
+
+.birthday-experience .birthday-devsphere-credit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 22px;
+  width: min(1000px, 94vw);
+  margin: 42px auto 0;
+  padding: 22px 12px 0;
+  border-top: 1px solid rgba(212, 180, 131, 0.25);
+  color: rgba(245, 239, 230, 0.72);
+  font-family: "Crimson Text", Georgia, serif;
+  font-size: 1.05rem;
+}
+
+.birthday-experience .birthday-devsphere-credit p {
+  margin: 0;
+}
+
+.birthday-experience .birthday-devsphere-credit strong {
+  color: var(--birthday-gold);
+}
+
+.birthday-experience .birthday-devsphere-credit a {
+  color: var(--birthday-gold);
+  text-decoration: none;
+  text-underline-offset: 4px;
+  transition: color 0.2s ease;
+}
+
+.birthday-experience .birthday-devsphere-credit a:hover,
+.birthday-experience .birthday-devsphere-credit a:focus-visible {
+  color: var(--birthday-cream);
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .birthday-experience .birthday-devsphere-credit {
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 32px;
+  }
+}
