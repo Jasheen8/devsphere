@@ -27,6 +27,7 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import { TemplateRenderer } from "@memora/template-engine";
 import type { TemplateDefinition } from "@memora/shared";
+import { captureEvent, capturePageview } from "./analytics";
 import { api, apiBase, getTemplates, preloadTemplates } from "./lib/api";
 import PayPalButtons from "./PayPalButtons";
 import "./styles.css";
@@ -612,7 +613,15 @@ function TemplatePreview() {
     if (!id) return;
 
     api(`/templates/${id}`)
-      .then((x) => setT(x.template))
+      .then((x) => {
+        setT(x.template);
+        captureEvent("template_opened", {
+          template_id: x.template.id,
+          template_slug: x.template.slug,
+          template_type: x.template.category?.slug || "unknown",
+          is_free: Boolean(x.template.isFree),
+        });
+      })
       .catch((error) => {
         console.error("Failed to load template:", error);
       });
@@ -1662,6 +1671,12 @@ function Create() {
             animation: "smooth",
           },
         }),
+      });
+      captureEvent("project_created", {
+        template_id: template.id,
+        template_slug: template.slug,
+        template_type: template.category?.slug || "unknown",
+        is_free: Boolean(template.isFree),
       });
       nav(`/edit/${p.project.id}`);
     } catch (e: any) {
@@ -3444,8 +3459,19 @@ function App() {
   );
 }
 
+function RoutePageViews() {
+  const { pathname, search, hash } = useLocation();
+
+  useEffect(() => {
+    capturePageview();
+  }, [pathname, search, hash]);
+
+  return null;
+}
+
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
+    <RoutePageViews />
     <App />
   </BrowserRouter>,
 );
