@@ -3,8 +3,8 @@ import { z } from "zod";
 import { db } from "../lib/db.js";
 import { auth } from "../lib/auth.js";
 import {
+  captureRazorpayPaymentIfAuthorized,
   createRazorpayOrder,
-  fetchRazorpayPayment,
   fetchRazorpayPayments,
   verifyRazorpayPaymentSignature,
   verifyRazorpayWebhookSignature,
@@ -21,6 +21,7 @@ import {
 import {
   calculateBirthdayPackage,
   calculateBloomAnniversaryPackage,
+  calculateNavratriPartnerInvitePackage,
   finalizePaidOrder,
   publishPaidProject,
 } from "../lib/fulfillment.js";
@@ -147,10 +148,15 @@ r.post("/create-order", auth, async (req, res) => {
 
     const isBloomAnniversary =
       project.template.slug === "anniversary-romantic-01";
+    const isNavratri =
+      project.template.slug === "navratri-partner-invite";
+    const checkoutRevealMethod = isNavratri ? "NORMAL" : data.revealMethod;
 
-    if (isBloomAnniversary && data.currency !== "INR") {
+    if ((isBloomAnniversary || isNavratri) && data.currency !== "INR") {
       return res.status(400).json({
-        error: "Anniversary Bloom checkout is currently available in INR only.",
+        error: isBloomAnniversary
+          ? "Anniversary Bloom checkout is currently available in INR only."
+          : "Navratri Partner Invite checkout is currently available in INR only.",
       });
     }
 
@@ -168,21 +174,28 @@ r.post("/create-order", auth, async (req, res) => {
         ? (project.customization as Record<string, unknown>)
         : {};
     const removeWatermark =
-      ["birthday-royal-memory", "anniversary-romantic-01"].includes(
-        project.template.slug,
-      ) &&
+      [
+        "birthday-royal-memory",
+        "anniversary-romantic-01",
+        "navratri-partner-invite",
+      ].includes(project.template.slug) &&
       projectCustomization.removeWatermark === true;
 
-    const pricing = isBloomAnniversary
+    const pricing = isNavratri
+      ? calculateNavratriPartnerInvitePackage({
+          currency: data.currency,
+          removeWatermark,
+        })
+      : isBloomAnniversary
       ? calculateBloomAnniversaryPackage({
           projectData,
-          revealMethod: data.revealMethod,
+          revealMethod: checkoutRevealMethod,
           currency: data.currency,
           removeWatermark,
         })
       : calculateBirthdayPackage({
           projectData,
-          revealMethod: data.revealMethod,
+          revealMethod: checkoutRevealMethod,
           currency: data.currency,
           removeWatermark,
         });
@@ -196,13 +209,13 @@ r.post("/create-order", auth, async (req, res) => {
       packageProvider: data.currency === "USD" ? "paypal" : "razorpay",
       packageProviderAmount: pricing.providerAmount,
       scannerStyle:
-        data.revealMethod === "QR" ? data.scannerStyle || "HEART" : null,
+        checkoutRevealMethod === "QR" ? data.scannerStyle || "HEART" : null,
     };
 
     await db.project.update({
       where: { id: project.id },
       data: {
-        revealMethod: data.revealMethod,
+        revealMethod: checkoutRevealMethod,
         data: updatedData,
       },
     });
@@ -239,7 +252,7 @@ r.post("/create-order", auth, async (req, res) => {
     await db.project.update({
       where: { id: project.id },
       data: {
-        revealMethod: data.revealMethod,
+        revealMethod: checkoutRevealMethod,
         data: updatedData,
       },
     });
@@ -282,7 +295,7 @@ r.post("/create-order", auth, async (req, res) => {
     const paypalOrder = await createPayPalOrder({
       amountUsd: pricing.providerAmount,
       referenceId: order.id,
-      description: `Devsphere ${isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} - ${
+      description: `Devsphere ${isNavratri ? "Navratri Partner Invite" : isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} - ${
         pricing.specialReveal
           ? "Special Reveal"
           : pricing.movieEnabled
@@ -369,9 +382,12 @@ r.post("/razorpay/verify", auth, async (req, res) => {
       return res.status(400).json({ error: "Signature verification failed" });
     }
 
-    const providerPayment = await fetchRazorpayPayment(data.razorpayPaymentId);
-
     const expectedAmount = order.amount;
+    const providerPayment = await captureRazorpayPaymentIfAuthorized(
+      data.razorpayPaymentId,
+      data.razorpayOrderId,
+      expectedAmount,
+    );
 
     if (
       providerPayment?.status !== "captured" ||
@@ -519,27 +535,39 @@ r.post("/resume/:projectId", auth, async (req, res) => {
       return res.json({ paid: true, url: published.url });
     }
 
-    const pendingOrders = project.orders.filter(
-      (item) => item.status === "PENDING" && item.providerOrderId,
+    const resumableOrders = project.orders.filter(
+      (item) =>
+        (item.status === "PENDING" || item.status === "FAILED") &&
+        item.providerOrderId,
     );
 
-    for (const order of pendingOrders) {
+    for (const order of resumableOrders) {
       if (order.provider === "razorpay" && order.providerOrderId) {
         try {
           const payments = await fetchRazorpayPayments(order.providerOrderId);
-          const captured = payments?.items?.find(
+          const successful = payments?.items?.find(
             (item: any) =>
-              item?.status === "captured" &&
+              (item?.status === "captured" || item?.status === "authorized") &&
               item?.order_id === order.providerOrderId,
           );
 
           const expectedAmount = order.amount;
 
           if (
-            captured &&
-            Number(captured.amount) === expectedAmount &&
-            String(captured.currency) === "INR"
+            successful &&
+            Number(successful.amount) === expectedAmount &&
+            String(successful.currency) === "INR"
           ) {
+            const captured = await captureRazorpayPaymentIfAuthorized(
+              successful.id,
+              order.providerOrderId,
+              expectedAmount,
+            );
+
+            if (captured?.status !== "captured") {
+              continue;
+            }
+
             const result = await finalizePaidOrder({
               orderId: order.id,
               userId: user.id,
@@ -630,19 +658,24 @@ r.post("/webhook/razorpay", async (req, res) => {
       return res.json({ received: true });
     }
 
-    if (event?.event === "payment.captured") {
+    if (
+      event?.event === "payment.captured" ||
+      event?.event === "payment.authorized"
+    ) {
       const expectedAmount = order.amount;
-      if (
-        String(payment.status) === "captured" &&
-        Number(payment.amount) === expectedAmount &&
-        String(payment.currency) === "INR"
-      ) {
+      const currentPayment = await captureRazorpayPaymentIfAuthorized(
+        String(payment.id || ""),
+        order.providerOrderId || String(payment.order_id),
+        expectedAmount,
+      );
+
+      if (currentPayment?.status === "captured") {
         await finalizePaidOrder({
           orderId: order.id,
           provider: "razorpay",
-          providerPaymentId: payment.id,
-          raw: event,
-          providerAmount: Number(payment.amount) / 100,
+          providerPaymentId: currentPayment.id,
+          raw: { event, payment: currentPayment },
+          providerAmount: Number(currentPayment.amount) / 100,
           providerCurrency: "INR",
         });
       }

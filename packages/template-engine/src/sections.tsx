@@ -1,7 +1,31 @@
 import React from "react";
-import { BirthdayExperience } from "./templates/BirthdayExperience";
-import { BloomAnniversaryExperience } from "./templates/BloomAnniversaryExperience";
-import { CutieBirthdayExperience } from "./templates/CutieBirthdayExperience";
+
+const BirthdayExperience = React.lazy(() =>
+  import("./templates/BirthdayExperience").then(({ BirthdayExperience }) => ({
+    default: BirthdayExperience,
+  })),
+);
+const BloomAnniversaryExperience = React.lazy(() =>
+  import("./templates/BloomAnniversaryExperience").then(
+    ({ BloomAnniversaryExperience }) => ({
+      default: BloomAnniversaryExperience,
+    }),
+  ),
+);
+const NavratriPartnerInviteExperience = React.lazy(() =>
+  import("./templates/NavratriPartnerInviteExperience").then(
+    ({ NavratriPartnerInviteExperience }) => ({
+      default: NavratriPartnerInviteExperience,
+    }),
+  ),
+);
+const CutieBirthdayExperience = React.lazy(() =>
+  import("./templates/CutieBirthdayExperience").then(
+    ({ CutieBirthdayExperience }) => ({
+      default: CutieBirthdayExperience,
+    }),
+  ),
+);
 
 type Props = {
   data: Record<string, any>;
@@ -100,7 +124,7 @@ export const FinalMessage = ({ data }: Props) => (
   </Section>
 );
 
-export const SectionRegistry: Record<string, React.ComponentType<Props>> = {
+export const SectionRegistry: Record<string, React.ElementType<Props>> = {
   hero: Hero,
   intro: Intro,
   timeline: Timeline,
@@ -111,5 +135,6 @@ export const SectionRegistry: Record<string, React.ComponentType<Props>> = {
 
   "birthday-experience": BirthdayExperience,
   "bloom-anniversary-experience": BloomAnniversaryExperience,
+  "navratri-partner-invite": NavratriPartnerInviteExperience,
   "cutie-birthday-experience": CutieBirthdayExperience,
 };

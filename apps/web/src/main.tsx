@@ -28,7 +28,17 @@ import { QRCodeSVG } from "qrcode.react";
 import { TemplateRenderer } from "@memora/template-engine";
 import type { TemplateDefinition } from "@memora/shared";
 import { captureEvent, capturePageview } from "./analytics";
-import { api, apiBase, getTemplates, preloadTemplates } from "./lib/api";
+import {
+  api,
+  apiBase,
+  clearTemplatesCache,
+  getCategories,
+  getCurrentUser,
+  getTemplate,
+  getTemplates,
+  preloadTemplate,
+  preloadTemplates,
+} from "./lib/api";
 import PayPalButtons from "./PayPalButtons";
 import "./styles.css";
 
@@ -69,13 +79,14 @@ function Nav() {
   const [user, setUser] = React.useState<any>(null);
 
   React.useEffect(() => {
-    api("/auth/me")
-      .then((data) => {
-        setUser(data.user);
-      })
-      .catch(() => {
-        setUser(null);
-      });
+    let active = true;
+    getCurrentUser().then((currentUser) => {
+      if (active) setUser(currentUser);
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const userInitial =
@@ -117,6 +128,11 @@ function Nav() {
 function Home() {
   const [templates, setTemplates] = useState<Template[]>([]);
   useEffect(() => {
+    const handleTemplateUpdate = (event: Event) => {
+      setTemplates((event as CustomEvent<Template[]>).detail || []);
+    };
+    window.addEventListener("devsphere:templates-updated", handleTemplateUpdate);
+
     getTemplates()
       .then((items) => {
         setTemplates(items);
@@ -124,6 +140,10 @@ function Home() {
       .catch((error) => {
         console.error("Failed to load templates:", error);
       });
+
+    return () => {
+      window.removeEventListener("devsphere:templates-updated", handleTemplateUpdate);
+    };
   }, []);
   const royalBirthdayTemplate = templates.find(
     (t) => t.slug === "birthday-royal-memory",
@@ -380,13 +400,16 @@ function TemplateCard({ t }: { t: Template }) {
   const imageUrl = isAnniversary
     ? "/images/anniversary.png"
     : t.thumbnailUrl ||
-      `https://placehold.co/800x500/f1e4dc/513c34?text=${encodeURIComponent(
-        t.name,
-      )}`;
+      "/images/invitation.png";
 
   return (
     <article className={`card ${isAnniversary ? "anniversary-card" : ""}`}>
-      <img src={imageUrl} alt={isAnniversary ? "Bloom Anniversary" : t.name} />
+      <img
+        src={imageUrl}
+        alt={isAnniversary ? "Bloom Anniversary" : t.name}
+        loading="lazy"
+        decoding="async"
+      />
 
       <div className="card-body">
         <span className="muted">
@@ -413,7 +436,11 @@ function TemplateCard({ t }: { t: Template }) {
         </div>
 
         <div className="actions">
-          <Link className="btn btn-soft" to={`/templates/${t.slug}`}>
+          <Link
+            className="btn btn-soft"
+            to={`/templates/${t.slug}`}
+            onMouseEnter={() => preloadTemplate(t.slug)}
+          >
             Preview
           </Link>
 
@@ -428,7 +455,11 @@ function TemplateCard({ t }: { t: Template }) {
             </a>
           )}
 
-          <Link className="btn btn-primary" to={`/create/${t.id}`}>
+          <Link
+            className="btn btn-primary"
+            to={`/create/${t.id}`}
+            onMouseEnter={() => preloadTemplate(t.id)}
+          >
             {t.isFree ? "Use Free Template" : "Use Template"}
           </Link>
         </div>
@@ -443,32 +474,50 @@ function Templates() {
   const [cat, setCat] = useState("");
   const [freeOnly, setFreeOnly] = useState(false);
   useEffect(() => {
-    api("/categories").then((x) => setCats(x.items));
+    const handleTemplateUpdate = (event: Event) => {
+      setItems((event as CustomEvent<Template[]>).detail || []);
+    };
+    const handleCategoryUpdate = (event: Event) => {
+      setCats((event as CustomEvent<any[]>).detail || []);
+    };
+    window.addEventListener("devsphere:templates-updated", handleTemplateUpdate);
+    window.addEventListener("devsphere:categories-updated", handleCategoryUpdate);
+
+    getTemplates()
+      .then((templates) => setItems(templates))
+      .catch((error) => console.error("Failed to load templates:", error));
+    getCategories()
+      .then((categories) => setCats(categories))
+      .catch((error) => console.error("Failed to load categories:", error));
+
+    return () => {
+      window.removeEventListener("devsphere:templates-updated", handleTemplateUpdate);
+      window.removeEventListener("devsphere:categories-updated", handleCategoryUpdate);
+    };
   }, []);
-  useEffect(() => {
-    const id = setTimeout(() => {
-      const params = new URLSearchParams();
-      if (q) params.set("search", q);
-      if (cat) params.set("category", cat);
-      if (freeOnly) params.set("free", "true");
 
-      api<{ items: Template[] }>(`/templates?${params.toString()}`).then((x) =>
-        setItems(x.items),
-      );
-    }, 180);
-    return () => clearTimeout(id);
-  }, [q, cat, freeOnly]);
+  const search = q.trim().toLowerCase();
+  const visibleItems = items.filter((template) => {
+    const matchesSearch =
+      !search ||
+      `${template.name} ${template.description || ""}`
+        .toLowerCase()
+        .includes(search);
+    const matchesCategory = !cat || template.category?.slug === cat;
+    const matchesFree = !freeOnly || template.isFree;
+    return matchesSearch && matchesCategory && matchesFree;
+  });
 
-  const royalBirthdayTemplate = items.find(
+  const royalBirthdayTemplate = visibleItems.find(
     (t) => t.slug === "birthday-royal-memory",
   );
-  const freeBirthdayTemplate = items.find(
+  const freeBirthdayTemplate = visibleItems.find(
     (t) => t.slug === "cutie-birthday" && t.isFree,
   );
-  const anniversaryTemplate = items.find(
+  const anniversaryTemplate = visibleItems.find(
     (t) => t.slug === "anniversary-romantic-01",
   );
-  const remainingTemplates = items.filter(
+  const remainingTemplates = visibleItems.filter(
     (t) =>
       t !== royalBirthdayTemplate &&
       t !== freeBirthdayTemplate &&
@@ -516,7 +565,7 @@ function Templates() {
           </div>
           <div className="grid template-grid">
             {freeOnly ? (
-              items.map((t) => <TemplateCard key={t.id} t={t} />)
+              visibleItems.map((t) => <TemplateCard key={t.id} t={t} />)
             ) : (
               <>
                 {royalBirthdayTemplate && (
@@ -602,14 +651,14 @@ function TemplatePreview() {
   useEffect(() => {
     if (!id) return;
 
-    api(`/templates/${id}`)
-      .then((x) => {
-        setT(x.template);
+    getTemplate(id)
+      .then((template) => {
+        setT(template);
         captureEvent("template_opened", {
-          template_id: x.template.id,
-          template_slug: x.template.slug,
-          template_type: x.template.category?.slug || "unknown",
-          is_free: Boolean(x.template.isFree),
+          template_id: template.id,
+          template_slug: template.slug,
+          template_type: template.category?.slug || "unknown",
+          is_free: Boolean(template.isFree),
         });
       })
       .catch((error) => {
@@ -679,9 +728,9 @@ function Auth() {
         }),
       });
 
-      const session = await api("/auth/me");
+      const session = await getCurrentUser(true);
 
-      if (!session?.user) {
+      if (!session) {
         throw new Error("Login session was not created.");
       }
 
@@ -853,9 +902,9 @@ function Dashboard() {
   const [me, setMe] = useState<any>();
   const nav = useNavigate();
   useEffect(() => {
-    Promise.all([api("/auth/me"), api("/projects")])
-      .then(([m, p]) => {
-        setMe(m.user);
+    Promise.all([getCurrentUser(), api("/projects")])
+      .then(([user, p]) => {
+        setMe(user);
         setProjects(p.items);
       })
       .catch((error) => {
@@ -941,7 +990,37 @@ function Dashboard() {
                   </button>
                 )}
 
-                {p.status === "PUBLISHED" && p.website && (
+                {p.isPaid && !p.website && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={async () => {
+                      try {
+                        const resume = await api<any>(
+                          `/payments/resume/${p.id}`,
+                          { method: "POST" },
+                        );
+
+                        if (resume?.paid) {
+                          nav(`/published/${p.id}`);
+                          return;
+                        }
+
+                        alert(
+                          "Your payment is recorded, but the website is still being restored. Please refresh in a moment.",
+                        );
+                      } catch (error: any) {
+                        alert(
+                          error?.message ||
+                            "Unable to restore your website right now.",
+                        );
+                      }
+                    }}
+                  >
+                    Restore Website
+                  </button>
+                )}
+
+                {(p.status === "PUBLISHED" || p.isPaid) && p.website && (
                   <>
                     <button
                       className="btn btn-primary"
@@ -1221,6 +1300,27 @@ function FieldEditor({
   value: any;
   onChange: (v: any) => void;
 }) {
+  if (field.type === "sectionHeading") {
+    return (
+      <div className="field template-field-heading">
+        <h3 style={{ margin: "16px 0 0" }}>{field.label}</h3>
+      </div>
+    );
+  }
+  if (field.type === "checkbox" && field.id !== "movieEnabled") {
+    return (
+      <div className="field">
+        <label className="remove-watermark-control">
+          <input
+            type="checkbox"
+            checked={value !== false}
+            onChange={(event) => onChange(event.target.checked)}
+          />
+          <span>{field.label}</span>
+        </label>
+      </div>
+    );
+  }
   if (field.id === "movieEnabled") {
     const isBloomAnniversary =
       field.templateSlug === "anniversary-romantic-01";
@@ -1494,6 +1594,14 @@ function Repeater({
 function getEditorData(template: any, projectData: any) {
   const saved = projectData && typeof projectData === "object" ? projectData : {};
 
+  if (template?.slug === "navratri-partner-invite") {
+    const defaults =
+      template.defaultData && typeof template.defaultData === "object"
+        ? template.defaultData
+        : {};
+    return { ...defaults, ...saved };
+  }
+
   if (template?.slug !== "anniversary-romantic-01") return saved;
 
   const defaults =
@@ -1598,6 +1706,7 @@ function Editor() {
   const supportsWatermarkRemoval = [
     "birthday-royal-memory",
     "anniversary-romantic-01",
+    "navratri-partner-invite",
   ].includes(project.template.slug);
   async function finalize() {
     try {
@@ -1640,7 +1749,8 @@ function Editor() {
             onChange={(v) => setData((d: any) => ({ ...d, [f.id]: v }))}
           />
         ))}
-        {!project.template.isFree && (
+        {!project.template.isFree &&
+          project.template.slug !== "navratri-partner-invite" && (
           <>
             <div className="field">
               <label>Accent</label>
@@ -1686,8 +1796,8 @@ function Editor() {
                 <strong>Remove watermark · +₹99</strong>
                 <small>
                   Removes the Devsphere credit, Instagram link and “Create your
-                  own” link from the final page. Bloom Anniversary checkout is
-                  in INR only; Birthday international checkout adds $1.
+                  own” link from the final page. This optional charge is added
+                  to your template price at checkout.
                 </small>
               </span>
             </label>
@@ -1739,10 +1849,9 @@ function Create() {
   useEffect(() => {
     if (!id) return;
 
-    api(`/templates/${id}`)
-      .then((x) => {
-        console.log("Template loaded:", x.template);
-        setTemplate(x.template);
+    getTemplate(id)
+      .then((template) => {
+        setTemplate(template);
       })
       .catch((error) => {
         console.error("Template loading failed:", error);
@@ -1845,8 +1954,6 @@ function Checkout() {
 
         const loadedProject = projectResponse.project;
 
-        setProject(loadedProject);
-
         if (loadedProject?.template?.isFree) {
           nav(
             loadedProject?.status === "PUBLISHED" && loadedProject?.website
@@ -1873,6 +1980,8 @@ function Checkout() {
         } catch (resumeError) {
           console.warn("Payment resume check failed:", resumeError);
         }
+
+        setProject(loadedProject);
 
         /*
          * Restore previously selected reveal method
@@ -1921,11 +2030,16 @@ function Checkout() {
     (project?.data as Record<string, unknown> | undefined) || {};
   const isBloomAnniversary =
     project?.template?.slug === "anniversary-romantic-01";
+  const isNavratri = project?.template?.slug === "navratri-partner-invite";
 
   const projectCustomization =
     (project?.customization as Record<string, unknown> | undefined) || {};
   const removeWatermarkSelected =
-    ["birthday-royal-memory", "anniversary-romantic-01"].includes(
+    [
+      "birthday-royal-memory",
+      "anniversary-romantic-01",
+      "navratri-partner-invite",
+    ].includes(
       project?.template?.slug,
     ) &&
     projectCustomization.removeWatermark === true;
@@ -1938,7 +2052,8 @@ function Checkout() {
 
   const specialRevealMethods = ["QR", "PIN", "LETTER", "GIFT", "PUZZLE"];
 
-  const specialRevealSelected = specialRevealMethods.includes(revealMethod);
+  const specialRevealSelected =
+    !isNavratri && specialRevealMethods.includes(revealMethod);
 
   /*
    * ₹99  = Normal
@@ -1952,13 +2067,18 @@ function Checkout() {
     (movieEnabled ? 10 : 0) +
     (specialRevealSelected ? 10 : 0) +
     (removeWatermarkSelected ? 99 : 0);
+  const navratriPrice = 101 + (removeWatermarkSelected ? 99 : 0);
   const displayPrice =
-    isBloomAnniversary
+    isNavratri
+      ? navratriPrice
+      : isBloomAnniversary
       ? bloomAnniversaryPrice
       : currency === "USD"
       ? 10 + (removeWatermarkSelected ? 1 : 0)
       : birthdayPrice + (removeWatermarkSelected ? 99 : 0);
-  const priceLabel = isBloomAnniversary
+  const priceLabel = isNavratri
+    ? "NAVRATRI PARTNER INVITE"
+    : isBloomAnniversary
     ? specialRevealSelected && movieEnabled
       ? "MOVIE + SHARE METHOD"
       : specialRevealSelected
@@ -1972,7 +2092,9 @@ function Checkout() {
       ? "OUR MOVIE"
       : "BASIC";
 
-  const basePriceDescription = isBloomAnniversary
+  const basePriceDescription = isNavratri
+    ? "Personalized Navratri story, photos, playlist, video and final invitation link."
+    : isBloomAnniversary
     ? `Anniversary Bloom${movieEnabled ? " with your movie/video" : ""}${specialRevealSelected ? " with your chosen share method" : ""}.`
     : specialRevealSelected
     ? "Birthday website + your chosen magical reveal method."
@@ -2026,6 +2148,11 @@ function Checkout() {
       });
       console.log("Razorpay order response:", order);
 
+      if (order?.alreadyPaid) {
+        nav(`/published/${id}`);
+        return;
+      }
+
       if (!order?.keyId) {
         throw new Error("Razorpay keyId missing from server response.");
       }
@@ -2039,11 +2166,6 @@ function Checkout() {
         Number(order.amount) <= 0
       ) {
         throw new Error(`Invalid Razorpay amount: ${order?.amount}`);
-      }
-
-      if (order?.alreadyPaid) {
-        nav(`/published/${id}`);
-        return;
       }
 
       if (!(window as any).Razorpay) {
@@ -2094,7 +2216,7 @@ function Checkout() {
         amount: order.amount,
         currency: "INR",
         name: "Devsphere",
-        description: `${isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} — ₹${displayPrice}`,
+        description: `${isNavratri ? "Navratri Partner Invite" : isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} — ₹${displayPrice}`,
         order_id: order.providerOrderId,
 
         handler: async (response: any) => {
@@ -2119,16 +2241,27 @@ function Checkout() {
 
             // Payment may already be captured even if the browser
             // verification request failed or timed out.
-            try {
-              const resume = await api<any>(`/payments/resume/${id}`, {
-                method: "POST",
-              });
+            let resumeError: unknown;
+            for (let attempt = 0; attempt < 4; attempt += 1) {
+              try {
+                const resume = await api<any>(`/payments/resume/${id}`, {
+                  method: "POST",
+                });
 
-              if (resume?.paid) {
-                nav(`/published/${id}`);
-                return;
+                if (resume?.paid) {
+                  nav(`/published/${id}`);
+                  return;
+                }
+              } catch (error) {
+                resumeError = error;
               }
-            } catch (resumeError) {
+
+              if (attempt < 3) {
+                await new Promise((resolve) => setTimeout(resolve, 1500));
+              }
+            }
+
+            if (resumeError) {
               console.error("Razorpay payment recovery failed:", resumeError);
             }
 
@@ -2165,6 +2298,14 @@ function Checkout() {
      CHECKOUT UI
      ========================================================= */
 
+  if (!project) {
+    return (
+      <div className="container section">
+        {checkoutError || "Checking payment status…"}
+      </div>
+    );
+  }
+
   return (
     <>
       <Nav />
@@ -2173,19 +2314,33 @@ function Checkout() {
         <BackButton label="Back to Editor" />
         <div className="section-head">
           <div>
-            <span className="pill">{isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"}</span>
+            <span className="pill">
+              {isNavratri
+                ? "Navratri Partner Invite"
+                : isBloomAnniversary
+                  ? "Anniversary Bloom"
+                  : "Birthday Website"}
+            </span>
 
-            <h2>{isBloomAnniversary ? "Your anniversary package" : "Your birthday package"}</h2>
+            <h2>
+              {isNavratri
+                ? "Your Navratri package"
+                : isBloomAnniversary
+                  ? "Your anniversary package"
+                  : "Your birthday package"}
+            </h2>
 
             <p className="muted">
-              {isBloomAnniversary
+              {isNavratri
+                ? "Review your Navratri invitation price and optional credit removal."
+                : isBloomAnniversary
                 ? "Choose optional extras and review your Anniversary Bloom price."
                 : "Choose your reveal style and review your final price."}
             </p>
           </div>
         </div>
 
-        {!isBloomAnniversary && <div className="checkout-currency-section">
+        {!isBloomAnniversary && !isNavratri && <div className="checkout-currency-section">
           <h3>Choose Currency</h3>
 
           <p className="muted">Select how you want to pay.</p>
@@ -2217,7 +2372,7 @@ function Checkout() {
             REVEAL STYLE
            =================================================== */}
 
-        <div className="checkout-reveal-section">
+        {!isNavratri && <div className="checkout-reveal-section">
           <h3>Choose how to share your surprise</h3>
 
           <p className="muted">
@@ -2257,13 +2412,13 @@ function Checkout() {
               </button>
             ))}
           </div>
-        </div>
+        </div>}
 
         {/* ===================================================
             MAGICAL SCANNER STYLES
            =================================================== */}
 
-        {revealMethod === "QR" && (
+        {!isNavratri && revealMethod === "QR" && (
           <div className="scanner-style-section">
             <div className="scanner-style-heading">
               <h3>Choose your Magical Scanner</h3>
@@ -2348,7 +2503,26 @@ function Checkout() {
             THREE PRICE OPTIONS
            =================================================== */}
 
-        {isBloomAnniversary ? (
+        {isNavratri ? (
+          <div className="birthday-checkout-pricing bloom-checkout-pricing">
+            <div className="birthday-price-card is-selected">
+              <span className="birthday-price-badge">NAVRATRI PARTNER INVITE</span>
+              <div className="birthday-price-icon">🪔</div>
+              <h3>Personalized Garba-night story</h3>
+              <p>Includes the original interactive journey, your photos, playlist, optional video and published link.</p>
+              <strong className="birthday-price">₹101</strong>
+              <span className="birthday-price-note">Base price</span>
+            </div>
+            <div className={`birthday-price-card ${removeWatermarkSelected ? "is-selected" : ""}`}>
+              <span className="birthday-price-badge birthday-price-premium">OPTIONAL CREDIT REMOVAL</span>
+              <div className="birthday-price-icon">✨</div>
+              <h3>Remove Devsphere credit</h3>
+              <p>Remove the Devsphere, Instagram and Create your own links from the finale.</p>
+              <strong className="birthday-price">+₹99</strong>
+              <span className="birthday-price-note">₹200 total when selected</span>
+            </div>
+          </div>
+        ) : isBloomAnniversary ? (
           <>
             <div className="birthday-checkout-pricing bloom-checkout-pricing">
               <div className="birthday-price-card is-selected">
@@ -2477,7 +2651,11 @@ function Checkout() {
           <span className="pill">{priceLabel}</span>
 
           <h3>
-            {isBloomAnniversary ? "Your Anniversary Bloom total: " : "Your package: "}
+            {isNavratri
+              ? "Your Navratri Partner Invite total: "
+              : isBloomAnniversary
+                ? "Your Anniversary Bloom total: "
+                : "Your package: "}
             {currency === "USD" ? "$" : "₹"}{displayPrice}
           </h3>
 
@@ -2599,8 +2777,6 @@ function Public() {
 
     api(`/public/${slug}`)
       .then((x) => {
-        console.log("PUBLIC WEBSITE DATA:", x);
-
         setPayload(x);
 
         setGate(
@@ -2721,7 +2897,10 @@ function Public() {
     <TemplateRenderer
       template={payload.template}
       data={payload.data}
-      customization={payload.customization}
+      customization={{
+        ...(payload.customization || {}),
+        publicUrl: `${window.location.origin}/r/${payload.site?.slug || slug}`,
+      }}
     />
   );
 }
@@ -3403,6 +3582,7 @@ function AdminTemplateEditor() {
         method: "PATCH",
         body: JSON.stringify({ schema: parsed }),
       });
+      clearTemplatesCache();
       setMessage("Template schema saved ✓");
     } catch (e: any) {
       setMessage(e.message || "Invalid JSON");

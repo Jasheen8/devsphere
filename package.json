@@ -9,6 +9,7 @@
     "db:migrate": "npm run prisma:migrate -w apps/api",
     "db:migrate:deploy": "npm run prisma:migrate:deploy -w apps/api",
     "db:seed": "npm run prisma:seed -w apps/api",
+    "db:seed:navratri": "npm run prisma:seed:navratri -w apps/api",
     "db:seed:bloom": "npm run prisma:seed:bloom -w apps/api",
     "db:seed:cutie": "npm run prisma:seed:cutie -w apps/api",
     "test": "npm run test -w packages/template-engine && npm run test -w apps/api"

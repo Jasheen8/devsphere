@@ -92,13 +92,17 @@ export function TemplateRenderer({
             }
 
             return (
-              <C
+              <React.Suspense
                 key={`${section.type}-${index}`}
-                data={data}
-                props={section.props ?? {}}
-                theme={customization}
-                isPreview={isPreview}
-              />
+                fallback={null}
+              >
+                <C
+                  data={data}
+                  props={section.props ?? {}}
+                  theme={customization}
+                  isPreview={isPreview}
+                />
+              </React.Suspense>
             );
           },
         )}

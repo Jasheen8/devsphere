@@ -494,7 +494,7 @@ function renderTimelineCards() {
     const card = document.createElement("div");
     card.className = "tl-card reveal";
     const photo = item.image
-      ? `<img src="${safeHtml(item.image)}" alt="timeline-photo">`
+      ? `<img src="${safeHtml(item.image)}" alt="timeline-photo" loading="lazy" decoding="async">`
       : "♡";
     card.innerHTML = `
       <div class="tl-photo"><div class="ph-inner">${photo}</div></div>
@@ -689,7 +689,7 @@ function renderGallery() {
     item.innerHTML = `
       <div class="tape"></div>
       <div class="gal-img" style="height:${Math.max(140, Math.min(g.h, 500))}px">
-        ${g.img ? `<img src="${safeHtml(g.img)}" alt="${safeHtml(g.cap)}">` : "♡"}
+        ${g.img ? `<img src="${safeHtml(g.img)}" alt="${safeHtml(g.cap)}" loading="lazy" decoding="async">` : "♡"}
       </div>
       <div class="gal-cap script">${safeHtml(g.cap)}</div>`;
     item.addEventListener("click", () => openLightbox(g.img, g.cap));
@@ -1124,7 +1124,7 @@ function renderRotatingGallery() {
   rotImages.forEach((img, index) => {
     const card = document.createElement("div");
     card.className = "rot-card";
-    card.innerHTML = img ? `<img src="${safeHtml(img)}" alt="Memory ${index + 1}">` : "♡";
+    card.innerHTML = img ? `<img src="${safeHtml(img)}" alt="Memory ${index + 1}" loading="lazy" decoding="async">` : "♡";
     card.style.transform = `rotateY(${(360 / Math.max(rotCount, 1)) * index}deg) translateZ(320px)`;
     rotRing.appendChild(card);
   });

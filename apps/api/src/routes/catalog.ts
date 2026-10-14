@@ -14,11 +14,18 @@ r.get("/categories", async (_req, res) => {
     where: {
       published: true,
     },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      sortOrder: true,
+    },
     orderBy: {
       sortOrder: "asc",
     },
   });
 
+  res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
   res.json({
     items,
   });
@@ -89,8 +96,23 @@ r.get("/templates", async (req, res) => {
         : {}),
     },
 
-    include: {
-      category: true,
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      description: true,
+      price: true,
+      tags: true,
+      thumbnailUrl: true,
+      previewUrl: true,
+      liveDemoUrl: true,
+      isFree: true,
+      category: {
+        select: {
+          name: true,
+          slug: true,
+        },
+      },
     },
 
     orderBy: {
@@ -98,6 +120,7 @@ r.get("/templates", async (req, res) => {
     },
   });
 
+  res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
   res.json({
     items,
   });
@@ -145,6 +168,7 @@ r.get("/templates/:id", async (req, res) => {
     });
   }
 
+  res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
   res.json({
     template: t,
   });

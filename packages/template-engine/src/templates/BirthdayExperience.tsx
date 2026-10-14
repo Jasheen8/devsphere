@@ -322,8 +322,10 @@ export function BirthdayExperience({
 
     audio.src = track.audio;
 
-    audio.load();
-  }, [currentTrack, tracks]);
+    if (!isPreview) {
+      audio.load();
+    }
+  }, [currentTrack, tracks, isPreview]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -1419,7 +1421,7 @@ function unlockSurprise() {
 
             <audio
               ref={audioRef}
-              preload="auto"
+              preload="none"
               onPlay={() => setIsMusicPlaying(true)}
               onPause={() => setIsMusicPlaying(false)}
             />
@@ -2127,7 +2129,7 @@ function unlockSurprise() {
         <video
           controls
           playsInline
-          preload="metadata"
+          preload="none"
           src={
             birthday.movieVideo
           }

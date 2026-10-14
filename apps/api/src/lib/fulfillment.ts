@@ -77,13 +77,40 @@ export function calculateBloomAnniversaryPackage(args: {
   };
 }
 
+export function calculateNavratriPartnerInvitePackage(args: {
+  currency: CheckoutCurrency;
+  removeWatermark?: boolean;
+}) {
+  if (args.currency !== "INR") {
+    throw new Error("Navratri Partner Invite checkout is available in INR only.");
+  }
+
+  const basePackagePrice = 101;
+  const removeWatermark = args.removeWatermark === true;
+  const packagePrice = basePackagePrice + (removeWatermark ? 99 : 0);
+
+  return {
+    basePackagePrice,
+    packagePrice,
+    removeWatermark,
+    providerAmount: packagePrice,
+    providerAmountMinor: packagePrice * 100,
+    specialReveal: false,
+    movieEnabled: false,
+  };
+}
+
 async function applyPaidWatermarkSelection(
   tx: any,
   project: any,
   order: any,
 ) {
   if (
-    !["birthday-royal-memory", "anniversary-romantic-01"].includes(
+    ![
+      "birthday-royal-memory",
+      "anniversary-romantic-01",
+      "navratri-partner-invite",
+    ].includes(
       project.template?.slug,
     )
   ) {

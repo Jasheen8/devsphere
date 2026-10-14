@@ -100,27 +100,47 @@ r.get("/", async (req, res) => {
   try {
     const u = (req as any).user;
 
-    const projects = await db.project.findMany({
-      where: {
-        userId: u.id,
-      },
-      include: {
-        template: true,
-        website: true,
-        orders: {
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 1,
+    const [projects, paidOrders] = await Promise.all([
+      db.project.findMany({
+        where: {
+          userId: u.id,
         },
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-    });
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          updatedAt: true,
+          template: {
+            select: {
+              name: true,
+              isFree: true,
+            },
+          },
+          website: {
+            select: {
+              slug: true,
+            },
+          },
+        },
+        orderBy: {
+          updatedAt: "desc",
+        },
+      }),
+      db.order.findMany({
+        where: { userId: u.id, status: "PAID" },
+        select: { projectId: true },
+      }),
+    ]);
+
+    const paidProjectIds = new Set(
+      paidOrders.map((order) => order.projectId),
+    );
 
     return res.json({
-      items: projects,
+      items: projects.map((project) => ({
+        ...project,
+        isPaid: paidProjectIds.has(project.id),
+      })),
     });
   } catch (error) {
     console.error("Get projects failed:", error);

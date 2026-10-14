@@ -102,6 +102,10 @@ async function main() {
     where: { slug: "couple" },
   });
 
+  const festivals = await db.category.findUniqueOrThrow({
+    where: { slug: "festivals" },
+  });
+
   // =========================================================
   // GENERIC FIELD SCHEMA
   // =========================================================
@@ -787,6 +791,201 @@ async function main() {
     { id: "bloom-anniversary-experience", type: "bloom-anniversary-experience", enabled: true, props: {} },
   ];
 
+  const navratriTextField = (
+    id: string,
+    label: string,
+    type = "text",
+    placeholder?: string,
+  ): Record<string, unknown> => ({ id, label, type, placeholder });
+  const navratriRepeaterField = (
+    id: string,
+    label: string,
+    itemFields: Array<Record<string, unknown>>,
+    maxItems: number,
+  ): Record<string, unknown> => ({ id, label, type: "repeater", itemFields, maxItems });
+  const navratriFields: Array<Record<string, unknown>> = [
+    { id: "coverHeading", type: "sectionHeading", label: "Cover and names" },
+    navratriTextField("hostName", "Your name", "text", "e.g. Aarav"),
+    navratriTextField("guestName", "Your partner's name", "text", "e.g. Mira"),
+    navratriTextField("welcomeEyebrow", "Cover eyebrow"),
+    navratriTextField("welcomeKicker", "Cover kicker"),
+    navratriTextField("welcomeTitle", "Cover title"),
+    navratriTextField("welcomeSubtitle", "Cover message", "longText"),
+    navratriTextField("beginButtonLabel", "Open-story button"),
+    navratriTextField("welcomeFooter", "Cover footer"),
+
+    { id: "storyHeading", type: "sectionHeading", label: "Story page" },
+    { id: "showStory", type: "checkbox", label: "Show story page" },
+    navratriTextField("storyEyebrow", "Story eyebrow"),
+    navratriTextField("storyTitleLead", "Story title, first line"),
+    navratriTextField("storyTitleEmphasis", "Story title, emphasized lines", "longText"),
+    navratriTextField("storySubtitle", "Story message", "longText"),
+    navratriTextField("storyNote", "Story note"),
+    navratriTextField("storyButtonLabel", "Story button"),
+
+    { id: "mapHeading", type: "sectionHeading", label: "Garba map" },
+    { id: "showMap", type: "checkbox", label: "Show Garba map" },
+    navratriTextField("mapEyebrow", "Map eyebrow"),
+    navratriTextField("mapTitle", "Map title", "longText"),
+    navratriTextField("mapSubtitle", "Map instructions", "longText"),
+    navratriRepeaterField("mapStops", "Map stops", [
+      navratriTextField("name", "Stop name"),
+      navratriTextField("dialogue", "Dialogue", "longText"),
+    ], 5),
+
+    { id: "paniHeading", type: "sectionHeading", label: "Pani puri story" },
+    { id: "showPani", type: "checkbox", label: "Show pani puri page" },
+    navratriTextField("paniEyebrow", "Pani puri eyebrow"),
+    navratriTextField("paniTitle", "Pani puri title", "longText"),
+    navratriTextField("paniSubtitle", "Pani puri description", "longText"),
+    navratriTextField("paniResultLabel", "Pani puri count label"),
+    navratriTextField("puriButtonLabel", "Pani puri button"),
+    navratriRepeaterField("paniScenes", "Pani puri scenes", [
+      navratriTextField("image", "Scene image", "image"),
+      navratriTextField("caption", "Scene caption", "longText"),
+    ], 8),
+
+    { id: "danceHeading", type: "sectionHeading", label: "Garba dance" },
+    { id: "showDance", type: "checkbox", label: "Show dance page" },
+    navratriTextField("danceEyebrow", "Dance eyebrow"),
+    navratriTextField("danceTitle", "Dance title"),
+    navratriTextField("danceSubtitle", "Dance description", "longText"),
+    navratriTextField("dholButtonLabel", "Dhol button"),
+    navratriRepeaterField("danceSteps", "Dance steps", [
+      navratriTextField("title", "Step name"),
+      navratriTextField("caption", "Step caption", "longText"),
+      navratriTextField("image", "Dance illustration", "image"),
+    ], 12),
+
+    { id: "memoriesHeading", type: "sectionHeading", label: "Photos and video" },
+    { id: "showPhotos", type: "checkbox", label: "Show memories page" },
+    navratriTextField("photosEyebrow", "Memories eyebrow"),
+    navratriTextField("photosTitle", "Memories title", "longText"),
+    navratriTextField("photosSubtitle", "Memories description", "longText"),
+    navratriTextField("photoTapHint", "Photo instruction"),
+    navratriTextField("photoPreviousLabel", "Previous-photo button"),
+    navratriTextField("photoNextLabel", "Next-photo button"),
+    navratriRepeaterField("photos", "Memory photos", [
+      navratriTextField("image", "Photo", "image"),
+      navratriTextField("caption", "Photo caption"),
+    ], 30),
+    navratriTextField("videoTitle", "Video heading"),
+    navratriTextField("video", "Optional video", "video"),
+
+    { id: "passHeading", type: "sectionHeading", label: "Garba pass and RSVP" },
+    { id: "showProposal", type: "checkbox", label: "Show RSVP and pass page" },
+    navratriTextField("proposalEyebrow", "RSVP eyebrow"),
+    navratriTextField("proposalHeading", "RSVP heading", "longText"),
+    navratriTextField("yesButtonLabel", "Yes button"),
+    navratriTextField("noButtonLabel", "No button"),
+    navratriTextField("proposalNote", "RSVP note", "longText"),
+    navratriTextField("ticketTitle", "Pass title"),
+    navratriTextField("ticketHeader", "Pass header"),
+    navratriTextField("ticketAdmit", "Pass admission label"),
+    navratriTextField("ticketDateLabel", "Date row label"),
+    navratriTextField("ticketTimeLabel", "Time row label"),
+    navratriTextField("ticketVenueLabel", "Venue row label"),
+    navratriTextField("ticketDressLabel", "Dress-code row label"),
+    navratriTextField("ticketGuestLabel", "Guest row label"),
+    navratriTextField("eventDate", "Event date"),
+    navratriTextField("eventTime", "Event time"),
+    navratriTextField("venue", "Venue"),
+    navratriTextField("dressCode", "What to wear"),
+    navratriTextField("ticketFoot", "Pass footer", "longText"),
+
+    { id: "finaleHeading", type: "sectionHeading", label: "Finale and sharing" },
+    navratriTextField("finalEyebrow", "Finale eyebrow"),
+    navratriTextField("finalTitle", "Finale title", "longText"),
+    navratriTextField("finalCopy", "Finale message", "longText"),
+    navratriTextField("signature", "Closing signature"),
+    navratriTextField("replayButtonLabel", "Replay button"),
+    navratriTextField("shareButtonLabel", "Share button"),
+    navratriTextField("shareMessage", "Share message", "longText"),
+    navratriTextField("whatsapp", "Optional WhatsApp number", "text", "Country code and digits"),
+
+    { id: "musicHeading", type: "sectionHeading", label: "Music playlist" },
+    navratriRepeaterField("playlist", "Playlist tracks", [
+      navratriTextField("title", "Track title"),
+      navratriTextField("artist", "Artist"),
+      navratriTextField("audio", "Audio file", "audio"),
+    ], 8),
+  ];
+  const navratriSections: Array<Record<string, unknown>> = [
+    { id: "navratri-partner-invite", type: "navratri-partner-invite", enabled: true, props: {} },
+  ];
+  const navratriAsset = (file: string) => `/templates/navratri-partner-invite/assets/${file}`;
+  const navratriDanceSteps = [
+    ["Do Tali", "One clap, one smile… let's begin!"],
+    ["Tran Tali", "Now two claps, just like that!"],
+    ["Dodhiya (6-step)", "Step right, step left — don't lose the beat."],
+    ["Chapti & Spin", "A little spin, and look at that skirt fly!"],
+    ["Single Strike", "Sticks up! Catch the rhythm."],
+    ["Double Clash", "Clack-clack! Perfect timing."],
+    ["The Circle Walk", "Round and round we go together."],
+    ["Low Bend & Tap", "Low bend, little tap, big grin."],
+    ["Back-to-Back", "Back-to-back, still in sync."],
+    ["Joyous Finale", "That's our grand finale!"],
+  ].map(([title, caption], index) => ({
+    title,
+    caption,
+    image: navratriAsset(`dance-${index + 1}.webp`),
+  }));
+  const navratriDefaultData: Record<string, unknown> = {
+    hostName: "Aarav", guestName: "Mira", welcomeEyebrow: "✦ A little Navratri surprise ✦",
+    welcomeKicker: "HAPPY", welcomeTitle: "NAVRATRI",
+    welcomeSubtitle: "Nine nights, a thousand lights, and one little adventure waiting for us.",
+    beginButtonLabel: "Open our Navratri story", welcomeFooter: "Made with a little extra sparkle · 2026",
+    showStory: true, storyEyebrow: "A Navratri special", storyTitleLead: "You, this Navratri,",
+    storyTitleEmphasis: "there's something\nI have to tell you…",
+    storySubtitle: "The dhol is playing, the lights are up and the whole city is dancing. And all I can think about is you.",
+    storyNote: "Follow the map, there's a question at the end ✦", storyButtonLabel: "Let's go to the garba",
+    showMap: true, mapEyebrow: "Tonight's map", mapTitle: "Garba night,\ntogether",
+    mapSubtitle: "Tap each pin and we'll wander there together.",
+    mapStops: [
+      { name: "Main Gate", dialogue: "Ready, {guest}? The lights are calling us!" },
+      { name: "Bangle Stall", dialogue: "Ooh, bangles first! Help me pick a colour to match my chaniya choli." },
+      { name: "Pani Puri Bhaiya", dialogue: "That pani puri stall smells incredible. One plate? Maybe five." },
+      { name: "Dhol Stage", dialogue: "I can hear the dhol! Promise you'll dance every round with me." },
+      { name: "Photo Booth", dialogue: "One photo here, then? I want to remember this night forever." },
+    ],
+    showPani: true, paniEyebrow: "Snack break", paniTitle: "The pani puri\nchallenge",
+    paniSubtitle: "One leaf bowl of pani puri, two very happy people.", paniResultLabel: "pani puris shared",
+    puriButtonLabel: "One more, bhaiya! 🥣",
+    paniScenes: [
+      ["Bhaiya, one plate please!", 1], ["Look, he made it extra crispy!", 2],
+      ["One for you, one for me.", 3], ["The cat took that one!", 4],
+      ["Okay, this one is definitely mine.", 5], ["The free one is all yours, jaan.", 6],
+    ].map(([caption, number]) => ({ image: navratriAsset(`pani-scene-${number}.webp`), caption })),
+    showDance: true, danceEyebrow: "After the chaat", danceTitle: "Garba time",
+    danceSubtitle: "You play the dhol. I'll dance. Every beat brings a new move.",
+    dholButtonLabel: "🥁 Play the dhol", danceSteps: navratriDanceSteps,
+    showPhotos: true, photosEyebrow: "Our memories", photosTitle: "Little moments,\nbig smiles",
+    photosSubtitle: "Tap the photo or slide through our favourite Garba memories.",
+    photoTapHint: "✧ Tap the photo for the next one ✧", photoPreviousLabel: "← Previous",
+    photoNextLabel: "Next memory →",
+    photos: navratriDanceSteps.map((step, index) => ({
+      image: navratriAsset(`dance-${index + 1}.webp`), caption: [
+        "The first clap", "Two claps, same rhythm", "Finding our footwork", "A spin worth keeping",
+        "Dandiya sparks", "Clack-clack chemistry", "Around in a circle", "A low bend and a laugh",
+        "Back-to-back buddies", "Our joyous finale",
+      ][index],
+    })),
+    videoTitle: "A little movie of us", video: "",
+    showProposal: true, proposalEyebrow: "The last pin", proposalHeading: "Will you be my\nGarba partner?",
+    yesButtonLabel: "Yes! 💗", noButtonLabel: "No 💌", proposalNote: "One more thing before the night begins…",
+    ticketTitle: "Navami", ticketHeader: "✦ GARBA PASS", ticketAdmit: "ADMIT TWO",
+    ticketDateLabel: "Date", ticketTimeLabel: "Time", ticketVenueLabel: "Where",
+    ticketDressLabel: "Wear", ticketGuestLabel: "For",
+    eventDate: "Tuesday, 20 October", eventTime: "8 pm onwards",
+    venue: "At the main gate", dressCode: "Your brightest chaniya choli",
+    ticketFoot: "Keep this pass close. The dhol is waiting for us ✦",
+    finalEyebrow: "Our little forever", finalTitle: "Every Navratri,\nwith you",
+    finalCopy: "And the one after that,\nand the one after that.",
+    signature: "Love, someone who knows 💛", replayButtonLabel: "↻ Watch it again",
+    shareButtonLabel: "Share our pass", shareMessage: "Nine nights. A thousand lights. One person I want beside me.",
+    whatsapp: "", playlist: [{ title: "Garba", artist: "", audio: navratriAsset("garba.mp3") }],
+  };
+
   // =========================================================
   // TEMPLATES
   // =========================================================
@@ -1212,6 +1411,26 @@ async function main() {
     },
 
     {
+      slug: "navratri-partner-invite",
+      name: "Navratri Partner Invite",
+      description:
+        "A richly illustrated Garba-night story with an interactive map, pani puri challenge, dance steps, memories, RSVP pass and soundtrack.",
+      cat: festivals,
+      price: 101,
+      tags: ["navratri", "garba", "festival", "interactive", "music"],
+      featured: true,
+      thumbnailUrl: "/templates/navratri-partner-invite/assets/cover-reference.png",
+      liveDemoUrl: "https://navratri-garba.vercel.app/",
+      data: navratriDefaultData,
+      schema: {
+        fields: navratriFields,
+        sections: navratriSections,
+        customization: {},
+      },
+      sections: navratriSections,
+    },
+
+    {
       slug: "anniversary-editorial-02",
       name: "Timeless Editorial",
       description: "Minimal, elegant and photo-forward.",
@@ -1347,9 +1566,12 @@ async function main() {
   ];
 
   const bloomOnly = process.argv.includes("--bloom-only");
+  const navratriOnly = process.argv.includes("--navratri-only");
   const templatesToSeed = bloomOnly
     ? templates.filter((template) => template.slug === "anniversary-romantic-01")
-    : templates;
+    : navratriOnly
+      ? templates.filter((template) => template.slug === "navratri-partner-invite")
+      : templates;
 
   // =========================================================
   // TEMPLATE UPSERT
@@ -1456,6 +1678,11 @@ async function main() {
 
   if (bloomOnly) {
     console.log("Anniversary Bloom template seed complete");
+    return;
+  }
+
+  if (navratriOnly) {
+    console.log("Navratri Partner Invite template seed complete");
     return;
   }
 

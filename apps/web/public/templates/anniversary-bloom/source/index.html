@@ -300,7 +300,7 @@
           <div class="curtain curtain-right" id="curtainRight"></div>
 
           <div class="screen-frame">
-            <video id="loveMovie" poster="images/i1.jpg" controls>
+            <video id="loveMovie" poster="images/i1.jpg" controls preload="none">
               <source src="videos/movie.mp4" type="video/mp4" />
             </video>
           </div>
@@ -324,7 +324,7 @@
 
         <div class="scratch-wrapper">
           <div class="scratch-hidden">
-            <img src="images/i1.jpg" />
+            <img src="images/i1.jpg" loading="lazy" decoding="async" />
 
             <h3>I Love You Forever ❤️</h3>
 
@@ -438,7 +438,7 @@
       </a>
     </footer>
 
-    <audio id="bgMusic" preload="auto"></audio>
+    <audio id="bgMusic" preload="none"></audio>
     <!-- ============================= SCRIPT ============================= -->
     <script src="script.js"></script>
   </body>

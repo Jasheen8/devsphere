@@ -6,11 +6,28 @@ const r = Router();
 r.get("/:slug", async (req, res) => {
   const site = await db.publishedSite.findUnique({
     where: { slug: req.params.slug },
-    include: {
+    select: {
+      slug: true,
+      status: true,
+      expiresAt: true,
+      revealMethod: true,
+      seoTitle: true,
+      seoDescription: true,
+      ogImageUrl: true,
       project: {
-        include: { template: true, media: { orderBy: { sortOrder: "asc" } } },
+        select: {
+          data: true,
+          customization: true,
+          template: { select: { schema: true } },
+        },
       },
-      accessRule: true,
+      accessRule: {
+        select: {
+          puzzleQuestion: true,
+          letterTitle: true,
+          letterIntro: true,
+        },
+      },
     },
   });
   if (
@@ -19,6 +36,20 @@ r.get("/:slug", async (req, res) => {
     (site.expiresAt && site.expiresAt < new Date())
   )
     return res.status(404).json({ error: "Website not found" });
+
+  const accessRequired =
+    site.revealMethod === "PIN" ||
+    site.revealMethod === "PUZZLE" ||
+    site.revealMethod === "LETTER" ||
+    site.revealMethod === "GIFT";
+
+  res.set(
+    "Cache-Control",
+    accessRequired
+      ? "private, no-store"
+      : "public, max-age=30, stale-while-revalidate=120",
+  );
+
   const template = TemplateSchema.parse(site.project.template.schema);
   res.json({
     site: {
@@ -33,12 +64,7 @@ r.get("/:slug", async (req, res) => {
     template,
     data: site.project.data,
     customization: site.project.customization,
-    media: site.project.media,
-    accessRequired:
-      site.revealMethod === "PIN" ||
-      site.revealMethod === "PUZZLE" ||
-      site.revealMethod === "LETTER" ||
-      site.revealMethod === "GIFT",
+    accessRequired,
     accessRule: site.accessRule
       ? {
           puzzleQuestion: site.accessRule.puzzleQuestion,

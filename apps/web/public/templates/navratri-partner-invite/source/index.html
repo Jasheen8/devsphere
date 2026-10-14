@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b0d32">
+<title>Happy Navratri — Will You Be My Garba Partner?</title>
+<style>
+:root{
+ --plum:#2b0d32;--plum2:#451446;--berry:#b80f55;--berry2:#d22e6b;
+ --gold:#f9b32b;--saffron:#f47f2f;--paper:#fff5e2;--paper2:#fae7c8;--ink:#32172f;
+ --muted:#7d5b70;--green:#29805b;--line:#e9d5b4;
+}
+*{box-sizing:border-box}
+html{min-height:100%;background:#1d0922}
+body{margin:0;min-height:100svh;display:flex;justify-content:center;align-items:stretch;color:var(--ink);font-family:ui-rounded,"Trebuchet MS",system-ui,sans-serif;background:
+ radial-gradient(circle at 10% 20%,#572051 0 1px,transparent 2px) 0 0/25px 25px,
+ radial-gradient(circle at 90% 80%,#572051 0 1px,transparent 2px) 0 0/31px 31px,#1d0922}
+button{font:inherit;cursor:pointer;border:0}
+[hidden]{display:none!important}
+button:focus-visible,[role=button]:focus-visible{outline:3px solid #f5a623;outline-offset:3px}
+.app{width:100%;max-width:480px;min-height:100svh;position:relative;overflow:hidden;background:var(--paper);box-shadow:0 0 70px #09030c88}
+.screen{display:none;position:relative;min-height:100svh;padding:18px 18px calc(24px + env(safe-area-inset-bottom));flex-direction:column;overflow-x:hidden;overflow-y:auto;background-color:var(--paper);background-image:
+ linear-gradient(#e9d5b4 1px,transparent 1px),linear-gradient(90deg,#e9d5b4 1px,transparent 1px);
+ background-size:22px 22px}
+.screen.active{display:flex;animation:screenIn .55s cubic-bezier(.2,.75,.2,1) both}
+@keyframes screenIn{from{opacity:0;transform:translateY(13px)}to{opacity:1;transform:translateY(0)}}
+.screen.dark{color:#fff5e2;background-color:var(--plum);background-image:radial-gradient(#a94c65 1px,transparent 1.5px),radial-gradient(#632a62 1px,transparent 1.5px);background-size:20px 20px,31px 31px;background-position:0 0,12px 14px}
+.progress{display:flex;align-items:center;justify-content:center;gap:7px;margin:0 auto 15px;width:100%;max-width:390px;position:relative;z-index:5}
+.progress:before{content:"";position:absolute;height:2px;background:#d7c0c4;left:7%;right:7%;top:50%;z-index:-1}
+.progress .p{width:25px;height:25px;flex:0 0 25px;border-radius:50%;background:#fff8eb;color:#8e7281;border:1px solid #c9aebb;font-size:11px;font-weight:800;display:grid;place-items:center;transition:all .35s}
+.progress .p.done,.progress .p.current{background:var(--berry);color:white;border-color:var(--berry);box-shadow:0 3px 8px #a60f5533}
+.progress .p.current{transform:scale(1.16)}
+.progress .p.current:after{content:"✦";position:absolute;transform:translateY(-16px);font-size:11px;color:var(--gold)}
+.eyebrow{align-self:center;display:inline-flex;gap:6px;align-items:center;border:1px solid #e7a6b7;border-radius:99px;padding:4px 11px;background:#fffaf2;color:var(--berry);font-size:11px;line-height:1.1;margin-bottom:9px}
+h1,h2,h3,p{margin-top:0}
+h1,h2{font-family:Georgia,"Times New Roman",serif;font-style:italic;font-weight:900;letter-spacing:-.03em;line-height:1.02;text-align:center}
+h1{font-size:clamp(34px,9vw,48px);margin-bottom:12px}
+h2{font-size:clamp(29px,7.5vw,38px);margin-bottom:9px}
+.subtitle{text-align:center;color:var(--muted);font-size:13px;line-height:1.5;margin:0 auto 14px;max-width:330px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border-radius:999px;background:var(--berry);color:#fff;font-size:13px;font-weight:800;box-shadow:0 7px 15px #9f14443a;transition:transform .2s,box-shadow .2s,filter .2s;align-self:center}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 19px #9f144455;filter:saturate(1.15)}
+.btn:active{transform:scale(.97)}
+.btn.secondary{background:#fffaf2;border:1px solid #c9adba;color:var(--ink);box-shadow:none}
+.btn.small{padding:10px 16px;font-size:12px}
+.button-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.bottom-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:15px}
+.bottom-nav .btn{min-width:120px}
+.small-note{font-size:10px;color:var(--muted);text-align:center;line-height:1.45;margin:11px auto 0;max-width:320px}
+.paper-card{background:#fffaf0;border:1px solid #e3cda8;box-shadow:0 8px 20px #6e402010;border-radius:13px}
+.decor-line{height:5px;border-top:1px solid #eeaf77;border-bottom:1px solid #eeaf77;background:repeating-linear-gradient(90deg,var(--berry) 0 5px,transparent 5px 10px,var(--gold) 10px 15px,transparent 15px 20px)}
+/* opening poster */
+#welcome{justify-content:center;align-items:center;text-align:center;padding:32px 21px 40px;background-color:#26082e;background-image:radial-gradient(#82345c 1px,transparent 1.5px),radial-gradient(#63264f 1px,transparent 1.5px);background-size:19px 19px,37px 37px;color:#fff4da}
+.welcome-frame{position:absolute;inset:10px;border:1px solid #d48a5c88;border-radius:14px;pointer-events:none}
+.welcome-frame:before,.welcome-frame:after{content:"";position:absolute;left:0;right:0;height:9px;background:radial-gradient(circle,var(--gold) 0 4px,transparent 4.8px) 0 0/18px 9px}
+.welcome-frame:before{top:-1px}.welcome-frame:after{bottom:-1px}
+.lantern-field{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.lantern{position:absolute;top:-20px;width:18px;height:31px;border-radius:46% 46% 38% 38%;background:linear-gradient(90deg,#d34b4e,#ffb52b 48%,#b52c4c);box-shadow:0 0 16px #ffb62d99;animation:lanternFloat 4s ease-in-out infinite alternate;transform-origin:50% -12px}
+.lantern:before{content:"";position:absolute;width:2px;height:28px;left:50%;top:-24px;background:#efbd5b;transform:translateX(-50%)}
+.lantern:after{content:"";position:absolute;bottom:-8px;left:50%;width:2px;height:8px;background:#efbd5b;box-shadow:3px 4px 0 -0.2px #ffbf35,-3px 4px 0 -0.2px #ffbf35}
+@keyframes lanternFloat{from{transform:translateY(0) rotate(-4deg)}to{transform:translateY(15px) rotate(4deg)}}
+.petals{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.petal{position:absolute;top:-25px;width:9px;height:13px;border-radius:80% 20% 70% 30%;background:linear-gradient(145deg,#ffdf63,#ed6737);opacity:.95;animation:petalFall linear infinite}
+@keyframes petalFall{0%{transform:translate3d(0,-6vh,0) rotate(0deg);opacity:0}10%{opacity:1}50%{transform:translate3d(30px,48vh,0) rotate(300deg)}100%{transform:translate3d(-20px,110vh,0) rotate(650deg);opacity:.15}}
+.welcome-art{width:100%;height:125px;position:relative;margin:0 auto 4px;display:grid;place-items:center}
+.cross-sticks{width:76px;height:94px;position:relative;margin-top:8px;filter:drop-shadow(0 0 9px #ffb52b99)}
+.stick{position:absolute;width:10px;height:88px;border-radius:8px;top:2px;left:33px;background:repeating-linear-gradient(0deg,#ef643c 0 7px,#f9c04b 7px 12px,#b20c52 12px 17px);border:1px solid #ffd36a;transform-origin:50% 88%;box-shadow:0 0 8px #ffb13c77}
+.stick.one{animation:stickSwing 1.7s ease-in-out infinite alternate;transform:rotate(-28deg)}
+.stick.two{animation:stickSwing2 1.7s ease-in-out infinite alternate;transform:rotate(28deg)}
+@keyframes stickSwing{to{transform:rotate(-52deg) translateY(-4px)}}@keyframes stickSwing2{to{transform:rotate(48deg) translateY(2px)}}
+.stick:after{content:"";position:absolute;inset:8px 1px;background:repeating-linear-gradient(135deg,transparent 0 8px,#fff1ac 8px 10px,transparent 10px 16px);border-radius:6px}
+.welcome-copy{position:relative;z-index:2}
+.welcome-kicker{font-size:13px;font-weight:900;letter-spacing:.32em;color:#ffc845;margin-bottom:4px}
+.wave-title{font-family:Georgia,serif;font-weight:1000;font-style:italic;text-transform:uppercase;font-size:clamp(40px,12vw,58px);line-height:.93;letter-spacing:-.05em;margin:0 0 17px;color:#fff0d2;text-shadow:0 3px 0 #5b102f,0 7px 20px #e95a5a55}
+.wave-title span{display:inline-block;position:relative;color:#fff0d2;animation:letterBob 2.8s ease-in-out infinite;animation-delay:calc(var(--i)*.055s)}
+.wave-title span:after{content:attr(data-char);position:absolute;inset:0;color:transparent;background:linear-gradient(0deg,transparent 8%,#ff7b38 26%,#ffcf43 42%,#fff7bd 50%,#ec2c70 64%,transparent 76%);background-size:100% 240%;background-position:0 130%;background-clip:text;-webkit-background-clip:text;animation:waveSurge 2.8s ease-in-out infinite;animation-delay:calc(var(--i)*.055s)}
+@keyframes waveSurge{0%,12%{background-position:0 140%;filter:drop-shadow(0 0 0 transparent)}55%{background-position:0 0%;filter:drop-shadow(0 0 6px #ffb627)}78%,100%{background-position:0 -80%;filter:drop-shadow(0 0 0 transparent)}}
+@keyframes letterBob{0%,100%{transform:translateY(0)}40%{transform:translateY(-2px)}}
+.lamp-row{font-size:20px;letter-spacing:1px;animation:lampGlow 1.8s infinite alternate;margin:17px 0 25px}
+@keyframes lampGlow{from{filter:brightness(.9)}to{filter:brightness(1.35) drop-shadow(0 0 5px #ffb52b)}}
+.welcome-sub{font-size:13px;line-height:1.6;color:#f0c8d6;max-width:300px;margin:0 auto 24px}
+.welcome-btn{background:#f6af29;color:#32112d;box-shadow:0 7px 24px #ff9b2966;font-weight:900}
+.welcome-footer{position:absolute;bottom:27px;color:#c68db5;font-size:10px;letter-spacing:.18em;text-transform:uppercase}
+
+/* the first story page after the Navratri cover */
+#storyPage{background-color:#ffe2ce;background-image:radial-gradient(#f2c2a0 1px,transparent 1.5px),linear-gradient(180deg,#ffe9d8,#ffd6c0);background-size:24px 24px,auto;color:#43162e}
+.story-intro-title{font-size:clamp(30px,8.5vw,41px);line-height:1.02;margin:5px auto 12px;max-width:365px;color:#aa124f}
+.story-intro-title em{color:#32142f}
+.story-character{position:relative;height:clamp(255px,38svh,340px);margin:1px -4px 0;display:grid;place-items:center;isolation:isolate}
+.story-character:before{content:"";position:absolute;left:-4%;right:-4%;bottom:0;height:43%;z-index:-1;background:linear-gradient(180deg,transparent 0%,#ffd8a7aa 60%,#e6a05d 61%,#bf5c3a 71%,#328458 72%,#e7aa36 82%,#bd2758 90%,#f6b63a 100%);opacity:.72}
+.story-character:after{content:"🌼🌺🧡🌼🌺🧡🌼🌺🧡🌼🌺🧡🌼🌺🧡🌼🌺🧡🌼🌺🧡🌼🌺🧡";position:absolute;left:-20px;right:-20px;bottom:8px;white-space:nowrap;text-align:center;font-size:19px;line-height:1.1;filter:drop-shadow(0 2px 2px #8e3e2333);animation:garlandSway 4s ease-in-out infinite alternate;pointer-events:none;z-index:3}
+@keyframes garlandSway{from{transform:translateX(-5px) rotate(-.4deg)}to{transform:translateX(5px) rotate(.4deg)}}
+.story-character img{height:100%;width:100%;object-fit:contain;filter:drop-shadow(0 9px 7px #6d2a3027);animation:storyCoupleMove 3.2s ease-in-out infinite}
+@keyframes storyCoupleMove{0%,100%{transform:translateY(3px) rotate(-1.2deg) scale(1)}28%{transform:translateY(-8px) rotate(1.1deg) scale(1.015)}55%{transform:translateY(-1px) rotate(-.3deg) scale(1.005)}78%{transform:translateY(-5px) rotate(1.4deg) scale(1.01)}}
+.story-flower-note{position:relative;z-index:5;font-family:Georgia,serif;font-style:italic;text-align:center;color:#5e3051;font-size:12px;margin:7px auto 8px;padding:4px 10px;background:#ffe2ceee;border-radius:99px}
+.story-top-flower{position:absolute;top:14%;left:8%;font-size:19px;animation:flowerFloat 3s ease-in-out infinite}
+.story-top-flower.f2{left:auto;right:10%;top:22%;animation-delay:-1.2s}
+.story-top-flower.f3{left:16%;top:60%;animation-delay:-.7s}
+@keyframes flowerFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(13px) rotate(18deg)}}
+
+/* Map */
+.map-shell{position:relative;margin:4px auto 8px;width:100%;height:clamp(345px,48svh,445px);border:1px solid #e5d0ac;border-radius:13px;overflow:hidden;background:
+ linear-gradient(0deg,transparent 0 21%,#e8d9c8 21% 23%,transparent 23% 49%,#e8d9c8 49% 51%,transparent 51% 78%,#e8d9c8 78% 80%,transparent 80%),
+ linear-gradient(90deg,transparent 0 17%,#e8d9c8 17% 19%,transparent 19% 44%,#e8d9c8 44% 46%,transparent 46% 73%,#e8d9c8 73% 75%,transparent 75%),
+ #fff8eb;
+ box-shadow:inset 0 0 0 7px #fffaf277}
+.map-shell:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 19%,#d5c8ac 0 2px,transparent 2.5px),radial-gradient(circle at 82% 40%,#d5c8ac 0 2px,transparent 2.5px);background-size:46px 46px;opacity:.65;pointer-events:none}
+.map-route{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.map-route .base{stroke:#b5a5a9;stroke-width:2;stroke-dasharray:3 7;fill:none}
+.map-route .lit{stroke:var(--berry);stroke-width:3;stroke-linecap:round;stroke-dasharray:2 8;fill:none;animation:routeFlow 1s linear infinite}
+@keyframes routeFlow{to{stroke-dashoffset:-20}}
+.map-spot{position:absolute;z-index:3;transform:translate(-50%,-50%);width:106px;border:1px solid #e7cfae;border-radius:10px;padding:5px 5px 7px;background:#fffaf1;box-shadow:0 3px 7px #52273717;text-align:center;color:var(--ink);transition:transform .2s,box-shadow .2s,border .2s}
+.map-spot:hover{transform:translate(-50%,-50%) scale(1.04);box-shadow:0 8px 18px #6b2b4730}
+.map-spot.active{border:2px solid var(--berry);box-shadow:0 0 0 4px #d22e6b20,0 7px 14px #6b2b4730;transform:translate(-50%,-50%) scale(1.04)}
+.mini-art{height:43px;border-radius:6px;margin-bottom:4px;display:grid;place-items:center;overflow:hidden;background:linear-gradient(135deg,#ffe8a8,#fff4d9);font-size:28px;position:relative}
+.mini-art.gate{background:linear-gradient(#fbd5a4,#ffefcf)}.mini-art.gate:before{content:"";position:absolute;bottom:-1px;width:45px;height:33px;border:5px solid #b63b54;border-bottom:0;border-radius:20px 20px 0 0;box-shadow:inset 0 0 0 2px #ffd06a}
+.mini-art.gate:after{content:"";position:absolute;bottom:0;width:20px;height:25px;border-radius:18px 18px 0 0;background:#602449;border:2px solid #ecbd57}
+.mini-art.bangles{background:linear-gradient(120deg,#ffe7bc,#fce5ef)}
+.mini-art.bangles .emoji{font-size:0}
+.mini-art.bangles:before{content:"";position:absolute;left:25px;top:8px;width:49px;height:23px;border:3px solid #b94657;border-radius:50%;background:repeating-linear-gradient(90deg,#c72d5d 0 4px,#f6bd37 4px 8px,#268f69 8px 12px,#e96f35 12px 16px);transform:rotate(-12deg);box-shadow:0 6px 0 -1px #efb83d,0 10px 0 -1px #2b8b64,0 14px 0 -1px #ce3970}
+.mini-art.pani{background:linear-gradient(120deg,#ffe7b4,#ffcf9b);background-image:url("assets/pani-scene-1.webp");background-size:cover;background-position:76% center}
+.mini-art.pani .emoji{display:none}
+.mini-art.dhol{background:linear-gradient(120deg,#ffe7bd,#f8cad5)}
+.mini-art.photo{background:linear-gradient(120deg,#ffebbf,#e8d6ec);background-image:url("assets/dance-10.webp");background-size:contain;background-repeat:no-repeat;background-position:center}
+.mini-art.photo .emoji{display:none}
+.mini-art .emoji{position:relative;z-index:1;filter:drop-shadow(0 2px 1px #96503a22)}
+.spot-name{font-size:10px;font-weight:900;line-height:1.2}
+.spot-number{position:absolute;right:-6px;top:-7px;width:21px;height:21px;border:2px solid #fff5e2;background:var(--berry);color:white;display:grid;place-items:center;border-radius:50%;font-size:10px;font-weight:900}
+.travel-couple{position:absolute;z-index:4;left:12%;top:78%;width:84px;height:86px;transform:translate(-50%,-80%);transition:left .9s cubic-bezier(.2,.85,.22,1),top .9s cubic-bezier(.2,.85,.22,1);filter:drop-shadow(0 4px 3px #5d303322);pointer-events:none}
+.travel-couple img{width:100%;height:100%;object-fit:contain;animation:travelBounce 1.3s ease-in-out infinite alternate}
+@keyframes travelBounce{to{transform:translateY(-6px) rotate(2deg)}}
+.map-dialogue{min-height:56px;padding:11px 13px;border-left:3px solid var(--berry);border-radius:0 10px 10px 0;background:#fffaf2;box-shadow:0 3px 10px #552e2010;margin:0 0 9px;font-size:12px;line-height:1.45;color:#4a2b42}
+.map-dialogue strong{color:var(--berry)}
+.map-counter{position:absolute;z-index:4;right:9px;bottom:8px;background:#fffaf2;border:1px solid #e2c9aa;border-radius:99px;padding:6px 9px;font-size:10px;font-weight:900;color:var(--berry)}
+/* Panipuri challenge */
+.story-frame{position:relative;margin:9px 0 12px;background:#fffaf1;border:1px solid #e5cfae;border-radius:13px;padding:5px;box-shadow:0 9px 20px #52273717;overflow:hidden}
+.story-frame:before{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;border:1px solid #fff9e7;border-radius:9px}
+.story-frame img{width:100%;height:auto;aspect-ratio:2.03/1;object-fit:cover;display:block;border-radius:8px;transition:opacity .2s}
+.story-frame img.swap{animation:storySwap .8s cubic-bezier(.2,.8,.2,1)}
+@keyframes storySwap{0%{opacity:.2;transform:translateX(18px) scale(.98)}60%{opacity:1;transform:translateX(-3px) scale(1.01)}100%{transform:translateX(0) scale(1)}}
+.flying-puri{position:absolute;z-index:8;top:47%;right:5%;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 33% 28%,#fff0a3 0 13%,#e8a744 16% 55%,#a94a16 74%);border:2px solid #ffd57b;box-shadow:0 0 10px #f8a631;opacity:0;pointer-events:none}
+.flying-puri.fly{animation:puriFly 1.1s cubic-bezier(.3,.8,.2,1) forwards}
+@keyframes puriFly{0%{opacity:0;transform:translate(0,0) scale(.6) rotate(0)}12%{opacity:1}70%{transform:translate(-220px,-27px) scale(1.08) rotate(470deg)}100%{opacity:0;transform:translate(-275px,4px) scale(.5) rotate(800deg)}}
+.pani-result{display:flex;justify-content:center;align-items:center;gap:7px;font-size:12px;font-weight:800;margin:5px auto 11px}
+.pani-result strong{font-size:22px;color:var(--berry)}
+.dots-row{display:flex;gap:5px;justify-content:center;margin:7px 0}
+.pani-dot{width:11px;height:11px;border-radius:50%;background:#fffaf2;border:1px solid #b7a0a8}
+.pani-dot.full{background:#2a9565;border-color:#2a9565;box-shadow:0 0 0 2px #2a956622}
+.pani-caption{font-family:Georgia,serif;font-style:italic;text-align:center;color:var(--berry);font-size:17px;margin:7px 0 14px;min-height:20px}
+/* dance */
+.dance-stage{position:relative;height:clamp(265px,36svh,350px);border-radius:18px;overflow:hidden;margin:2px 0 12px;background:radial-gradient(ellipse at 50% 85%,#ffdf9a 0 5%,#fff2d7 5.5% 31%,transparent 31.5%),linear-gradient(180deg,#fff8e8,#ffecd0);border:1px solid #efd6af}
+.dance-stage:before{content:"";position:absolute;left:10%;right:10%;bottom:33px;height:14px;border-bottom:3px solid var(--berry);border-radius:50%;box-shadow:0 7px 0 -3px #eaa43b}
+.dance-image{position:absolute;inset:5px 5px 3px;display:grid;place-items:center}
+.dance-image img{height:100%;width:100%;object-fit:contain;filter:drop-shadow(0 9px 6px #61342b22);animation-duration:1.05s;animation-timing-function:cubic-bezier(.3,.8,.2,1);animation-fill-mode:both}
+.dance-image img.m0{animation-name:doTali}.dance-image img.m1{animation-name:tranTali}.dance-image img.m2{animation-name:dodhiya}.dance-image img.m3{animation-name:chaptiSpin}.dance-image img.m4{animation-name:singleStrike}.dance-image img.m5{animation-name:doubleClash}.dance-image img.m6{animation-name:circleWalk}.dance-image img.m7{animation-name:lowBend}.dance-image img.m8{animation-name:backToBack}.dance-image img.m9{animation-name:joyous}
+@keyframes doTali{0%{transform:translateY(22px) scale(.9);opacity:.35}45%{transform:translateY(-7px) scale(1.03)}100%{transform:translateY(0) scale(1);opacity:1}}
+@keyframes tranTali{0%{transform:translateX(-36px) rotate(-5deg);opacity:.2}55%{transform:translateX(9px) rotate(3deg)}100%{transform:none;opacity:1}}
+@keyframes dodhiya{0%{transform:rotate(-9deg) scale(.84);opacity:.2}45%{transform:rotate(8deg) scale(1.06)}100%{transform:rotate(0) scale(1);opacity:1}}
+@keyframes chaptiSpin{0%{transform:rotate(-16deg) scale(.8);opacity:.25}60%{transform:rotate(12deg) scale(1.04)}100%{transform:rotate(0) scale(1);opacity:1}}
+@keyframes singleStrike{0%{transform:translateY(30px) rotate(-12deg);opacity:.2}55%{transform:translateY(-12px) rotate(8deg)}100%{transform:translateY(0) rotate(0);opacity:1}}
+@keyframes doubleClash{0%{transform:scale(.7) translateX(30px);opacity:.15}45%{transform:scale(1.08) translateX(-8px)}100%{transform:scale(1);opacity:1}}
+@keyframes circleWalk{0%{transform:translateX(-22px) rotate(-7deg);opacity:.2}50%{transform:translateX(16px) rotate(5deg)}100%{transform:none;opacity:1}}
+@keyframes lowBend{0%{transform:translateY(-25px) scale(1.05);opacity:.2}65%{transform:translateY(6px) scale(.94)}100%{transform:translateY(0) scale(1);opacity:1}}
+@keyframes backToBack{0%{transform:rotateY(80deg);opacity:.2}100%{transform:rotateY(0);opacity:1}}
+@keyframes joyous{0%{transform:scale(.65) rotate(-8deg);opacity:.2}55%{transform:scale(1.09) rotate(5deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+.lightning{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:5;background:linear-gradient(110deg,transparent 0 43%,#fff7cdbb 44%,#fff 46%,transparent 48% 100%);mix-blend-mode:screen}
+.lightning.flash{animation:flash .42s ease-out}
+@keyframes flash{0%{opacity:0}15%{opacity:.95}40%{opacity:.1}65%{opacity:.6}100%{opacity:0}}
+.dance-meter{display:flex;align-items:center;justify-content:center;gap:4px;margin:5px 0 11px}
+.dance-meter span{width:7px;height:16px;border:1px solid #e8a45d;background:#fff6dd;border-radius:2px;transition:all .15s}
+.dance-meter span.on{background:var(--saffron);border-color:var(--saffron);height:22px}
+.pose-label{text-align:center;font-size:11px;font-weight:900;color:#6f445d;margin-bottom:10px}
+/* photos */
+.photo-window{position:relative;margin:12px 0 10px;overflow:hidden;border-radius:18px;padding:11px;background:linear-gradient(135deg,#efbf6b,#fff6e5,#e5ad63);box-shadow:0 10px 22px #8b4c2917;border:1px solid #d8a757}
+.photo-window:before{content:"";position:absolute;inset:6px;border:1px dashed #be8052;border-radius:13px;pointer-events:none;z-index:2}
+.photo-track{display:flex;width:1000%;transition:transform .65s cubic-bezier(.2,.8,.2,1);align-items:stretch}
+.memory-frame{flex:0 0 10%;min-width:0;padding:7px;background:#fffaf3;border:1px solid #e1cbaa;box-shadow:0 7px 15px #62341f20;display:flex;flex-direction:column;align-items:center}
+.memory-art{width:100%;height:clamp(245px,34svh,310px);display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse at 50% 88%,#e0bc83 0 7%,transparent 7.5%),linear-gradient(180deg,#ffefd5,#fff9ed)}
+.memory-art img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 7px 6px #63321b1b)}
+.memory-caption{font-family:Georgia,serif;font-style:italic;font-size:14px;margin:8px 0 2px;text-align:center}
+.photo-meta{text-align:center;font-size:11px;color:var(--muted);margin:4px 0 8px}
+.photo-tap{font-size:11px;text-align:center;color:var(--berry);font-weight:800;margin:0 0 10px}
+/* proposal / finale */
+.proposal-hero{height:clamp(132px,23svh,205px);flex:0 0 auto;width:100%;max-width:300px;display:grid;place-items:center;position:relative;isolation:isolate;margin:0 auto 5px;overflow:visible}
+.proposal-hero img{display:block;height:100%;width:auto;max-width:100%;max-height:100%;object-fit:contain;position:relative;z-index:1;filter:drop-shadow(0 9px 5px #5b30301e);animation:coupleIdle 2.9s ease-in-out infinite}
+#proposalHeading{position:relative;z-index:2;margin-bottom:7px}
+#proposalButtons{position:relative;z-index:8;isolation:isolate;flex:0 0 auto;display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;width:100%;min-height:48px;margin:4px auto 7px}
+#proposalButtons .btn{position:relative;z-index:9;min-width:94px;min-height:44px;pointer-events:auto;padding:12px 17px}
+#proposalButtons[hidden]{display:none!important}
+@keyframes coupleIdle{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-7px) rotate(1deg)}}
+.proposal-note{text-align:center;font-family:Georgia,serif;font-style:italic;color:var(--berry);font-size:16px;margin:0 auto 12px}
+.ticket{position:relative;margin:5px auto 15px;width:100%;max-width:350px;background:#fffaf1;border:1px solid #ddc9a8;border-radius:10px;box-shadow:0 7px 18px #582b3217;overflow:visible;transform:rotate(-1deg)}
+.ticket-top{padding:11px 14px;background:var(--berry);color:white;font-size:12px;font-weight:900;border-radius:9px 9px 0 0;display:flex;justify-content:space-between;align-items:center}
+.ticket-body{padding:13px 15px 12px}
+.ticket-title{font:italic 900 29px Georgia,serif;color:var(--berry);margin-bottom:7px}
+.ticket-row{display:grid;grid-template-columns:62px 1fr;gap:7px;font-size:11px;line-height:1.6}
+.ticket-row b{color:#997883}.ticket-foot{border-top:1px dashed #d8c2ad;padding:8px 12px;text-align:center;color:#8a6979;font-size:10px}
+.stamp{position:absolute;right:-13px;top:39px;width:92px;height:92px;border:5px double #bb2449;border-radius:50%;color:#bb2449;background:#fff9edcc;display:grid;place-items:center;text-align:center;font-size:14px;line-height:1;font-weight:1000;transform:scale(2.3) rotate(-28deg);opacity:0;pointer-events:none}
+.stamp.show{animation:stampHit .7s cubic-bezier(.15,1.5,.35,1) forwards}
+@keyframes stampHit{0%{opacity:0;transform:scale(2.3) rotate(-28deg)}65%{opacity:1;transform:scale(.88) rotate(-18deg)}82%{transform:scale(1.12) rotate(-18deg)}100%{opacity:1;transform:scale(1) rotate(-18deg)}}
+#finale{justify-content:center;text-align:center;background-image:radial-gradient(#a94c65 1px,transparent 1.5px),radial-gradient(#632a62 1px,transparent 1.5px),linear-gradient(180deg,#2b0d32,#200824);background-size:20px 20px,31px 31px,auto}
+.final-couple{height:clamp(260px,38svh,350px);margin:10px auto 16px;max-width:100%}
+.final-couple img{height:100%;width:100%;object-fit:contain;filter:drop-shadow(0 12px 12px #0004);animation:coupleIdle 3s ease-in-out infinite}
+.final-gold{font:italic 900 clamp(30px,8vw,42px)/1.05 Georgia,serif;color:#ffc545;margin:0 auto 13px;max-width:340px}
+.final-copy{font-weight:800;color:#fff2e0;line-height:1.55;font-size:14px;margin-bottom:6px}
+.signature{font-family:Georgia,serif;font-style:italic;color:#f8c6d8;font-size:21px;margin:18px 0 24px}
+.toast{position:fixed;z-index:50;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;max-width:min(90vw,400px);padding:12px 16px;border-radius:99px;background:#32112d;color:#fff7e6;box-shadow:0 8px 24px #21051b40;font-size:12px;text-align:center;transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.sound-toggle{position:absolute;right:16px;top:16px;z-index:10;width:37px;height:37px;border-radius:50%;border:1px solid #e3c9b0;background:#fff9ec;color:var(--berry);box-shadow:0 4px 12px #5a26331a}
+.dark .sound-toggle{background:#3d1642;border-color:#8d5279;color:#ffd05e}
+.sound-toggle.music-playing{background:#ffe18b;color:#4b173e;border-color:#ffc64f;box-shadow:0 0 0 4px #ffc64f28,0 0 17px #ffc64f88;animation:musicPulse 1.8s ease-in-out infinite alternate}
+@keyframes musicPulse{from{transform:scale(1)}to{transform:scale(1.06)}}
+/* Always-visible journey navigation: keeps back/next in reach on short screens. */
+.journey-nav{position:fixed;z-index:100;left:50%;bottom:max(9px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(calc(100vw - 18px),460px);display:grid;grid-template-columns:minmax(94px,1fr) auto minmax(94px,1fr);gap:8px;align-items:center;padding:9px 10px;border:1px solid #e5c8b8;border-radius:18px;background:rgba(255,248,235,.96);box-shadow:0 8px 30px #15051755;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:var(--ink)}
+.journey-nav button{min-height:39px;border-radius:999px;padding:8px 11px;font-size:12px;font-weight:850;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:5px}
+.journey-nav .nav-prev{background:#fffaf2;border:1px solid #d9bdba;color:#542744}
+.journey-nav .nav-next{background:var(--berry);color:white;box-shadow:0 4px 12px #a60f5533}
+.journey-nav button:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
+.journey-nav .nav-counter{font-size:10px;line-height:1.25;text-align:center;color:#82576e;min-width:56px;font-weight:800}
+.journey-nav .nav-counter b{display:block;font-size:12px;color:#a80e4d}
+.screen .bottom-nav{display:none!important}
+.screen{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+#welcome{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+#welcome .welcome-footer{bottom:92px}
+@media(max-width:350px){.journey-nav{gap:5px;padding:7px}.journey-nav button{padding:7px 8px;font-size:11px;min-height:37px}.journey-nav .nav-counter{min-width:43px;font-size:9px}#proposalButtons{gap:7px}#proposalButtons .btn{min-width:86px;padding:11px 13px}.proposal-hero{height:clamp(122px,21svh,170px)}}
+@media(min-width:600px){body{padding:18px 0}.app{min-height:calc(100svh - 36px);border-radius:24px;min-height:calc(100svh - 36px)}.screen{min-height:calc(100svh - 36px);border-radius:24px}.map-shell{height:420px}}
+@media(max-height:720px){.screen{padding-top:12px;padding-bottom:14px}.progress{margin-bottom:9px}.subtitle{margin-bottom:9px}.map-shell{height:clamp(295px,44svh,360px)}.dance-stage{height:clamp(235px,34svh,270px)}.memory-art{height:clamp(210px,30svh,250px)}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+/* Final compact-screen override: content remains scrollable behind the persistent toolbar. */
+.screen{padding-bottom:calc(112px + env(safe-area-inset-bottom));overflow-x:hidden;overflow-y:auto}
+#welcome{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+#welcome .welcome-footer{bottom:92px}
+ .devsphere-credit{display:flex;justify-content:center;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:14px auto 0;max-width:370px;padding:9px 12px;border:1px solid #d6a55c;border-radius:999px;background:#32112dcc;color:#fff0d2;font-size:10px;line-height:1.35;text-align:center}
+ .devsphere-credit a{color:#ffd166;font-weight:850;text-decoration:underline;text-underline-offset:2px}
+ .memory-video{width:100%;margin:13px auto 8px;padding:11px;border:1px solid #d8a757;border-radius:14px;background:#fffaf3;box-shadow:0 7px 16px #62341f17}
+ .memory-video h3{margin:0 0 8px;text-align:center;font:italic 800 17px Georgia,serif;color:var(--berry)}
+ .memory-video video{display:block;width:100%;max-height:300px;border-radius:9px;background:#1d0922}
+ .nav-counter{display:flex;flex-direction:column;align-items:center;gap:2px}
+ .playlist-next{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:transparent;color:#8f1851;border:0;font-size:9px;font-weight:850;line-height:1.2;padding:0;cursor:pointer}
+ .devsphere-credit[hidden],.memory-video[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main class="app" aria-label="Interactive Navratri invitation">
+<section class="screen dark active" id="welcome" aria-label="Happy Navratri welcome">
+  <button class="sound-toggle" data-sound title="Toggle background music" aria-label="Toggle background music" aria-pressed="false">♫</button>
+  <div class="welcome-frame"></div><div class="lantern-field" id="lanternField"></div><div class="petals" id="welcomePetals"></div>
+  <div class="welcome-copy">
+    <div class="eyebrow" id="welcomeEyebrow">✦ A little Navratri surprise ✦</div>
+    <div class="welcome-art" aria-hidden="true"><div class="cross-sticks"><i class="stick one"></i><i class="stick two"></i></div></div>
+    <div class="welcome-kicker" id="welcomeKicker">HAPPY</div>
+    <h1 class="wave-title" id="waveTitle" aria-label="Navratri">NAVRATRI</h1>
+    <div class="lamp-row" aria-hidden="true">🪔 🪔 🪔 🪔 🪔 🪔 🪔</div>
+    <p class="welcome-sub" id="welcomeSubtitle">Nine nights, a thousand lights, and one little adventure waiting for us.</p>
+    <button class="btn welcome-btn" id="beginBtn"><span id="beginButtonLabel">Open our Navratri story</span> <span aria-hidden="true">↗</span></button>
+  </div>
+  <div class="welcome-footer" id="welcomeFooter">Made with a little extra sparkle · 2026</div>
+</section>
+
+
+<section class="screen" id="storyPage" data-section="showStory">
+  <button class="sound-toggle" data-sound title="Toggle background music" aria-label="Toggle background music" aria-pressed="false">♫</button>
+  <nav class="progress" aria-label="Invitation progress"></nav>
+  <span class="story-top-flower" aria-hidden="true">🌼</span><span class="story-top-flower f2" aria-hidden="true">🌸</span><span class="story-top-flower f3" aria-hidden="true">🧡</span>
+  <div class="eyebrow" id="storyEyebrow">A Navratri special</div>
+  <h2 class="story-intro-title"><span id="storyTitleLead">You, this Navratri,</span><br><em><span id="storyTitleEmphasis">there's something<br>I have to tell you…</span></em></h2>
+  <p class="subtitle" id="storySubtitle">The dhol is playing, the lights are up and the whole city is dancing. And all I can think about is you.</p>
+  <div class="story-character"><img src="assets/dance-10.webp" alt="A joyful Gujarati couple sharing a Garba moment"></div>
+  <p class="story-flower-note" id="storyNote">Follow the map, there's a question at the end ✦</p>
+  <button class="btn" data-next="mapPage"><span id="storyButtonLabel">Let's go to the garba</span> →</button>
+</section>
+
+<section class="screen" id="mapPage" data-section="showMap">
+  <button class="sound-toggle" data-sound title="Toggle background music" aria-label="Toggle background music" aria-pressed="false">♫</button>
+  <nav class="progress" aria-label="Invitation progress"></nav>
+  <div class="eyebrow" id="mapEyebrow">Tonight's map</div>
+  <h2 id="mapTitle">Garba night,<br>together</h2>
+  <p class="subtitle" id="mapSubtitle">Tap each pin and we'll wander there together.</p>
+  <div class="map-shell" id="mapShell">
+    <svg class="map-route" viewBox="0 0 360 420" preserveAspectRatio="none" aria-hidden="true">
+      <path class="base" d="M46 344 L258 286 L64 216 L263 130 L142 48"/>
+      <path class="lit" id="routeLit" d="M46 344 L258 286 L64 216 L263 130 L142 48" stroke-dasharray="7 11" stroke-dashoffset="0"/>
+    </svg>
+    <button class="map-spot active" data-stop="0" style="left:13%;top:82%">
+      <span class="spot-number">1</span><span class="mini-art gate" aria-hidden="true"></span><span class="spot-name">Main Gate</span>
+    </button>
+    <button class="map-spot" data-stop="1" style="left:72%;top:68%">
+      <span class="spot-number">2</span><span class="mini-art bangles" aria-hidden="true"><span class="emoji">💛💚💗</span></span><span class="spot-name">Bangle Stall</span>
+    </button>
+    <button class="map-spot" data-stop="2" style="left:18%;top:51%">
+      <span class="spot-number">3</span><span class="mini-art pani" aria-hidden="true"><span class="emoji">🥣🟤</span></span><span class="spot-name">Pani Puri Bhaiya</span>
+    </button>
+    <button class="map-spot" data-stop="3" style="left:72%;top:31%">
+      <span class="spot-number">4</span><span class="mini-art dhol" aria-hidden="true"><span class="emoji">🥁</span></span><span class="spot-name">Dhol Stage</span>
+    </button>
+    <button class="map-spot" data-stop="4" style="left:39%;top:11%">
+      <span class="spot-number">5</span><span class="mini-art photo" aria-hidden="true"><span class="emoji">📸✨</span></span><span class="spot-name">Photo Booth</span>
+    </button>
+    <div class="travel-couple" id="travelCouple" style="left:13%;top:77%" aria-hidden="true"><img src="assets/dance-1.webp" alt=""></div>
+    <div class="map-counter" id="mapCounter">0 / 5 stops</div>
+  </div>
+  <div class="map-dialogue" id="mapDialogue" aria-live="polite"><strong>Aarav:</strong> Ready, Mira? The lights are calling us!</div>
+  <div class="bottom-nav"><button class="btn secondary small" data-prev="storyPage">← Story</button><button class="btn small" data-next="paniPage">Let's go! →</button></div>
+</section>
+
+<section class="screen" id="paniPage" data-section="showPani">
+  <button class="sound-toggle" data-sound title="Toggle background music" aria-label="Toggle background music" aria-pressed="false">♫</button>
+  <nav class="progress" aria-label="Invitation progress"></nav>
+  <div class="eyebrow" id="paniEyebrow">Snack break</div>
+  <h2 id="paniTitle">The pani puri<br>challenge</h2>
+  <p class="subtitle" id="paniSubtitle">One leaf bowl of pani puri, two very happy people.</p>
+  <div class="story-frame" id="storyFrame">
+    <img id="paniScene" src="assets/pani-scene-1.webp" alt="The couple arrives at a busy pani puri stall">
+    <span class="flying-puri" id="flyingPuri" aria-hidden="true"></span>
+  </div>
+  <div class="pani-result"><strong id="puriCount">0</strong><span id="paniResultLabel">pani puris shared</span></div>
+  <div class="dots-row" id="puriDots" aria-label="Pani puri progress"></div>
+  <p class="pani-caption" id="paniCaption" aria-live="polite">"Bhaiya, make them extra spicy!"</p>
+  <button class="btn" id="puriBtn">One more, bhaiya! 🥣</button>
+  <div class="small-note" id="paniNote">Psst… watch the pani puri fly to Mira!</div>
+  <div class="bottom-nav"><button class="btn secondary small" data-prev="mapPage">← Map</button><button class="btn small" data-next="dancePage">Time for Garba →</button></div>
+</section>
+
+<section class="screen" id="dancePage" data-section="showDance">
+  <button class="sound-toggle" data-sound title="Toggle background music" aria-label="Toggle background music" aria-pressed="false">♫</button>
+  <nav class="progress" aria-label="Invitation progress"></nav>
+  <div class="eyebrow" id="danceEyebrow">After the chaat</div>
+  <h2 id="danceTitle">Garba time</h2>
+  <p class="subtitle" id="danceSubtitle">You play the dhol. I'll dance. Every beat brings a new move.</p>
+  <div class="dance-stage" id="danceStage">
+    <div class="dance-image"><img id="dancePose" class="m0" src="assets/dance-1.webp" alt="Couple doing the Do Tali Garba step"></div>
+    <div class="lightning" id="lightning"></div>
+  </div>
+  <div class="pose-label" id="poseLabel">01 · Do Tali</div>
+  <div class="dance-meter" id="danceMeter" aria-label="Dhol beat meter"></div>
+  <button class="btn" id="dholBtn">🥁 Play the dhol</button>
+  <p class="small-note" id="danceCaption" aria-live="polite">One clap, one smile… let's begin!</p>
+  <div class="bottom-nav"><button class="btn secondary small" data-prev="paniPage">← One more puri</button><button class="btn small" data-next="photosPage">Our photos →</button></div>
+</section>
+
+<section class="screen" id="photosPage" data-section="showPhotos">
+  <button class="sound-toggle" data-sound title="Toggle background music" aria-label="Toggle background music" aria-pressed="false">♫</button>
+  <nav class="progress" aria-label="Invitation progress"></nav>
+  <div class="eyebrow" id="photosEyebrow">Our memories</div>
+  <h2 id="photosTitle">Little moments,<br>big smiles</h2>
+  <p class="subtitle" id="photosSubtitle">Tap the photo or slide through our favourite Garba memories.</p>
+  <div class="photo-window" id="photoWindow" role="button" tabindex="0" aria-label="Next memory photo">
+    <div class="photo-track" id="photoTrack"></div>
+  </div>
+  <p class="photo-meta" id="photoMeta" aria-live="polite">1 / 10 · A little warm-up</p>
+  <p class="photo-tap">✧ Tap the photo for the next one ✧</p>
+  <div class="button-row"><button class="btn secondary small" id="photoPrev">← Previous</button><button class="btn small" id="photoNext">Next memory →</button></div>
+  <div class="memory-video" id="memoryVideo" hidden>
+    <h3 id="videoTitle">A little movie of us</h3>
+    <video id="uploadedVideo" controls playsinline preload="none"></video>
+  </div>
+  <div class="bottom-nav"><button class="btn secondary small" data-prev="dancePage">← Garba steps</button><button class="btn small" data-next="proposalPage">The last pin →</button></div>
+</section>
+
+<section class="screen" id="proposalPage" data-section="showProposal">
+  <button class="sound-toggle" data-sound title="Toggle background music" aria-label="Toggle background music" aria-pressed="false">♫</button>
+  <nav class="progress" aria-label="Invitation progress"></nav>
+  <div class="eyebrow" id="proposalEyebrow">The last pin</div>
+  <h2 id="proposalHeading">Will you be my<br>Garba partner?</h2>
+  <div class="proposal-hero"><img id="proposalCouple" src="assets/dance-4.webp" alt="A couple dancing together with dandiya sticks"></div>
+  <div class="button-row" id="proposalButtons"><button class="btn" id="yesBtn">Yes! 💗</button><button class="btn secondary" id="noBtn">No 💌</button></div>
+  <p class="proposal-note" id="proposalNote">One more thing before the night begins…</p>
+  <div class="ticket" id="ticket" hidden>
+    <div class="ticket-top"><span id="ticketHeader">✦ GARBA PASS</span><span id="ticketAdmit">ADMIT TWO</span></div>
+    <div class="ticket-body">
+      <div class="ticket-title" id="ticketTitle">Navami</div>
+      <div class="ticket-row"><b id="ticketDateLabel">Date</b><span id="ticketDate">Tuesday, 20 October</span></div>
+      <div class="ticket-row"><b id="ticketTimeLabel">Time</b><span id="ticketTime">8 pm onwards</span></div>
+      <div class="ticket-row"><b id="ticketVenueLabel">Where</b><span id="ticketVenue">At the main gate</span></div>
+      <div class="ticket-row"><b id="ticketDressLabel">Wear</b><span id="ticketDress">Your brightest chaniya choli</span></div>
+      <div class="ticket-row"><b id="ticketGuestLabel">For</b><span id="ticketGuest">You + me, obviously</span></div>
+    </div>
+      <div class="ticket-foot" id="ticketFoot">Keep this pass close. The dhol is waiting for us ✦</div>
+    <div class="stamp" id="ticketStamp" aria-label="Approved stamp">YES!<br><span style="font-size:10px">IT'S A DATE</span><br>♥</div>
+  </div>
+  <div class="bottom-nav"><button class="btn secondary small" data-prev="photosPage">← Memories</button><button class="btn small" id="finaleBtn" hidden>Our Navratri finale →</button></div>
+</section>
+
+<section class="screen dark" id="finalePage">
+  <button class="sound-toggle" data-sound title="Toggle background music" aria-label="Toggle background music" aria-pressed="false">♫</button>
+  <nav class="progress" aria-label="Invitation progress"></nav>
+  <div class="eyebrow" id="finalEyebrow">Our little forever</div>
+  <div class="final-couple"><img src="assets/dance-10.webp" alt="The couple celebrating together"></div>
+  <h2 class="final-gold" id="finalTitle">Every Navratri,<br>with you</h2>
+  <p class="final-copy" id="finalCopy">And the one after that,<br>and the one after that.</p>
+  <div class="signature" id="signature">Love, someone who knows 💛</div>
+  <div class="button-row"><button class="btn secondary" id="replayBtn">↻ Watch it again</button><button class="btn welcome-btn" id="shareBtn">Share our pass ↗</button></div>
+  <footer class="devsphere-credit" id="devsphereCredit">
+    <span>Created by Devsphere</span>
+    <a href="https://instagram.com/devsphere.in" target="_blank" rel="noopener noreferrer">Instagram @devsphere.in</a>
+    <a href="https://devsphere.in" target="_blank" rel="noopener noreferrer">Create your own</a>
+  </footer>
+</section>
+</main>
+<audio id="bgMusic" src="assets/garba.mp3" preload="none" loop playsinline></audio>
+<nav class="journey-nav" id="journeyNav" aria-label="Page navigation">
+  <button type="button" class="nav-prev" id="journeyPrev" aria-label="Go to previous page">← Back</button>
+  <div class="nav-counter" id="journeyCounter" aria-live="polite"><b>Welcome</b>Start here<button type="button" class="playlist-next" id="playlistNext" aria-label="Play the next track">♫ <span id="playlistTrackTitle">Garba</span> ↻</button></div>
+  <button type="button" class="nav-next" id="journeyNext" aria-label="Go to next page">Start →</button>
+</nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+/* Edit these values to personalize the invitation */
+let INVITATION = {
+  host: "Aarav",
+  guest: "Mira",
+  date: "Tuesday, 20 October",
+  time: "8 pm onwards",
+  venue: "At the main gate",
+  dress: "Your brightest chaniya choli",
+  ticketTitle: "Navami",
+  whatsapp: "",
+  message: "Nine nights. A thousand lights. One person I want beside me."
+};
+const steps = ["storyPage","mapPage","paniPage","dancePage","photosPage","proposalPage","finalePage"];
+const allJourneyOrder = ["welcome", ...steps];
+let journeyOrder = [...allJourneyOrder];
+const journeyLabels = {welcome:"Welcome",storyPage:"Our story",mapPage:"Garba map",paniPage:"Pani puri",dancePage:"Garba dance",photosPage:"Our photos",proposalPage:"The question",finalePage:"Finale"};
+let currentScreen = "welcome";
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const escapeHtml = value => String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const asLines = value => escapeHtml(value).replace(/\r?\n/g,"<br>");
+const toast = (message) => { const t=$("#toast"); t.textContent=message; t.classList.add("show"); clearTimeout(window.__toastTimer); window.__toastTimer=setTimeout(()=>t.classList.remove("show"),2400); };
+let mapStops = [];
+let mapLines = [
+ `Ready, ${INVITATION.guest}? The lights are calling us!`,
+ `Ooh, bangles first! Help me pick a colour to match my chaniya choli.`,
+ `That pani puri stall smells incredible. One plate? Maybe five.`,
+ `I can hear the dhol! Promise you'll dance every round with me.`,
+ `One photo here, then? I want to remember this night forever.`
+];
+function activeSteps(){return steps.filter(id=>id==="finalePage"||document.querySelector(`#${id}`)?.hidden!==true)}
+function drawProgress(){
+  const visible=activeSteps().filter(id=>id!=="finalePage");
+  $$(".progress").forEach(nav=>{
+    nav.innerHTML=visible.map((id,i)=>`<span class="p ${id===currentScreen?'current':visible.indexOf(currentScreen)>i?'done':''}" title="${id}" aria-label="Page ${i+1}">${i+1}</span>`).join("");
+  });
+}
+function updateJourneyNav(){
+  const index=journeyOrder.indexOf(currentScreen);
+  const prev=$("#journeyPrev"), next=$("#journeyNext"), counter=$("#journeyCounter");
+  const playlistButton=$("#playlistNext");
+  const prevId=journeyOrder[Math.max(0,index-1)], nextId=journeyOrder[Math.min(journeyOrder.length-1,index+1)];
+  prev.disabled=index===0;
+  prev.textContent=index===0?"← Start":"← Back";
+  prev.setAttribute("aria-label",index===0?"You are on the welcome page":"Go back to "+journeyLabels[prevId]);
+  next.textContent=currentScreen==="finalePage"?"Replay ↻":currentScreen==="welcome"?"Start →":"Next →";
+  next.setAttribute("aria-label",currentScreen==="finalePage"?"Replay invitation from the beginning":"Continue to "+journeyLabels[nextId]);
+  counter.innerHTML=`<b>${index===0?"Welcome":`Page ${index} of ${journeyOrder.length-1}`}</b>${journeyLabels[currentScreen]}`;
+  if(playlistButton)counter.appendChild(playlistButton);
+}
+function showScreen(id){
+  if(!journeyOrder.includes(id)){
+    const originalIndex=allJourneyOrder.indexOf(id);
+    const next=journeyOrder.find(screen=>allJourneyOrder.indexOf(screen)>originalIndex);
+    const previous=[...journeyOrder].reverse().find(screen=>allJourneyOrder.indexOf(screen)<originalIndex);
+    id=next||previous||"finalePage";
+  }
+  currentScreen=id;
+  $$(".screen").forEach(s=>s.classList.toggle("active",s.id===id));
+  drawProgress();updateJourneyNav();
+  window.scrollTo({top:0,behavior:"smooth"});
+  $$(".screen").forEach(s=>{if(s.id!==id)s.scrollTop=0});
+  if(id==="finalePage" && !$("#finalePage .petals")) makePetals($("#finalePage"),18);
+}
+function navigateRelative(direction){
+  const index=journeyOrder.indexOf(currentScreen);
+  const target=journeyOrder[Math.max(0,Math.min(journeyOrder.length-1,index+direction))];
+  if(target)showScreen(target);
+}
+$("#journeyPrev").addEventListener("click",()=>{
+  navigateRelative(-1);
+});
+$("#journeyNext").addEventListener("click",()=>{
+  if(currentScreen==="finalePage"){ $("#replayBtn").click(); return; }
+  navigateRelative(1);
+});
+function makePetals(root,count){
+  const layer=document.createElement("div");layer.className="petals";
+  for(let i=0;i<count;i++){const el=document.createElement("i");el.className="petal";el.style.left=(Math.random()*100)+"%";el.style.animationDuration=(5+Math.random()*7)+"s";el.style.animationDelay=(-Math.random()*10)+"s";el.style.transform=`scale(${.6+Math.random()})`;layer.appendChild(el)}
+  root.appendChild(layer);
+}
+function initDecor(){
+  const lf=$("#lanternField");
+  for(let i=0;i<9;i++){const e=document.createElement("i");e.className="lantern";e.style.left=(5+i*11.5)+"%";e.style.top=(12+Math.random()*65)+"%";e.style.animationDelay=(-Math.random()*4)+"s";e.style.animationDuration=(3+Math.random()*3)+"s";lf.appendChild(e)}
+  makePetals($("#welcome"),26);
+  const title=$("#waveTitle");title.innerHTML=[...title.textContent].map((c,i)=>`<span style="--i:${i}" data-char="${c}">${c}</span>`).join("");
+}
+function playTone(freq=180,duration=.12,type="triangle",volume=.04){
+  if(!soundOn)return;
+  try{audioCtx ||= new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==="suspended")audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(volume,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+duration)}catch(e){}
+}
+let audioCtx=null,soundOn=false,musicOn=false,musicMutedByUser=false;
+const bgMusic=$("#bgMusic");
+let musicTracks=[{title:"Garba",audio:"assets/garba.mp3"}],musicTrackIndex=0;
+function setMusicTrack(index,autoplay=false){
+  if(!musicTracks.length)return;
+  musicTrackIndex=(index+musicTracks.length)%musicTracks.length;
+  const selected=musicTracks[musicTrackIndex];
+  const nextUrl=new URL(selected.audio,document.baseURI).href;
+  if(bgMusic.src!==nextUrl){bgMusic.src=selected.audio;bgMusic.load();if(autoplay)startBackgroundMusic()}
+  bgMusic.loop=musicTracks.length===1;
+  $("#playlistTrackTitle").textContent=selected.title||`Track ${musicTrackIndex+1}`;
+  $("#playlistNext").setAttribute("aria-label",`Current track: ${selected.title||`Track ${musicTrackIndex+1}`}. Play the next track`);
+}
+function setMusicPlaylist(value){
+  const tracks=Array.isArray(value)?value.filter(track=>track&&typeof track.audio==="string"&&track.audio.trim()):[];
+  musicTracks=tracks.length?tracks:[{title:"Garba",audio:"assets/garba.mp3"}];
+  setMusicTrack(Math.min(musicTrackIndex,musicTracks.length-1),musicOn);
+}
+$("#playlistNext").addEventListener("click",()=>setMusicTrack(musicTrackIndex+1,musicOn));
+bgMusic.addEventListener("ended",()=>{if(musicTracks.length>1)setMusicTrack(musicTrackIndex+1,true)});
+function updateSoundButtons(){
+  $$("[data-sound]").forEach(b=>{
+    b.textContent=musicOn?"♫♪":"♫";
+    b.setAttribute("aria-pressed",String(musicOn));
+    b.setAttribute("aria-label",musicOn?"Mute background music":"Play background music");
+    b.title=musicOn?"Mute background music":"Play background music";
+    b.classList.toggle("music-playing",musicOn);
+  });
+}
+function startBackgroundMusic(announce=false){
+  if(musicMutedByUser)return;
+  musicOn=true;soundOn=true;bgMusic.volume=0.28;updateSoundButtons();
+  const playPromise=bgMusic.play();
+  if(playPromise&&typeof playPromise.then==="function"){
+    playPromise.then(()=>{updateSoundButtons();if(announce)toast("Garba music is playing ♪");})
+      .catch(()=>{musicOn=false;soundOn=false;updateSoundButtons();if(announce)toast("Tap ♫ to start the music");});
+  }
+}
+function toggleSound(){
+  if(musicOn){
+    musicOn=false;soundOn=false;musicMutedByUser=true;bgMusic.pause();
+    updateSoundButtons();toast("Background music muted");
+  }else{
+    musicMutedByUser=false;musicOn=true;soundOn=true;bgMusic.volume=0.28;updateSoundButtons();
+    const playPromise=bgMusic.play();
+    if(playPromise&&typeof playPromise.then==="function"){
+      playPromise.then(()=>{updateSoundButtons();toast("Garba music is playing ♪");})
+        .catch(()=>{musicOn=false;soundOn=false;updateSoundButtons();toast("Tap ♫ again to allow music");});
+    }
+    playTone(220,.14);
+  }
+}
+$$("[data-sound]").forEach(b=>b.addEventListener("click",toggleSound));
+$("#beginBtn").addEventListener("click",()=>{startBackgroundMusic(true);playTone(440,.15);showScreen("storyPage")});
+$$("[data-next]").forEach(b=>b.addEventListener("click",()=>navigateRelative(1)));
+$$("[data-prev]").forEach(b=>b.addEventListener("click",()=>navigateRelative(-1)));
+$$("[data-back]").forEach(b=>b.addEventListener("click",()=>navigateRelative(-1)));
+/* The map has five real interactive stops, connected in a zig-zag route. */
+let stopIndex=0,visitedStops=new Set([0]);
+const stopCoords=[{x:13,y:78},{x:72,y:64},{x:18,y:47},{x:72,y:27},{x:39,y:9}];
+function pickStop(index){
+  stopIndex=index;visitedStops.add(index);
+  $$(".map-spot").forEach((el,i)=>el.classList.toggle("active",i===index));
+  const pos=stopCoords[index],trav=$("#travelCouple");
+  trav.style.left=pos.x+"%";trav.style.top=pos.y+"%";
+  trav.querySelector("img").src=`assets/dance-${[1,4,2,6,10][index]}.webp`;
+  const stop=mapStops[index]||{};
+  const dialogue=String(stop.dialogue||mapLines[index]||"").replace(/\{guest\}/g,INVITATION.guest).replace(/\{host\}/g,INVITATION.host);
+  $("#mapDialogue").innerHTML=`<strong>${escapeHtml(index%2===0?INVITATION.host:INVITATION.guest)}:</strong> ${escapeHtml(dialogue)}`;
+  $("#mapCounter").textContent=`${visitedStops.size} / 5 stops`;
+  $("#routeLit").style.strokeDashoffset=-(index*60);
+  playTone([260,320,390,450,520][index],.12);
+}
+$$(".map-spot").forEach(b=>b.addEventListener("click",()=>pickStop(+b.dataset.stop)));
+
+/* Pani-puri story: each click moves the snack and advances the illustrated moment. */
+let paniScenes=Array.from({length:6},(_,i)=>`assets/pani-scene-${i+1}.webp`);
+let paniCaptions=[
+  `"Bhaiya, one plate please!"`,
+  `"Look, he made it extra crispy!"`,
+  `"One for you, one for me."`,
+  `"The cat took that one!"`,
+  `"Okay, this one is definitely mine."`,
+  `"The free one is all yours, jaan."`
+];
+let puris=0,paniSceneIndex=0;
+let puriButtonLabel="One more, bhaiya! 🥣";
+const puriDots=$("#puriDots");
+function drawPuriDots(){puriDots.innerHTML="";for(let i=0;i<paniScenes.length;i++){const d=document.createElement("i");d.className="pani-dot";puriDots.appendChild(d)}}
+function updatePani(){
+  $("#puriCount").textContent=puris;
+  $$(".pani-dot").forEach((d,i)=>d.classList.toggle("full",i<puris));
+  $("#paniCaption").textContent=paniCaptions[Math.min(paniSceneIndex,paniCaptions.length-1)]||"";
+  $("#paniScene").src=paniScenes[paniSceneIndex];
+  $("#paniScene").alt=`Pani puri story moment ${paniSceneIndex+1} of ${paniScenes.length}`;
+  $("#paniScene").classList.remove("swap");void $("#paniScene").offsetWidth;$("#paniScene").classList.add("swap");
+  $("#paniNote").textContent=puris>=paniScenes.length?`${paniScenes.length} pani puris, one unforgettable snack break.`:`Psst… watch the pani puri fly to ${INVITATION.guest}!`;
+  $("#puriBtn").textContent=puris>=paniScenes.length?"One last happy bite! 🥣":puriButtonLabel;
+}
+$("#puriBtn").addEventListener("click",()=>{
+  puris=Math.min(paniScenes.length,puris+1);paniSceneIndex=(paniSceneIndex+1)%paniScenes.length;
+  const p=$("#flyingPuri");p.classList.remove("fly");void p.offsetWidth;p.classList.add("fly");
+  $("#storyFrame").animate([{transform:"rotate(0) scale(1)"},{transform:"rotate(-1deg) scale(1.02)"},{transform:"rotate(1deg) scale(1)"},{transform:"none"}],{duration:700,easing:"ease-out"});
+  playTone(520,.08,"sine");setTimeout(()=>playTone(360,.1,"triangle"),90);
+  updatePani();
+  if(puris===paniScenes.length)toast("Bhaiya's treat! You two are officially pani-puri partners.");
+});
+/* Ten dance steps: every dhol click changes both the illustrated pose and motion style. */
+let danceSteps=[
+  {title:"Do Tali",caption:"One clap, one smile… let's begin!",image:"assets/dance-1.webp"},
+  {title:"Tran Tali",caption:"Now two claps, just like that!",image:"assets/dance-2.webp"},
+  {title:"Dodhiya (6-step)",caption:"Step right, step left — don't lose the beat.",image:"assets/dance-3.webp"},
+  {title:"Chapti & Spin",caption:"A little spin, and look at that skirt fly!",image:"assets/dance-4.webp"},
+  {title:"Single Strike",caption:"Sticks up! Catch the rhythm.",image:"assets/dance-5.webp"},
+  {title:"Double Clash",caption:"Clack-clack! Perfect timing.",image:"assets/dance-6.webp"},
+  {title:"The Circle Walk",caption:"Round and round we go together.",image:"assets/dance-7.webp"},
+  {title:"Low Bend & Tap",caption:"Low bend, little tap, big grin.",image:"assets/dance-8.webp"},
+  {title:"Back-to-Back",caption:"Back-to-back, still in sync.",image:"assets/dance-9.webp"},
+  {title:"Joyous Finale",caption:"That's our grand finale!",image:"assets/dance-10.webp"},
+];
+let poseIndex=0;
+const meter=$("#danceMeter");for(let i=0;i<10;i++){const s=document.createElement("span");meter.appendChild(s)}
+function setPose(index){
+  poseIndex=index%danceSteps.length;
+  const img=$("#dancePose");
+  img.className="m"+poseIndex;
+  img.src=danceSteps[poseIndex].image||`assets/dance-${poseIndex+1}.webp`;
+  img.alt=`Couple dancing ${danceSteps[poseIndex].title} Garba step`;
+  $("#poseLabel").textContent=String(poseIndex+1).padStart(2,"0")+" · "+danceSteps[poseIndex].title;
+  $$("#danceMeter span").forEach((s,i)=>s.classList.toggle("on",i<=poseIndex));
+  $("#danceCaption").textContent=danceSteps[poseIndex].caption||"";
+}
+$("#dholBtn").addEventListener("click",()=>{
+  setPose((poseIndex+1)%danceSteps.length);
+  const f=$("#lightning");f.classList.remove("flash");void f.offsetWidth;f.classList.add("flash");
+  playTone([130,175,220,260,190][poseIndex%5],.19,"sawtooth",.035);
+  setTimeout(()=>playTone(320,.08,"triangle",.025),75);
+  $("#dholBtn").textContent=poseIndex===danceSteps.length-1?"Encore! One more round":"Next beat! 🥁";
+  $("#danceStage").animate([{transform:"scale(1)"},{transform:"scale(1.015)"},{transform:"scale(1)"}],{duration:260});
+});
+/* Photo carousel: ten pose illustrations in a sliding paper album. */
+let photos=["The first clap","Two claps, same rhythm","Finding our footwork","A spin worth keeping","Dandiya sparks","Clack-clack chemistry","Around in a circle","A low bend and a laugh","Back-to-back buddies","Our joyous finale"].map((caption,i)=>({image:`assets/dance-${i+1}.webp`,caption}));
+let photoIndex=0;
+const track=$("#photoTrack");
+function renderPhotos(){
+  track.innerHTML="";
+  track.style.width=`${photos.length*100}%`;
+  photos.forEach((photo,i)=>{const frame=document.createElement("div");frame.className="memory-frame";frame.style.flex=`0 0 ${100/photos.length}%`;frame.innerHTML=`<div class="memory-art"><img loading="lazy" src="${escapeHtml(photo.image)}" alt="${escapeHtml(photo.caption)}"></div><div class="memory-caption">${escapeHtml(photo.caption)}</div>`;track.appendChild(frame)});
+  photoIndex=Math.min(photoIndex,photos.length-1);track.style.transform=`translateX(-${photoIndex*100/photos.length}%)`;
+  $("#photoMeta").textContent=photos.length?`${photoIndex+1} / ${photos.length} · ${photos[photoIndex]?.caption||""}`:"No photos added yet";
+}
+function movePhoto(delta){
+  if(!photos.length)return;
+  photoIndex=(photoIndex+delta+photos.length)%photos.length;
+  track.style.transform=`translateX(-${photoIndex*100/photos.length}%)`;
+  $("#photoMeta").textContent=`${photoIndex+1} / ${photos.length} · ${photos[photoIndex].caption||""}`;
+  playTone(410,.07,"sine",.025);
+}
+$("#photoNext").addEventListener("click",()=>movePhoto(1));
+$("#photoPrev").addEventListener("click",()=>movePhoto(-1));
+$("#photoWindow").addEventListener("click",()=>movePhoto(1));
+$("#photoWindow").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();movePhoto(1)}});
+let touchX=0;$("#photoWindow").addEventListener("touchstart",e=>touchX=e.changedTouches[0].screenX,{passive:true});
+$("#photoWindow").addEventListener("touchend",e=>{const dx=e.changedTouches[0].screenX-touchX;if(Math.abs(dx)>35)movePhoto(dx<0?1:-1)},{passive:true});
+/* RSVP ticket, animated stamp, final screen. */
+function populateTicket(){
+  $("#ticketDate").textContent=INVITATION.date;$("#ticketTime").textContent=INVITATION.time;
+  $("#ticketVenue").textContent=INVITATION.venue;$("#ticketDress").textContent=INVITATION.dress;
+  $("#ticketTitle").textContent=INVITATION.ticketTitle;
+  $("#ticketGuest").textContent=`${INVITATION.guest} + ${INVITATION.host}`;
+}
+$("#yesBtn").addEventListener("click",()=>{
+  $("#ticket").hidden=false;populateTicket();
+  $("#ticketStamp").classList.remove("show");void $("#ticketStamp").offsetWidth;$("#ticketStamp").classList.add("show");
+  $("#proposalNote").textContent="I knew it! Then the big night is ours.";
+  $("#proposalHeading").innerHTML="I knew it!<br>My favourite dance partner.";
+  $("#proposalCouple").src="assets/dance-10.webp";
+  $("#proposalButtons").hidden=true;$("#finaleBtn").hidden=false;
+  playTone(520,.14);setTimeout(()=>playTone(660,.18),130);toast("It's a date! Your Garba pass is ready 💗");
+});
+$("#noBtn").addEventListener("click",()=>{
+  $("#proposalNote").textContent="No pressure — the best memories start with a little more chatting. 💛";
+  $("#proposalCouple").src="assets/dance-1.webp";
+  $("#noBtn").textContent="Ask me again?";playTone(220,.1);
+});
+$("#finaleBtn").addEventListener("click",()=>{
+  showScreen("finalePage");
+  if(INVITATION.whatsapp){$("#shareBtn").textContent="Share on WhatsApp ↗"}
+});
+$("#replayBtn").addEventListener("click",()=>{
+  stopIndex=0;visitedStops=new Set([0]);pickStop(0);
+  puris=0;paniSceneIndex=0;updatePani();poseIndex=0;setPose(0);photoIndex=0;track.style.transform="translateX(0)";
+  $("#ticket").hidden=true;$("#ticketStamp").classList.remove("show");$("#proposalButtons").hidden=false;$("#finaleBtn").hidden=true;
+  $("#proposalHeading").innerHTML="Will you be my<br>Garba partner?";$("#proposalNote").textContent="One more thing before the night begins…";$("#proposalCouple").src="assets/dance-4.webp";
+  showScreen("welcome");
+});
+$("#shareBtn").addEventListener("click",async()=>{
+  const text=`${INVITATION.message}\n\nDate: ${INVITATION.date}\nTime: ${INVITATION.time}\nVenue: ${INVITATION.venue}\n\nHappy Navratri!`;
+  let inviteUrl=window.NAVRATRI_PUBLIC_URL||"";if(!inviteUrl&&window.parent===window)inviteUrl=window.location.href;
+  const shareText=inviteUrl?`${text}\n\nOpen our invitation: ${inviteUrl}`:text;
+  if(INVITATION.whatsapp){const url="https://wa.me/"+INVITATION.whatsapp.replace(/\D/g,"")+"?text="+encodeURIComponent(shareText);window.open(url,"_blank","noopener")}
+  else if(navigator.share){try{await navigator.share(inviteUrl?{title:"Our Navratri Garba Pass",text,url:inviteUrl}:{title:"Our Navratri Garba Pass",text})}catch(e){}}
+  else if(navigator.clipboard){try{await navigator.clipboard.writeText(shareText);toast(inviteUrl?"Garba pass and invitation link copied — send them to your favourite person!":"Invitation details copied — publish it to share your live link.")}catch(e){toast("Happy Navratri! Take a screenshot of your pass.")}}
+  else toast("Happy Navratri! Take a screenshot of your pass.");
+});
+function setText(id,value){const el=$(id);if(el)el.textContent=String(value??"")}
+function setLines(id,value){const el=$(id);if(el)el.innerHTML=asLines(value)}
+function renderWaveTitle(value){
+  const title=$("#waveTitle"),text=String(value||"NAVRATRI");
+  title.setAttribute("aria-label",text);
+  title.innerHTML=[...text].map((c,i)=>`<span style="--i:${i}" data-char="${escapeHtml(c)}">${c===" "?"&nbsp;":escapeHtml(c)}</span>`).join("");
+}
+function applyNavratriData(data={},removeWatermark=false){
+  const saved=data&&typeof data==="object"?data:{};
+  INVITATION={
+    host:String(saved.hostName??INVITATION.host),guest:String(saved.guestName??INVITATION.guest),
+    date:String(saved.eventDate??INVITATION.date),time:String(saved.eventTime??INVITATION.time),
+    venue:String(saved.venue??INVITATION.venue),dress:String(saved.dressCode??INVITATION.dress),
+    ticketTitle:String(saved.ticketTitle??INVITATION.ticketTitle),whatsapp:String(saved.whatsapp??INVITATION.whatsapp),
+    message:String(saved.shareMessage??INVITATION.message),
+  };
+  const textFields={
+    welcomeEyebrow:"welcomeEyebrow",welcomeKicker:"welcomeKicker",welcomeSubtitle:"welcomeSubtitle",beginButtonLabel:"beginButtonLabel",welcomeFooter:"welcomeFooter",
+    storyEyebrow:"storyEyebrow",storyTitleLead:"storyTitleLead",storySubtitle:"storySubtitle",storyNote:"storyNote",storyButtonLabel:"storyButtonLabel",
+    mapEyebrow:"mapEyebrow",mapSubtitle:"mapSubtitle",paniEyebrow:"paniEyebrow",paniSubtitle:"paniSubtitle",paniResultLabel:"paniResultLabel",
+    danceEyebrow:"danceEyebrow",danceSubtitle:"danceSubtitle",photosEyebrow:"photosEyebrow",photosSubtitle:"photosSubtitle",
+    proposalEyebrow:"proposalEyebrow",proposalNote:"proposalNote",ticketFoot:"ticketFoot",ticketHeader:"ticketHeader",ticketAdmit:"ticketAdmit",
+    ticketDateLabel:"ticketDateLabel",ticketTimeLabel:"ticketTimeLabel",ticketVenueLabel:"ticketVenueLabel",ticketDressLabel:"ticketDressLabel",ticketGuestLabel:"ticketGuestLabel",
+    finalEyebrow:"finalEyebrow",signature:"signature",
+    videoTitle:"videoTitle",
+  };
+  Object.entries(textFields).forEach(([key,id])=>{if(saved[key]!==undefined)setText(`#${id}`,saved[key])});
+  if(saved.welcomeTitle!==undefined)renderWaveTitle(saved.welcomeTitle);
+  if(saved.storyTitleEmphasis!==undefined)setLines("#storyTitleEmphasis",saved.storyTitleEmphasis);
+  if(saved.mapTitle!==undefined)setLines("#mapTitle",saved.mapTitle);
+  if(saved.paniTitle!==undefined)setLines("#paniTitle",saved.paniTitle);
+  if(saved.danceTitle!==undefined)setLines("#danceTitle",saved.danceTitle);
+  if(saved.photosTitle!==undefined)setLines("#photosTitle",saved.photosTitle);
+  if(saved.proposalHeading!==undefined)setLines("#proposalHeading",saved.proposalHeading);
+  if(saved.finalTitle!==undefined)setLines("#finalTitle",saved.finalTitle);
+  if(saved.finalCopy!==undefined)setLines("#finalCopy",saved.finalCopy);
+  if(saved.yesButtonLabel!==undefined)setText("#yesBtn",saved.yesButtonLabel);
+  if(saved.noButtonLabel!==undefined)setText("#noBtn",saved.noButtonLabel);
+  if(saved.replayButtonLabel!==undefined)setText("#replayBtn",saved.replayButtonLabel);
+  if(saved.shareButtonLabel!==undefined)setText("#shareBtn",saved.shareButtonLabel);
+  if(saved.puriButtonLabel!==undefined)puriButtonLabel=String(saved.puriButtonLabel);
+  if(saved.dholButtonLabel!==undefined)setText("#dholBtn",saved.dholButtonLabel);
+  if(saved.photoTapHint!==undefined)setText(".photo-tap",saved.photoTapHint);
+  if(saved.photoPreviousLabel!==undefined)setText("#photoPrev",saved.photoPreviousLabel);
+  if(saved.photoNextLabel!==undefined)setText("#photoNext",saved.photoNextLabel);
+  if(saved.eventDate!==undefined)setText("#ticketDate",INVITATION.date);
+  if(saved.eventTime!==undefined)setText("#ticketTime",INVITATION.time);
+  if(saved.venue!==undefined)setText("#ticketVenue",INVITATION.venue);
+  if(saved.dressCode!==undefined)setText("#ticketDress",INVITATION.dress);
+  if(saved.ticketTitle!==undefined)setText("#ticketTitle",INVITATION.ticketTitle);
+  if(saved.guestName!==undefined||saved.hostName!==undefined)setText("#ticketGuest",`${INVITATION.guest} + ${INVITATION.host}`);
+  $("#shareBtn").textContent=(saved.shareButtonLabel||"Share our pass")+(INVITATION.whatsapp?" ↗":" ↗");
+
+  const savedStops=Array.isArray(saved.mapStops)?saved.mapStops:[];
+  mapStops=savedStops.length?savedStops:[
+    {name:"Main Gate",dialogue:`Ready, ${INVITATION.guest}? The lights are calling us!`},
+    {name:"Bangle Stall",dialogue:"Ooh, bangles first! Help me pick a colour to match my chaniya choli."},
+    {name:"Pani Puri Bhaiya",dialogue:"That pani puri stall smells incredible. One plate? Maybe five."},
+    {name:"Dhol Stage",dialogue:"I can hear the dhol! Promise you'll dance every round with me."},
+    {name:"Photo Booth",dialogue:"One photo here, then? I want to remember this night forever."},
+  ];
+  mapLines=mapStops.map(stop=>stop.dialogue||"");
+  $$(".map-spot .spot-name").forEach((el,i)=>{el.textContent=mapStops[i]?.name||`Stop ${i+1}`});
+  const paniItems=Array.isArray(saved.paniScenes)?saved.paniScenes.filter(item=>item&&item.image):[];
+  if(paniItems.length){paniScenes=paniItems.map(item=>item.image);paniCaptions=paniItems.map(item=>item.caption||"")}
+  else {paniScenes=Array.from({length:6},(_,i)=>`assets/pani-scene-${i+1}.webp`);paniCaptions=["Bhaiya, one plate please!","Look, he made it extra crispy!","One for you, one for me.","The cat took that one!","Okay, this one is definitely mine.","The free one is all yours, jaan."]}
+  drawPuriDots();puris=Math.min(puris,paniScenes.length);paniSceneIndex=paniSceneIndex%paniScenes.length;updatePani();
+  const savedDance=Array.isArray(saved.danceSteps)?saved.danceSteps.filter(item=>item&&item.title):[];
+  if(savedDance.length)danceSteps=savedDance;else danceSteps=danceSteps.map((item,i)=>({...item,image:`assets/dance-${i+1}.webp`}));
+  meter.innerHTML="";for(let i=0;i<danceSteps.length;i++){const beat=document.createElement("span");meter.appendChild(beat)}
+  poseIndex=poseIndex%danceSteps.length;setPose(poseIndex);
+  const savedPhotos=Array.isArray(saved.photos)?saved.photos.filter(item=>item&&item.image):[];
+  photos=savedPhotos.length?savedPhotos:[...Array.from({length:10},(_,i)=>({image:`assets/dance-${i+1}.webp`,caption:["The first clap","Two claps, same rhythm","Finding our footwork","A spin worth keeping","Dandiya sparks","Clack-clack chemistry","Around in a circle","A low bend and a laugh","Back-to-back buddies","Our joyous finale"][i]}))];
+  renderPhotos();
+  setMusicPlaylist(saved.playlist);
+  const videoUrl=typeof saved.video==="string"?saved.video:"";
+  $("#memoryVideo").hidden=!videoUrl;
+  if(videoUrl&&$("#uploadedVideo").getAttribute("src")!==videoUrl){$("#uploadedVideo").src=videoUrl;$("#uploadedVideo").load()}
+  $$("[data-section]").forEach(section=>{section.hidden=saved[section.dataset.section]===false});
+  journeyOrder=["welcome",...steps.filter(id=>!$("#"+id)?.hidden)];
+  let didMoveScreen=false;
+  if(!journeyOrder.includes(currentScreen)){
+    const oldIndex=allJourneyOrder.indexOf(currentScreen);
+    currentScreen=journeyOrder.find(id=>allJourneyOrder.indexOf(id)>oldIndex)||journeyOrder[journeyOrder.length-1]||"welcome";
+    didMoveScreen=true;
+  }
+  $("#devsphereCredit").hidden=removeWatermark===true;
+  if(didMoveScreen)showScreen(currentScreen);else{drawProgress();updateJourneyNav()}
+  pickStop(Math.min(stopIndex,mapStops.length-1));
+  populateTicket();
+}
+window.addEventListener("message",event=>{
+  if(event.source!==window.parent||event.data?.type!=="devsphere-navratri-template-update")return;
+  applyNavratriData(event.data.data,event.data.removeWatermark===true);
+});
+initDecor();makePetals($("#storyPage"),22);drawProgress();updateJourneyNav();updatePani();setPose(0);populateTicket();
+applyNavratriData(window.NAVRATRI_DATA||{},window.NAVRATRI_REMOVE_WATERMARK===true);
+</script>
+</body>
+</html>

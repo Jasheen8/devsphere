@@ -35,6 +35,14 @@ export async function createRazorpayOrder(
     amount: amountMinor,
     currency: "INR",
     receipt: receipt.slice(0, 40),
+    payment: {
+      capture: "automatic",
+      capture_options: {
+        automatic_expiry_period: 12,
+        manual_expiry_period: 720,
+        refund_speed: "normal",
+      },
+    },
   });
 }
 
@@ -60,6 +68,43 @@ export async function fetchRazorpayPayment(providerPaymentId: string) {
   }
 
   return requireRazorpay().payments.fetch(providerPaymentId);
+}
+
+export async function captureRazorpayPaymentIfAuthorized(
+  providerPaymentId: string,
+  providerOrderId: string,
+  expectedAmount: number,
+) {
+  const payment = await fetchRazorpayPayment(providerPaymentId);
+
+  if (
+    String(payment?.order_id) !== providerOrderId ||
+    Number(payment?.amount) !== expectedAmount ||
+    String(payment?.currency) !== "INR"
+  ) {
+    throw new Error("Razorpay payment does not match the order");
+  }
+
+  if (payment.status !== "authorized") {
+    return payment;
+  }
+
+  try {
+    return await requireRazorpay().payments.capture(
+      providerPaymentId,
+      expectedAmount,
+      "INR",
+    );
+  } catch (captureError) {
+    // The customer callback and webhook can race to capture the same payment.
+    // Accept the race only when Razorpay confirms it has already been captured.
+    const refreshed = await fetchRazorpayPayment(providerPaymentId);
+    if (refreshed?.status === "captured") {
+      return refreshed;
+    }
+
+    throw captureError;
+  }
 }
 
 export function verifyRazorpayPaymentSignature(
