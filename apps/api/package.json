@@ -12,6 +12,7 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:seed:navratri": "tsx prisma/seed.ts --navratri-only",
     "prisma:seed:bloom": "tsx prisma/seed.ts --bloom-only",
+    "prisma:seed:wedding": "tsx prisma/seed.ts --wedding-only",
     "prisma:seed:cutie": "tsx prisma/seed-cutie-birthday.ts",
     "test": "vitest run"
   },

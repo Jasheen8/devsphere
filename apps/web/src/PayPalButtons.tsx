@@ -157,6 +157,7 @@ export default function PayPalButtons({
         const config = await api<{
           paypalClientId: string;
           paypalEnabled: boolean;
+          paypalError?: string;
         }>("/payments/config");
 
         if (
@@ -164,7 +165,7 @@ export default function PayPalButtons({
           !config.paypalClientId
         ) {
           throw new Error(
-            "PayPal is not configured for international payments.",
+            config.paypalError || "PayPal is not configured for international payments.",
           );
         }
 

@@ -1,0 +1,3875 @@
+import React, { useEffect, useMemo, useState } from "react";
+
+import {
+  BrowserRouter,
+  useNavigate,
+  useParams,
+  Link,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+import {
+  Heart,
+  ArrowRight,
+  LogIn,
+  LayoutDashboard,
+  Save,
+  Share2,
+  LockKeyhole,
+  QrCode,
+  Gift,
+  Mail,
+  ScanLine,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { TemplateRenderer } from "@memora/template-engine";
+import type { TemplateDefinition } from "@memora/shared";
+import { captureEvent, capturePageview } from "./analytics";
+import {
+  api,
+  apiBase,
+  clearTemplatesCache,
+  getCategories,
+  getCurrentUser,
+  getTemplate,
+  getTemplates,
+  preloadTemplate,
+  preloadTemplates,
+} from "./lib/api";
+import PayPalButtons from "./PayPalButtons";
+import "./styles.css";
+
+type Template = {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  price: number;
+  tags: string[];
+  thumbnailUrl?: string;
+  previewUrl?: string;
+  liveDemoUrl?: string;
+  isFree?: boolean;
+  category: {
+    name: string;
+    slug: string;
+  };
+};
+
+type TemplateCardDetails = {
+  rating?: number;
+  uses?: number;
+  price?: number;
+  usdPrice?: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  badge?: string;
+  liveDemoCode?: string;
+};
+
+const TEMPLATE_CARD_DETAILS: Record<string, TemplateCardDetails> = {
+  "birthday-royal-memory": {
+    rating: 4.9,
+    uses: 2557,
+    price: 99,
+    usdPrice: 10,
+    originalPrice: 174,
+    discountPercent: 43,
+    liveDemoCode: "120800",
+  },
+  "cutie-birthday": { rating: 4.2, uses: 1129 },
+  "anniversary-romantic-01": {
+    rating: 4.8,
+    uses: 854,
+    price: 449,
+    usdPrice: 30,
+    originalPrice: 599,
+    discountPercent: 25,
+    liveDemoCode: "250626",
+  },
+  "wedding-invitation": { price: 999, usdPrice: 55 },
+  "navratri-partner-invite": {
+    price: 101,
+    usdPrice: 10,
+    originalPrice: 126,
+    discountPercent: 20,
+    badge: "NEW",
+  },
+};
+
+const TEMPLATE_CARD_PRIORITY = [
+  "birthday-royal-memory",
+  "cutie-birthday",
+  "anniversary-romantic-01",
+  "wedding-invitation",
+  "navratri-partner-invite",
+];
+
+function getVisibleTemplateCards(items: Template[]) {
+  return TEMPLATE_CARD_PRIORITY.map((slug) =>
+    items.find((template) => template.slug === slug),
+  ).filter((template): template is Template => Boolean(template));
+}
+const heroMarqueeRows = [
+  ["BIRTHDAYS", "LOVE STORIES", "ANNIVERSARIES", "WEDDINGS", "MEMORIES", "LITTLE SURPRISES"],
+  ["MADE PERSONAL", "MADE BEAUTIFUL", "MADE WITH HEART", "SHARE THE MOMENT", "CREATE YOUR SURPRISE", "CELEBRATE TOGETHER"],
+];
+
+function GlobalLoader({ show }: { show: boolean }) {
+  if (!show) return null;
+
+  return (
+    <div className="global-loader">
+      <div className="global-loader-spinner" />
+      <span>Loading…</span>
+    </div>
+  );
+}
+
+function Nav() {
+  const [user, setUser] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    let active = true;
+    getCurrentUser().then((currentUser) => {
+      if (active) setUser(currentUser);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const userInitial =
+    user?.name?.trim()?.charAt(0)?.toUpperCase() ||
+    user?.email?.trim()?.charAt(0)?.toUpperCase() ||
+    "U";
+
+  return (
+    <nav className="site-nav">
+      <div className="nav-brand">
+        <span className="brand-mark">D</span>
+        <span>Devsphere</span>
+      </div>
+
+      <div className="nav-links">
+        <Link to="/templates" onMouseEnter={preloadTemplates}>
+          Templates
+        </Link>
+        <Link to="/dashboard">My Websites</Link>
+
+        {user ? (
+          <Link
+            to="/dashboard"
+            className="nav-user"
+            title={user.name || user.email}
+            aria-label="Open My Websites"
+          >
+            {userInitial}
+          </Link>
+        ) : (
+          <Link to="/login" className="nav-login">
+            Login
+          </Link>
+        )}
+      </div>
+    </nav>
+  );
+}
+function Home() {
+  const [templates, setTemplates] = useState<Template[]>([]);
+  useEffect(() => {
+    const handleTemplateUpdate = (event: Event) => {
+      setTemplates((event as CustomEvent<Template[]>).detail || []);
+    };
+    window.addEventListener("devsphere:templates-updated", handleTemplateUpdate);
+
+    getTemplates()
+      .then((items) => {
+        setTemplates(items);
+      })
+      .catch((error) => {
+        console.error("Failed to load templates:", error);
+      });
+
+    return () => {
+      window.removeEventListener("devsphere:templates-updated", handleTemplateUpdate);
+    };
+  }, []);
+  const homeTemplates = getVisibleTemplateCards(templates);
+  const heroWords = "Turn Your Memories Into Something Beautiful".split(" ");
+  let heroLetterIndex = 0;
+
+  return (
+    <>
+      <Nav />
+      <main>
+        <section className="hero-home">
+          <div className="hero-home-pills">
+            <span className="pill">Digital gifts, made personal</span>
+            <span className="pill">
+              Made for everyone, everywhere · International payments accepted
+            </span>
+          </div>
+          <h1 aria-label="Turn Your Memories Into Something Beautiful">
+            {heroWords.map((word, wordIndex) => (
+              <span className="hero-title-word" key={`${word}-${wordIndex}`}>
+                {Array.from(word).map((letter, letterIndex) => {
+                  const delay = heroLetterIndex++ * 55;
+
+                  return (
+                    <span
+                      className="hero-title-letter"
+                      key={`${wordIndex}-${letterIndex}`}
+                      style={{ animationDelay: `${delay}ms` }}
+                      aria-hidden="true"
+                    >
+                      {letter}
+                    </span>
+                  );
+                })}
+              </span>
+            ))}{" "}
+            <span className="hero-title-heart" aria-hidden="true">
+
+            </span>
+          </h1>
+          <p>
+            Create personalized birthday, anniversary, love, wedding and
+            celebration websites in minutes — without coding.
+          </p>
+          <div className="actions" style={{ justifyContent: "center" }}>
+            <Link
+              className="btn btn-primary"
+              to="/templates"
+              onMouseEnter={preloadTemplates}
+            >
+              Create Your Surprise <ArrowRight size={17} />
+            </Link>
+            <Link className="btn btn-soft" to="/templates">
+              Explore Templates
+            </Link>
+          </div>
+        </section>
+        <div className="hero-marquee" aria-hidden="true">
+          {heroMarqueeRows.map((words, rowIndex) => (
+            <div
+              className={`hero-marquee-lane ${
+                rowIndex === 0 ? "hero-marquee-lane-primary" : "hero-marquee-lane-secondary"
+              }`}
+              key={rowIndex}
+            >
+              <div
+                className={`hero-marquee-track ${rowIndex === 1 ? "is-reverse" : ""}`}
+              >
+                {[0, 1].map((copy) => (
+                  <div
+                    className="hero-marquee-group"
+                    key={copy}
+                    aria-hidden={copy === 1}
+                  >
+                    {words.map((word) => (
+                      <span className="hero-marquee-item" key={word}>
+                        {word}
+                      </span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="container">
+          <section className="section">
+            <div className="section-head">
+              <div>
+                <span className="pill">How it works</span>
+                <h2>Your story. Your style. Your moment.</h2>
+              </div>
+            </div>
+            <div className="grid">
+              <InfoCard
+                n="01"
+                t="Choose a template"
+                d="Pick an occasion and a beautiful story layout."
+              />
+              <InfoCard
+                n="02"
+                t="Make it yours"
+                d="Add names, memories, photos, music and your message."
+              />
+              <InfoCard
+                n="03"
+                t="Share the surprise"
+                d="Pay once, publish instantly and send your private link or QR."
+              />
+            </div>
+          </section>
+          <section className="section">
+            <div className="section-head">
+              <div>
+                <span className="pill">Featured</span>
+                <h2>Templates made to feel personal</h2>
+              </div>
+              <Link to="/templates">See all →</Link>
+            </div>
+            <div className="grid template-grid">
+              {homeTemplates.map((t) => (
+                <TemplateCard key={t.id} t={t} />
+              ))}
+              <BlankTemplateCard />
+            </div>
+          </section>
+          <section className="section">
+            <div
+              className="card"
+              style={{ padding: 32, background: "var(--ds-cherry)", color: "var(--ds-cream-soft)" }}
+            >
+              <span className="pill">Interactive reveals</span>
+              <h2 style={{ color: "var(--ds-cream-soft)" }}>
+                Make opening the website part of the gift.
+              </h2>
+              <p style={{ maxWidth: 650, color: "#ded0ca", lineHeight: 1.7 }}>
+                Choose a normal link, magical QR portal, PIN lock, secret
+                letter, gift-box reveal or a puzzle unlock.
+              </p>
+              <div className="actions">
+                <span className="tag">Normal</span>
+                <span className="tag">QR</span>
+                <span className="tag">PIN</span>
+                <span className="tag">Letter</span>
+                <span className="tag">Gift Box</span>
+                <span className="tag">Puzzle</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </>
+  );
+}
+function InfoCard({ n, t, d }: { n: string; t: string; d: string }) {
+  return (
+    <div className="card" style={{ padding: 22 }}>
+      <span className="pill">{n}</span>
+      <h3>{t}</h3>
+      <p className="muted" style={{ lineHeight: 1.6 }}>
+        {d}
+      </p>
+    </div>
+  );
+}
+function BlankTemplateCard() {
+  return (
+    <article className="card blank-template-card">
+      <div className="blank-template-art" aria-hidden="true">
+        <Plus size={42} strokeWidth={1.5} />
+        <span>YOUR STORY STARTS HERE</span>
+      </div>
+      <div className="card-body">
+        <span className="muted">Custom</span>
+        <h3>Blank Template</h3>
+        <p className="muted">Start with a clean slate and request a design made around your idea.</p>
+        <div className="template-card-price" aria-label="Custom pricing in INR and USD">
+          <div className="template-card-price-side">
+            <div className="template-card-price-main"><strong>Custom</strong></div>
+            <span className="template-card-price-caption">INR · India</span>
+          </div>
+          <span className="template-card-price-separator" aria-hidden="true">or</span>
+          <div className="template-card-price-side template-card-price-side-international">
+            <div className="template-card-price-main"><strong>Custom</strong></div>
+            <span className="template-card-price-caption">USD · International</span>
+          </div>
+        </div>
+        <div className="actions">
+          <a className="btn btn-soft" href="https://instagram.com/devsphere.in" target="_blank" rel="noopener noreferrer">
+            Request a custom design
+          </a>
+        </div>
+      </div>
+    </article>
+  );
+}
+function TemplateCard({ t }: { t: Template }) {
+  const isAnniversary = t.slug === "anniversary-romantic-01";
+  const isWeddingInvitation = t.slug === "wedding-invitation";
+  const details = TEMPLATE_CARD_DETAILS[t.slug];
+  const inrPrice = details?.price ?? t.price;
+  const usdPrice = details?.usdPrice ?? (t.isFree ? 0 : 10);
+  const liveDemoUrl = isWeddingInvitation
+    ? "https://wedding-invitation-tau-three-37.vercel.app/"
+    : t.liveDemoUrl || t.previewUrl;
+
+  const imageUrl = isAnniversary
+    ? "/images/anniversary.png"
+    : t.thumbnailUrl ||
+      "/images/invitation.png";
+
+  return (
+    <article className={`card ${isAnniversary ? "anniversary-card" : ""}`}>
+      <img
+        src={imageUrl}
+        alt={isAnniversary ? "Bloom Anniversary" : t.name}
+        loading="lazy"
+        decoding="async"
+      />
+
+      <div className="card-body">
+        <span className="muted">
+          {isAnniversary ? "Anniversary" : t.category.name}
+        </span>
+        {t.isFree && <span className="free-template-badge">FREE</span>}
+        {details?.badge && <span className="template-new-badge">{details.badge}</span>}
+
+        <h3>{isAnniversary ? "Bloom Anniversary" : t.name}</h3>
+
+        <p className="muted">
+          {isAnniversary
+            ? "A cinematic journey of love, memories and beautiful moments created to celebrate your anniversary."
+            : t.description}
+        </p>
+
+        {details?.rating !== undefined && details.uses !== undefined && (
+          <div className="template-card-rating">
+            <span className="template-rating-stars" aria-label={`${details.rating} out of 5 stars`}>★★★★★</span>
+            <strong>{details.rating.toFixed(1)}/5</strong>
+            <span>({details.uses.toLocaleString("en-IN")})</span>
+          </div>
+        )}
+        <div className="template-card-price" aria-label="Template pricing in INR and USD">
+          <div className="template-card-price-side">
+            <div className="template-card-price-main">
+              <strong>{t.isFree ? "Free" : `₹${inrPrice}`}</strong>
+              {!t.isFree && details?.originalPrice !== undefined && (
+                <del>₹{details.originalPrice}</del>
+              )}
+            </div>
+            <span className="template-card-price-caption">INR · India</span>
+            {details?.discountPercent !== undefined && !t.isFree && (
+              <span className="template-discount-badge">{details.discountPercent}% off</span>
+            )}
+          </div>
+          <span className="template-card-price-separator" aria-hidden="true">or</span>
+          <div className="template-card-price-side template-card-price-side-international">
+            <div className="template-card-price-main">
+              <strong>{t.isFree ? "Free" : `$${usdPrice}`}</strong>
+            </div>
+            <span className="template-card-price-caption">USD · International</span>
+          </div>
+        </div>
+        <div className="tags">
+          {(isAnniversary ? ["romantic", "journey", "cinematic"] : t.tags).map(
+            (tag) => (
+              <span className="tag" key={tag}>
+                {tag}
+              </span>
+            ),
+          )}
+        </div>
+
+        <div className="actions">
+          {isWeddingInvitation ? (
+            <a
+              className="btn btn-soft"
+              href={liveDemoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Live Demo
+            </a>
+          ) : (
+            <Link
+              className="btn btn-soft"
+              to={`/templates/${t.slug}`}
+              onMouseEnter={() => preloadTemplate(t.slug)}
+            >
+              Preview
+            </Link>
+          )}
+
+          {!isWeddingInvitation && liveDemoUrl && (
+            <a
+              className="btn btn-primary"
+              href={liveDemoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Live Demo
+            </a>
+          )}
+
+          <Link
+            className="btn btn-primary"
+            to={`/create/${t.id}`}
+            onMouseEnter={() => preloadTemplate(t.id)}
+          >
+            {t.isFree ? "Use Free Template" : "Use Template"}
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+function Templates() {
+  const [items, setItems] = useState<Template[]>([]);
+  const [q, setQ] = useState("");
+  const [cats, setCats] = useState<any[]>([]);
+  const [cat, setCat] = useState("");
+  const [freeOnly, setFreeOnly] = useState(false);
+  useEffect(() => {
+    const handleTemplateUpdate = (event: Event) => {
+      setItems((event as CustomEvent<Template[]>).detail || []);
+    };
+    const handleCategoryUpdate = (event: Event) => {
+      setCats((event as CustomEvent<any[]>).detail || []);
+    };
+    window.addEventListener("devsphere:templates-updated", handleTemplateUpdate);
+    window.addEventListener("devsphere:categories-updated", handleCategoryUpdate);
+
+    getTemplates()
+      .then((templates) => setItems(templates))
+      .catch((error) => console.error("Failed to load templates:", error));
+    getCategories()
+      .then((categories) => setCats(categories))
+      .catch((error) => console.error("Failed to load categories:", error));
+
+    return () => {
+      window.removeEventListener("devsphere:templates-updated", handleTemplateUpdate);
+      window.removeEventListener("devsphere:categories-updated", handleCategoryUpdate);
+    };
+  }, []);
+
+  const search = q.trim().toLowerCase();
+  const visibleItems = getVisibleTemplateCards(items).filter((template) => {
+    const matchesSearch =
+      !search ||
+      `${template.name} ${template.description || ""}`
+        .toLowerCase()
+        .includes(search);
+    const matchesCategory = !cat || template.category?.slug === cat;
+    const matchesFree = !freeOnly || template.isFree;
+    return matchesSearch && matchesCategory && matchesFree;
+  });
+  const showBlankTemplate = !search && !cat && !freeOnly;
+  return (
+    <>
+      <Nav />
+      <div className="container">
+        <BackButton label="Back" />
+
+        <section className="section">
+          <span className="pill">Template gallery</span>
+          <h2>Find the feeling you want to share.</h2>
+          <div className="actions" style={{ margin: "20px 0" }}>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search templates…"
+              style={{
+                flex: 1,
+                minWidth: 240,
+                padding: 12,
+                border: "1px solid #dccbc2",
+                borderRadius: 12,
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setFreeOnly((current) => !current)}
+              className={`btn ${freeOnly ? "btn-primary" : "btn-soft"}`}
+              aria-pressed={freeOnly}
+            >
+              Free
+            </button>
+            {cats.map((c) => (
+              <button
+                key={c.slug}
+                onClick={() => setCat(cat === c.slug ? "" : c.slug)}
+                className="btn btn-soft"
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+          <div className="grid template-grid">
+            {visibleItems.map((t) => <TemplateCard key={t.id} t={t} />)}
+            {showBlankTemplate && <BlankTemplateCard />}
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
+function TemplatePreview() {
+  const { id } = useParams<{ id: string }>();
+  const [t, setT] = useState<any>();
+  useEffect(() => {
+    if (!id) return;
+
+    getTemplate(id)
+      .then((template) => {
+        setT(template);
+        captureEvent("template_opened", {
+          template_id: template.id,
+          template_slug: template.slug,
+          template_type: template.category?.slug || "unknown",
+          is_free: Boolean(template.isFree),
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to load template:", error);
+      });
+  }, [id]);
+  if (!t)
+    return (
+      <>
+        <Nav />
+        <div className="container section">Loading…</div>
+      </>
+    );
+  const schema = t.schema as TemplateDefinition;
+  return (
+    <>
+      <Nav />
+      <div className="container section">
+        <BackButton label="Back to Templates" />
+        <div className="section-head">
+          <div>
+            <span className="pill">{t.category.name}</span>
+            <h2>{t.name}</h2>
+            <p className="muted">{t.description}</p>
+          </div>
+          <Link className="btn btn-primary" to={`/create/${t.id}`}>
+            {t.isFree ? "Use Free Template" : "Use This Template"}
+          </Link>
+        </div>
+        <div className="preview-frame">
+          <TemplateRenderer
+            template={schema}
+            data={t.defaultData || {}}
+            customization={{
+              accent: "#9b6b5d",
+              background: "#fffaf7",
+              animation: "smooth",
+            }}
+            isPreview
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+function Auth() {
+  const nav = useNavigate();
+
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function submit(e: any) {
+    e.preventDefault();
+    setErr("");
+
+    try {
+      await api(`/auth/${mode}`, {
+        method: "POST",
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          name: mode === "register" ? name.trim() : undefined,
+        }),
+      });
+
+      const session = await getCurrentUser(true);
+
+      if (!session) {
+        throw new Error("Login session was not created.");
+      }
+
+      nav("/dashboard");
+    } catch (e: any) {
+      console.error("Authentication failed:", e);
+      setErr(e?.message || "Authentication failed.");
+    }
+  }
+
+  return (
+    <div className="login-shell">
+      <div className="auth-card">
+        <BackButton label="Back to Home" />
+
+        <Link className="brand" to="/">
+          <span className="brand-mark">D</span> Devsphere
+        </Link>
+
+        <h2>{mode === "login" ? "Welcome back" : "Create your Forever"}</h2>
+
+        {err && (
+          <div className="auth-error">
+            <span>{err}</span>
+
+            {mode === "login" && err === "Account not found." && (
+              <button
+                type="button"
+                className="auth-error-link"
+                onClick={() => {
+                  setMode("register");
+                  setErr("");
+                  setPassword("");
+                  setShowPassword(false);
+                }}
+              >
+                Sign up
+              </button>
+            )}
+
+            {mode === "register" && err === "Email already registered." && (
+              <button
+                type="button"
+                className="auth-error-link"
+                onClick={() => {
+                  setMode("login");
+                  setErr("");
+                  setPassword("");
+                  setShowPassword(false);
+                }}
+              >
+                Log in
+              </button>
+            )}
+          </div>
+        )}
+
+        <form onSubmit={submit}>
+          {mode === "register" && (
+            <div className="field">
+              <label>Name</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+          )}
+
+          <div className="field">
+            <label>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="field">
+            <label>Password</label>
+
+            <div className="password-input-wrap">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={8}
+                required
+              />
+
+              <button
+                type="button"
+                className="password-eye-btn"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 3l18 18" />
+                    <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                    <path d="M9.9 4.2A10.8 10.8 0 0 1 12 4c5.2 0 9 4 10 8-0.4 1.4-1.2 2.6-2.3 3.8" />
+                    <path d="M6.2 6.2C4.7 7.3 3.6 6.2 2 12c1 4 4.8 8 10 8 1.8 0 3.4-.5 4.8-1.2" />
+                  </svg>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="19"
+                    height="19"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" />
+                    <circle cx="12" cy="12" r="2.8" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{ width: "100%" }}
+          >
+            <LogIn size={17} />
+            {mode === "login" ? "Login" : "Create account"}
+          </button>
+        </form>
+
+        <div className="auth-switch">
+          <span>
+            {mode === "login"
+              ? "Don't have an account?"
+              : "Already have an account?"}
+          </span>
+
+          <button
+            type="button"
+            className="auth-switch-btn"
+            onClick={() => {
+              setMode(mode === "login" ? "register" : "login");
+              setShowPassword(false);
+              setErr("");
+            }}
+          >
+            {mode === "login" ? "Sign up" : "Log in"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function Dashboard() {
+  const [projects, setProjects] = useState<any[]>([]);
+  const [me, setMe] = useState<any>();
+  const nav = useNavigate();
+  useEffect(() => {
+    Promise.all([getCurrentUser(), api("/projects")])
+      .then(([user, p]) => {
+        setMe(user);
+        setProjects(p.items);
+      })
+      .catch((error) => {
+        console.error("Dashboard load failed:", error);
+
+        if (error?.message === "Unauthorized") {
+          nav("/login");
+          return;
+        }
+
+        alert(error?.message || "Unable to load dashboard.");
+      });
+  }, [nav]);
+  return (
+    <>
+      <Nav />
+      <div className="container section">
+        <BackButton label="Back" />
+        <div className="section-head">
+          <div>
+            <span className="pill">Your workspace</span>
+            <h2>Welcome back{me?.name ? `, ${me.name}` : ""} ❤️</h2>
+          </div>
+          <button className="btn btn-primary" onClick={() => nav("/templates")}>
+            Create a new website
+          </button>
+        </div>
+        <div className="list">
+          {projects.map((p) => (
+            <div className="row-card" key={p.id}>
+              <div>
+                <b>{p.name}</b>
+                <div className="muted">
+                  {p.template.name} · {p.status}
+                </div>
+              </div>
+              <div className="actions">
+                {(p.status === "DRAFT" || p.status === "FINALIZED") &&
+                  !p.isPaid && (
+                    <div className="project-actions">
+                      <button
+                        type="button"
+                        className="delete-draft-btn"
+                        onClick={async () => {
+                          const confirmed = window.confirm(
+                            "Delete this draft website? This action cannot be undone.",
+                          );
+
+                          if (!confirmed) return;
+
+                          try {
+                            await api(`/projects/${p.id}`, {
+                              method: "DELETE",
+                            });
+
+                            setProjects((current) =>
+                              current.filter((item) => item.id !== p.id),
+                            );
+                          } catch (error: any) {
+                            alert(error.message || "Unable to delete draft.");
+                          }
+                        }}
+                      >
+                        Delete Draft
+                      </button>
+
+                      <button
+                        type="button"
+                        className="continue-editing-btn"
+                        onClick={() => nav(`/edit/${p.id}`)}
+                      >
+                        Continue Editing
+                      </button>
+                    </div>
+                  )}
+
+                {p.status === "FINALIZED" && !p.isPaid && !p.template.isFree && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => nav(`/checkout/${p.id}`)}
+                  >
+                    Complete Payment
+                  </button>
+                )}
+
+                {p.isPaid && !p.website && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={async () => {
+                      try {
+                        const resume = await api<any>(
+                          `/payments/resume/${p.id}`,
+                          { method: "POST" },
+                        );
+
+                        if (resume?.paid) {
+                          nav(`/published/${p.id}`);
+                          return;
+                        }
+
+                        alert(
+                          "Your payment is recorded, but the website is still being restored. Please refresh in a moment.",
+                        );
+                      } catch (error: any) {
+                        alert(
+                          error?.message ||
+                            "Unable to restore your website right now.",
+                        );
+                      }
+                    }}
+                  >
+                    Restore Website
+                  </button>
+                )}
+
+                {(p.status === "PUBLISHED" || p.isPaid) && p.website && (
+                  <>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => nav(`/published/${p.id}`)}
+                    >
+                      Manage Website
+                    </button>
+
+                    <a
+                      className="btn btn-soft"
+                      href={`/r/${p.website.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View Website
+                    </a>
+
+                    <button
+                      className="btn btn-soft"
+                      onClick={async () => {
+                        const url = `${window.location.origin}/r/${p.website.slug}`;
+
+                        try {
+                          await navigator.clipboard.writeText(url);
+                          alert("Website link copied ✓");
+                        } catch {
+                          prompt("Copy your website link:", url);
+                        }
+                      }}
+                    >
+                      Copy Link
+                    </button>
+
+                    <button
+                      className="btn btn-soft"
+                      onClick={async () => {
+                        const url = `${window.location.origin}/r/${p.website.slug}`;
+
+                        if (navigator.share) {
+                          try {
+                            await navigator.share({
+                              title: p.name || "My Devsphere Website",
+                              text: "Here's my special website ❤️",
+                              url,
+                            });
+                          } catch {
+                            // User cancelled share.
+                          }
+                        } else {
+                          await navigator.clipboard.writeText(url);
+                          alert("Website link copied ✓");
+                        }
+                      }}
+                    >
+                      Share
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+          {projects.length === 0 && (
+            <div className="card" style={{ padding: 36, textAlign: "center" }}>
+              <h3>Your first surprise is waiting.</h3>
+              <p className="muted">Choose a template to get started.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+function MediaField({
+  field,
+  value,
+  onChange,
+  projectId,
+}: {
+  field: any;
+  value: any;
+  onChange: (v: any) => void;
+  projectId?: string;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const isMultiple = field.type === "images";
+  const isSingleImage = field.type === "image";
+  const isAudio = field.type === "audio";
+  const isVideo = field.type === "video";
+
+  let accept = "";
+
+  if (isMultiple || isSingleImage) {
+    accept = ".jpg,.jpeg,.jfif,.png,.webp,image/jpeg,image/png,image/webp";
+  } else if (isAudio) {
+    accept = ".mp3,.wav,.m4a,.mpeg,audio/mpeg,audio/wav,audio/mp4";
+  } else if (isVideo) {
+    accept = ".mp4,.webm,.mov,.mpeg,video/mp4,video/webm,video/quicktime";
+  }
+
+  async function upload(file: File) {
+    if (!projectId) {
+      setMsg("Project is not ready for upload.");
+      return;
+    }
+
+    // Basic client-side validation
+    if (file.size > 25 * 1024 * 1024) {
+      setMsg("Max file size is 25MB");
+      return;
+    }
+
+    if (
+      (isMultiple || isSingleImage) &&
+      !["image/jpeg", "image/png", "image/webp"].includes(file.type)
+    ) {
+      setMsg("Only JPG, JPEG, PNG and WebP images are supported.");
+      return;
+    }
+
+    setBusy(true);
+    setMsg("Uploading…");
+
+    try {
+      const kind =
+        isMultiple || isSingleImage ? "image" : isAudio ? "audio" : "video";
+
+      const pres = await api("/media/presign", {
+        method: "POST",
+        body: JSON.stringify({
+          projectId,
+          kind,
+          mimeType: file.type,
+          size: file.size,
+          originalName: file.name,
+        }),
+      });
+
+      const put = await fetch(pres.uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type,
+        },
+        body: file,
+      });
+
+      if (!put.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const attached = await api("/media/attach", {
+        method: "POST",
+        body: JSON.stringify({
+          projectId,
+          kind,
+          url: pres.url,
+          storageKey: pres.key,
+          mimeType: file.type,
+          size: file.size,
+        }),
+      });
+
+      const uploadedUrl = attached?.media?.url || pres.url;
+
+      if (!uploadedUrl) {
+        throw new Error("Upload succeeded but no image URL was returned.");
+      }
+
+      // Multiple image gallery
+      if (isMultiple) {
+        const current = Array.isArray(value) ? value : [];
+
+        onChange([...current, uploadedUrl]);
+      } else {
+        // Single image / balloon image
+        onChange(uploadedUrl);
+      }
+
+      setMsg("Uploaded ✓");
+    } catch (e: any) {
+      console.error("Media upload error:", e);
+      setMsg(e?.message || "Upload failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const imageValue = isSingleImage && typeof value === "string" ? value : "";
+
+  return (
+    <div className="field">
+      <label>{field.label}</label>
+
+      <input
+        type="file"
+        accept={accept}
+        multiple={isMultiple}
+        disabled={busy}
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+
+          if (isMultiple) {
+            files.forEach((file) => {
+              void upload(file);
+            });
+          } else if (files[0]) {
+            void upload(files[0]);
+          }
+
+          e.currentTarget.value = "";
+        }}
+      />
+
+      {busy && <small className="muted">Uploading…</small>}
+
+      {msg && !busy && <small className="muted">{msg}</small>}
+
+      {/* Single image preview */}
+      {isSingleImage && imageValue && (
+        <div
+          style={{
+            marginTop: 10,
+            borderRadius: 12,
+            overflow: "hidden",
+            background: "#f3e6dc",
+          }}
+        >
+          <img
+            src={imageValue}
+            alt="Uploaded memory"
+            style={{
+              width: "100%",
+              height: 150,
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        </div>
+      )}
+
+      {/* Multiple image list */}
+      {isMultiple && Array.isArray(value) && value.length > 0 && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 8,
+            marginTop: 10,
+          }}
+        >
+          {value.map((url: string, index: number) => (
+            <img
+              key={`${url}-${index}`}
+              src={url}
+              alt={`Uploaded photo ${index + 1}`}
+              style={{
+                width: "100%",
+                height: 80,
+                objectFit: "cover",
+                borderRadius: 8,
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FieldEditor({
+  field,
+  value,
+  onChange,
+}: {
+  field: any;
+  value: any;
+  onChange: (v: any) => void;
+}) {
+  if (field.type === "sectionHeading") {
+    return (
+      <div className="field template-field-heading">
+        <h3 style={{ margin: "16px 0 0" }}>{field.label}</h3>
+      </div>
+    );
+  }
+  if (field.type === "checkbox" && field.id !== "movieEnabled") {
+    return (
+      <div className="field">
+        <label className="remove-watermark-control">
+          <input
+            type="checkbox"
+            checked={value !== false}
+            onChange={(event) => onChange(event.target.checked)}
+          />
+          <span>{field.label}</span>
+        </label>
+      </div>
+    );
+  }
+  if (field.id === "movieEnabled") {
+    const isBloomAnniversary =
+      field.templateSlug === "anniversary-romantic-01";
+    return (
+      <div className="field">
+        <div className="movie-option-card">
+          <div className="movie-option-header">
+            <strong>Our Movie 🎬</strong>
+
+            <span>+₹10</span>
+          </div>
+
+          <p>
+            {isBloomAnniversary ? "Anniversary Bloom: ₹449" : "Basic website: ₹99"}
+            <br />
+            {isBloomAnniversary ? "With Our Movie: ₹459" : "With Our Movie: ₹109"}
+          </p>
+
+          <label className="movie-option-toggle">
+            <input
+              type="checkbox"
+              checked={Boolean(value)}
+              onChange={(e) => onChange(e.target.checked)}
+            />
+
+            <span>Add Our Movie section</span>
+          </label>
+        </div>
+      </div>
+    );
+  }
+  // -----------------------------------------
+  // REPEATER / TIMELINE FIELDS
+  // -----------------------------------------
+  if (field.type === "repeater" || field.type === "timeline") {
+    return (
+      <Repeater
+        field={field}
+        value={value}
+        onChange={onChange}
+        projectId={field.projectId}
+        templateSlug={field.templateSlug}
+      />
+    );
+  }
+
+  // -----------------------------------------
+  // LONG TEXT
+  // -----------------------------------------
+  if (field.type === "longText") {
+    return (
+      <div className="field">
+        <label>
+          {field.label}
+          {field.required ? " *" : ""}
+        </label>
+
+        <textarea
+          placeholder={field.placeholder}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          required={field.required}
+        />
+      </div>
+    );
+  }
+
+  // -----------------------------------------
+  // DATE
+  // -----------------------------------------
+  if (field.type === "date") {
+    return (
+      <div className="field">
+        <label>
+          {field.label}
+          {field.required ? " *" : ""}
+        </label>
+
+        <input
+          type="date"
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          required={field.required}
+        />
+      </div>
+    );
+  }
+
+  // -----------------------------------------
+  // NUMBER
+  // -----------------------------------------
+  if (field.type === "number") {
+    return (
+      <div className="field">
+        <label>
+          {field.label}
+          {field.required ? " *" : ""}
+        </label>
+
+        <input
+          type="number"
+          value={value ?? ""}
+          onChange={(e) =>
+            onChange(e.target.value === "" ? "" : Number(e.target.value))
+          }
+          required={field.required}
+        />
+      </div>
+    );
+  }
+
+  // -----------------------------------------
+  // IMAGE / AUDIO / VIDEO
+  // -----------------------------------------
+  if (
+    field.type === "images" ||
+    field.type === "image" ||
+    field.type === "audio" ||
+    field.type === "video"
+  ) {
+    return (
+      <MediaField
+        field={field}
+        value={value}
+        onChange={onChange}
+        projectId={field.projectId}
+      />
+    );
+  }
+  // -----------------------------------------
+  // SELECT
+  // -----------------------------------------
+  if (field.type === "select") {
+    return (
+      <div className="field">
+        <label>
+          {field.label}
+          {field.required ? " *" : ""}
+        </label>
+
+        <select
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          required={field.required}
+        >
+          <option value="">Select {field.label}</option>
+
+          {(field.options || []).map((option: any) => (
+            <option
+              key={typeof option === "string" ? option : option.value}
+              value={typeof option === "string" ? option : option.value}
+            >
+              {typeof option === "string" ? option : option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  // -----------------------------------------
+  // DEFAULT TEXT
+  // -----------------------------------------
+  return (
+    <div className="field">
+      <label>
+        {field.label}
+        {field.required ? " *" : ""}
+      </label>
+
+      <input
+        type="text"
+        value={typeof value === "object" && value !== null ? "" : (value ?? "")}
+        placeholder={field.placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        required={field.required}
+      />
+    </div>
+  );
+}
+function Repeater({
+  field,
+  value,
+  onChange,
+  projectId,
+  templateSlug,
+}: {
+  field: any;
+  value: any[];
+  onChange: (v: any[]) => void;
+  projectId?: string;
+  templateSlug?: string;
+}) {
+  const items = Array.isArray(value) ? value : [];
+
+  function addItem() {
+    if (field.maxItems && items.length >= field.maxItems) {
+      return;
+    }
+
+    onChange([...items, {}]);
+  }
+
+  function removeItem(index: number) {
+    onChange(items.filter((_, i) => i !== index));
+  }
+
+  function updateItem(index: number, key: string, newValue: any) {
+    onChange(
+      items.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              [key]: newValue,
+            }
+          : item,
+      ),
+    );
+  }
+
+  return (
+    <div className="field repeater-field">
+      <label className="repeater-title">
+        {field.label}
+        {field.required ? " *" : ""}
+      </label>
+
+      {items.map((item, index) => (
+        <div key={index} className="card repeater-item">
+          <div className="repeater-item-header">
+            <strong>
+              {field.label} {index + 1}
+            </strong>
+
+            <button
+              type="button"
+              className="btn btn-soft"
+              onClick={() => removeItem(index)}
+            >
+              <Trash2 size={15} />
+              Remove
+            </button>
+          </div>
+
+          {(field.itemFields || []).map((nestedField: any) => (
+            <FieldEditor
+              key={nestedField.id}
+              field={{
+                ...nestedField,
+                projectId,
+                templateSlug,
+              }}
+              value={item?.[nestedField.id]}
+              onChange={(newValue) =>
+                updateItem(index, nestedField.id, newValue)
+              }
+            />
+          ))}
+        </div>
+      ))}
+
+      {(!field.maxItems || items.length < field.maxItems) && (
+        <button type="button" className="btn btn-soft" onClick={addItem}>
+          <Plus size={15} />
+          Add {field.label}
+        </button>
+      )}
+    </div>
+  );
+}
+function getEditorData(template: any, projectData: any) {
+  const saved = projectData && typeof projectData === "object" ? projectData : {};
+
+  if (template?.slug === "navratri-partner-invite") {
+    const defaults =
+      template.defaultData && typeof template.defaultData === "object"
+        ? template.defaultData
+        : {};
+    return { ...defaults, ...saved };
+  }
+
+  if (template?.slug !== "anniversary-romantic-01") return saved;
+
+  const defaults =
+    template.defaultData && typeof template.defaultData === "object"
+      ? template.defaultData
+      : {};
+  const isLegacyBloomData =
+    !saved.senderName &&
+    (saved.partnerName || saved.subtitle || saved.letter || saved.finalMessage);
+  const data = { ...defaults, ...saved };
+
+  if (isLegacyBloomData) {
+    if (saved.partnerName) data.name = saved.partnerName;
+    if (saved.name) data.senderName = saved.name;
+    if (saved.subtitle) data.heroSubtitle = saved.subtitle;
+    if (saved.finalMessage) data.closingMessage = saved.finalMessage;
+  }
+
+  const fallbackTimeline = Array.isArray(defaults.timeline) ? defaults.timeline : [];
+  const savedTimeline = Array.isArray(saved.timeline) ? saved.timeline : [];
+  const timelineSource = savedTimeline.length ? savedTimeline : fallbackTimeline;
+  data.timeline = timelineSource.map((item: any, index: number) => {
+    const fallback = fallbackTimeline[index] || {};
+    const dateYear = String(item?.date || "").match(/\d{4}/)?.[0];
+    return {
+      ...fallback,
+      ...(item && typeof item === "object" ? item : {}),
+      year: item?.year || dateYear || fallback.year || "",
+      text: item?.text || item?.description || fallback.text || "",
+      image: item?.image || fallback.image || "",
+    };
+  });
+
+  const fallbackPhotos = Array.isArray(defaults.photos) ? defaults.photos : [];
+  const savedPhotos = Array.isArray(saved.photos) ? saved.photos : [];
+  const photoSource = savedPhotos.length ? savedPhotos : fallbackPhotos;
+  data.photos = photoSource.map((photo: any, index: number) => {
+    const fallback = fallbackPhotos[index] || {};
+    if (typeof photo === "string") {
+      return { ...fallback, image: photo, caption: fallback.caption || `Memory ${index + 1}` };
+    }
+    return {
+      ...fallback,
+      ...(photo && typeof photo === "object" ? photo : {}),
+      image: photo?.image || fallback.image || "",
+      caption: photo?.caption || fallback.caption || `Memory ${index + 1}`,
+    };
+  });
+
+  const fallbackLetters = Array.isArray(defaults.letters) ? defaults.letters : [];
+  const savedLetters = Array.isArray(saved.letters) ? saved.letters : [];
+  data.letters = savedLetters.length
+    ? savedLetters.map((letter: any, index: number) => ({
+        ...(fallbackLetters[index] || {}),
+        ...(letter && typeof letter === "object" ? letter : {}),
+      }))
+    : fallbackLetters.map((letter: any, index: number) =>
+        index === 0 && isLegacyBloomData && saved.letter
+          ? { ...letter, text: saved.letter }
+          : letter,
+      );
+
+  return data;
+}
+
+function Editor() {
+  const { id } = useParams<{ id: string }>();
+  const [project, setProject] = useState<any>();
+  const [data, setData] = useState<any>({});
+  const [customization, setCustomization] = useState<any>({
+    accent: "#9b6b5d",
+    background: "#fffaf7",
+    animation: "smooth",
+  });
+  const [open, setOpen] = useState(false);
+  const [saved, setSaved] = useState("");
+  const nav = useNavigate();
+  useEffect(() => {
+    if (id)
+      api(`/projects/${id}`).then((x) => {
+        setProject(x.project);
+        setData(getEditorData(x.project.template, x.project.data));
+        setCustomization(x.project.customization || {});
+      });
+  }, [id]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (project) {
+        api(`/projects/${project.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ data, customization }),
+          skipLoader: true,
+        })
+          .then(() => setSaved("Saved just now ✓"))
+          .catch(() => setSaved("Could not save"));
+      }
+    }, 700);
+    return () => clearTimeout(t);
+  }, [data, customization]);
+  if (!project) return <div className="container section">Loading editor…</div>;
+  const schema = project.template.schema as TemplateDefinition;
+  const supportsWatermarkRemoval = [
+    "birthday-royal-memory",
+    "anniversary-romantic-01",
+    "navratri-partner-invite",
+  ].includes(project.template.slug);
+  async function finalize() {
+    try {
+      await api(`/projects/${project.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ data, customization }),
+      });
+
+      await api(`/projects/${project.id}/finalize`, {
+        method: "POST",
+      });
+
+      nav(
+        project.template.isFree
+          ? `/published/${project.id}`
+          : `/checkout/${project.id}`,
+      );
+    } catch (e: any) {
+      console.error("Finalize failed:", e);
+      alert(e.message || "Could not finalize the project.");
+    }
+  }
+  return (
+    <div className="editor">
+      <aside className={`editor-panel ${open ? "open" : ""}`}>
+        <div className="toolbar">
+          <b>Edit your story</b>
+          <button
+            className="btn btn-soft drawer-toggle"
+            onClick={() => setOpen(false)}
+          >
+            Close
+          </button>
+        </div>
+        {schema.fields.map((f: any) => (
+          <FieldEditor
+            key={f.id}
+            field={{ ...f, projectId: project.id, templateSlug: project.template.slug }}
+            value={data[f.id]}
+            onChange={(v) => setData((d: any) => ({ ...d, [f.id]: v }))}
+          />
+        ))}
+        {!project.template.isFree &&
+          project.template.slug !== "navratri-partner-invite" && (
+          <>
+            <div className="field">
+              <label>Accent</label>
+              <input
+                type="color"
+                value={customization.accent || "#9b6b5d"}
+                onChange={(e) =>
+                  setCustomization((x: any) => ({ ...x, accent: e.target.value }))
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Animation</label>
+              <select
+                value={customization.animation || "smooth"}
+                onChange={(e) =>
+                  setCustomization((x: any) => ({
+                    ...x,
+                    animation: e.target.value,
+                  }))
+                }
+              >
+                <option>minimal</option>
+                <option>smooth</option>
+              </select>
+            </div>
+          </>
+        )}
+        {supportsWatermarkRemoval && (
+          <div className="field remove-watermark-option">
+            <label className="remove-watermark-control">
+              <input
+                type="checkbox"
+                checked={customization.removeWatermark === true}
+                onChange={(event) =>
+                  setCustomization((current: any) => ({
+                    ...current,
+                    removeWatermark: event.target.checked,
+                  }))
+                }
+              />
+              <span className="remove-watermark-copy">
+                <strong>Remove watermark · +₹99 / $1</strong>
+                <small>
+                  Removes the Devsphere credit, Instagram link and “Create your
+                  own” link from the final page. This optional charge is added
+                  to your template price at checkout.
+                </small>
+              </span>
+            </label>
+          </div>
+        )}
+        <button
+          className="btn btn-primary"
+          style={{ width: "100%" }}
+          onClick={finalize}
+        >
+          {project.template.isFree
+            ? "Finalize & Get Free Link"
+            : "Finalize & Continue"}
+        </button>
+        <p className="muted" style={{ fontSize: ".8rem" }}>
+          {saved}
+        </p>
+      </aside>
+      <main className="preview">
+        <div className="toolbar editor-preview-toolbar">
+          <BackButton label="Back to My Websites" />
+          <div className="editor-preview-actions">
+            <button
+              className="btn btn-soft drawer-toggle"
+              onClick={() => setOpen(true)}
+            >
+              Edit
+            </button>
+            <span className="muted">Live preview</span>
+          </div>
+        </div>
+        <div className="preview-frame">
+          <TemplateRenderer
+            template={schema}
+            data={data}
+            customization={customization}
+            isPreview
+          />
+        </div>
+      </main>
+    </div>
+  );
+}
+function Create() {
+  const { id } = useParams<{ id: string }>();
+  const [template, setTemplate] = useState<any>();
+  const [name, setName] = useState("");
+  const nav = useNavigate();
+  useEffect(() => {
+    if (!id) return;
+
+    getTemplate(id)
+      .then((template) => {
+        setTemplate(template);
+      })
+      .catch((error) => {
+        console.error("Template loading failed:", error);
+        alert(error.message || "Unable to load template.");
+      });
+  }, [id]);
+  async function create() {
+    try {
+      const p = await api("/projects", {
+        method: "POST",
+        body: JSON.stringify({
+          templateId: id,
+          name: name || template.name,
+          data: template.defaultData || {},
+          customization: {
+            accent: "#9b6b5d",
+            background: "#fffaf7",
+            animation: "smooth",
+          },
+        }),
+      });
+      captureEvent("project_created", {
+        template_id: template.id,
+        template_slug: template.slug,
+        template_type: template.category?.slug || "unknown",
+        is_free: Boolean(template.isFree),
+      });
+      nav(`/edit/${p.project.id}`);
+    } catch (e: any) {
+      console.error("Failed to create project:", e);
+
+      if (e.message === "Unauthorized") {
+        nav("/login");
+        return;
+      }
+
+      alert(e.message || "Unable to create project.");
+    }
+  }
+  if (!template) return <div className="container section">Loading…</div>;
+  return (
+    <div className="container section">
+      <BackButton label="Back to Templates" />
+      <div className="auth-card">
+        <span className="pill">{template.category.name}</span>
+        <h2>Start your {template.name}</h2>
+        <p className="muted">
+          Give this project a name, then we’ll guide you through only the fields
+          this template needs.{" "}
+          {template.isFree && "This template is free to use and publish."}
+        </p>
+        <div className="field">
+          <label>Project name</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Rahul & Priya"
+          />
+        </div>
+        <button className="btn btn-primary" onClick={create}>
+          {template.isFree ? "Start Free Template" : "Use this template"}{" "}
+          <ArrowRight size={17} />
+        </button>
+      </div>
+    </div>
+  );
+}
+function Checkout() {
+  const { id } = useParams<{ id: string }>();
+
+  const [plans, setPlans] = useState<any[]>([]);
+  const [project, setProject] = useState<any>();
+  const [loading, setLoading] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
+  const [currency, setCurrency] = useState<"INR" | "USD">("INR");
+  const [revealMethod, setRevealMethod] = useState<
+    "NORMAL" | "QR" | "PIN" | "LETTER" | "GIFT" | "PUZZLE"
+  >("NORMAL");
+
+  const [scannerStyle, setScannerStyle] = useState<"HEART" | "SQUARE">("HEART");
+
+  const nav = useNavigate();
+
+  /* =========================================================
+     LOAD PROJECT + PRICING PLAN
+     ========================================================= */
+
+  useEffect(() => {
+    if (!id) return;
+
+    Promise.all([
+      fetch(`${apiBase}/pricing`).then((r) =>
+        r.ok ? r.json() : { items: [] },
+      ),
+
+      api(`/projects/${id}`),
+    ])
+      .then(async ([pricing, projectResponse]) => {
+        setPlans(pricing.items || []);
+
+        const loadedProject = projectResponse.project;
+
+        if (loadedProject?.template?.isFree) {
+          nav(
+            loadedProject?.status === "PUBLISHED" && loadedProject?.website
+              ? `/published/${id}`
+              : `/edit/${id}`,
+          );
+          return;
+        }
+
+        if (loadedProject?.status === "PUBLISHED" && loadedProject?.website) {
+          nav(`/published/${id}`);
+          return;
+        }
+
+        try {
+          const resume = await api<any>(`/payments/resume/${id}`, {
+            method: "POST",
+          });
+
+          if (resume?.paid) {
+            nav(`/published/${id}`);
+            return;
+          }
+        } catch (resumeError) {
+          console.warn("Payment resume check failed:", resumeError);
+        }
+
+        setProject(loadedProject);
+
+        /*
+         * Restore previously selected reveal method
+         * when customer comes back to checkout.
+         */
+        const savedMethod = String(
+          loadedProject?.revealMethod ??
+            loadedProject?.site?.revealMethod ??
+            loadedProject?.data?.method ??
+            "NORMAL",
+        ).toUpperCase();
+
+        const allowedMethods = [
+          "NORMAL",
+          "QR",
+          "PIN",
+          "LETTER",
+          "GIFT",
+          "PUZZLE",
+        ];
+
+        if (allowedMethods.includes(savedMethod)) {
+          setRevealMethod(
+            savedMethod as
+              | "NORMAL"
+              | "QR"
+              | "PIN"
+              | "LETTER"
+              | "GIFT"
+              | "PUZZLE",
+          );
+        }
+      })
+      .catch((e) => {
+        console.error("Failed to load checkout:", e);
+
+        setCheckoutError(e?.message || "Unable to load checkout details.");
+      });
+  }, [id]);
+
+  /* =========================================================
+     PROJECT OPTIONS
+     ========================================================= */
+
+  const projectData =
+    (project?.data as Record<string, unknown> | undefined) || {};
+  const isBloomAnniversary =
+    project?.template?.slug === "anniversary-romantic-01";
+  const isNavratri = project?.template?.slug === "navratri-partner-invite";
+  const isWeddingInvitation = project?.template?.slug === "wedding-invitation";
+  const checkoutTemplateName = project?.template?.name || "Digital surprise";
+
+  const projectCustomization =
+    (project?.customization as Record<string, unknown> | undefined) || {};
+  const supportsWatermarkRemoval = [
+    "birthday-royal-memory",
+    "anniversary-romantic-01",
+    "navratri-partner-invite",
+  ].includes(project?.template?.slug);
+  const removeWatermarkSelected =
+    supportsWatermarkRemoval && projectCustomization.removeWatermark === true;
+  const movieEnabled = projectData.movieEnabled === true;
+
+  /* =========================================================
+     REVEAL PRICING
+     ========================================================= */
+
+  const specialRevealMethods = ["QR", "PIN", "LETTER", "GIFT", "PUZZLE"];
+
+  const specialRevealSelected =
+    !isNavratri && specialRevealMethods.includes(revealMethod);
+
+  /*
+   * ₹99  = Normal
+   * ₹109 = Normal + Our Movie
+   * ₹119 = Any special reveal
+   */
+
+  const birthdayPrice = specialRevealSelected ? 119 : movieEnabled ? 109 : 99;
+  const bloomAnniversaryPrice =
+    449 +
+    (movieEnabled ? 10 : 0) +
+    (specialRevealSelected ? 10 : 0) +
+    (removeWatermarkSelected ? 99 : 0);
+  const navratriPrice = 101 + (removeWatermarkSelected ? 99 : 0);
+  const weddingInvitationPrice = 999;
+  const usdBasePrice = isWeddingInvitation ? 55 : isBloomAnniversary ? 30 : 10;
+  const displayPrice =
+    currency === "USD"
+      ? usdBasePrice + (removeWatermarkSelected ? 1 : 0)
+      : isNavratri
+        ? navratriPrice
+        : isWeddingInvitation
+          ? weddingInvitationPrice
+        : isBloomAnniversary
+          ? bloomAnniversaryPrice
+          : birthdayPrice + (removeWatermarkSelected ? 99 : 0);
+  const priceLabel = isWeddingInvitation
+    ? "WEDDING INVITATION"
+    : isNavratri
+    ? "NAVRATRI PARTNER INVITE"
+    : isBloomAnniversary
+    ? specialRevealSelected && movieEnabled
+      ? "MOVIE + SHARE METHOD"
+      : specialRevealSelected
+        ? "SHARE METHOD"
+        : movieEnabled
+          ? "OUR MOVIE"
+          : "ANNIVERSARY BLOOM"
+    : specialRevealSelected
+    ? "SPECIAL REVEAL"
+    : movieEnabled
+      ? "OUR MOVIE"
+      : "BASIC";
+
+  const basePriceDescription = isWeddingInvitation
+    ? `Wedding Invitation website${movieEnabled ? " with your movie/video" : ""}${specialRevealSelected ? " with your chosen sharing method" : ""}.`
+    : isNavratri
+    ? "Personalized Navratri story, photos, playlist, video and final invitation link."
+    : isBloomAnniversary
+    ? `Anniversary Bloom${movieEnabled ? " with your movie/video" : ""}${specialRevealSelected ? " with your chosen share method" : ""}.`
+    : specialRevealSelected
+    ? `${checkoutTemplateName} website + your chosen magical reveal method.`
+    : movieEnabled
+      ? `${checkoutTemplateName} website + your personal movie/video.`
+      : `Complete interactive ${checkoutTemplateName} website.`;
+  const priceDescription = removeWatermarkSelected
+    ? `${basePriceDescription} Devsphere credit removal is included.`
+    : basePriceDescription;
+
+  /* =========================================================
+     DATABASE PLAN
+
+     Only one real pricing plan is required.
+     Backend calculates the template total and optional add-ons.
+     ========================================================= */
+
+  const birthdayPlan =
+    plans.find((plan) => plan?.id && plan?.active !== false) ||
+    plans.find((plan) => plan?.id) ||
+    null;
+
+  /* =========================================================
+     PAYMENT
+     ========================================================= */
+
+  async function payRazorpay() {
+    if (!id) {
+      alert("Project not found.");
+      return;
+    }
+
+    if (!birthdayPlan?.id) {
+      alert("Pricing plan is not available. Run db seed and try again.");
+      return;
+    }
+
+    setLoading("birthday");
+    setCheckoutError("");
+
+    try {
+      const order = await api<any>("/payments/create-order", {
+        method: "POST",
+        body: JSON.stringify({
+          projectId: id,
+          planId: birthdayPlan.id,
+          revealMethod,
+          scannerStyle: revealMethod === "QR" ? scannerStyle : null,
+          currency: "INR",
+        }),
+      });
+      console.log("Razorpay order response:", order);
+
+      if (order?.alreadyPaid) {
+        nav(`/published/${id}`);
+        return;
+      }
+
+      if (!order?.keyId) {
+        throw new Error("Razorpay keyId missing from server response.");
+      }
+
+      if (!order?.providerOrderId) {
+        throw new Error("Razorpay order ID missing from server response.");
+      }
+
+      if (
+        !Number.isInteger(Number(order.amount)) ||
+        Number(order.amount) <= 0
+      ) {
+        throw new Error(`Invalid Razorpay amount: ${order?.amount}`);
+      }
+
+      if (!(window as any).Razorpay) {
+        await new Promise<void>((resolve, reject) => {
+          const src = "https://checkout.razorpay.com/v1/checkout.js";
+          const existing = document.querySelector(
+            `script[src="${src}"]`,
+          ) as HTMLScriptElement | null;
+
+          if ((window as any).Razorpay) {
+            resolve();
+            return;
+          }
+
+          if (existing) {
+            const done = () =>
+              (window as any).Razorpay
+                ? resolve()
+                : reject(new Error("Razorpay SDK is unavailable."));
+
+            existing.addEventListener("load", done, { once: true });
+            existing.addEventListener(
+              "error",
+              () => reject(new Error("Unable to load Razorpay.")),
+              { once: true },
+            );
+
+            setTimeout(() => {
+              if ((window as any).Razorpay) resolve();
+            }, 100);
+            return;
+          }
+
+          const script = document.createElement("script");
+          script.src = src;
+          script.async = true;
+          script.onload = () =>
+            (window as any).Razorpay
+              ? resolve()
+              : reject(new Error("Razorpay SDK is unavailable."));
+          script.onerror = () => reject(new Error("Unable to load Razorpay."));
+          document.body.appendChild(script);
+        });
+      }
+
+      const razorpay = new (window as any).Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: "INR",
+        name: "Devsphere",
+        description: `${isNavratri ? "Navratri Partner Invite" : isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} — ₹${displayPrice}`,
+        order_id: order.providerOrderId,
+
+        handler: async (response: any) => {
+          setLoading("verifying");
+          setCheckoutError("");
+
+          try {
+            await api<any>("/payments/razorpay/verify", {
+              method: "POST",
+              body: JSON.stringify({
+                orderId: order.orderId,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
+
+            nav(`/published/${id}`);
+            return;
+          } catch (error: any) {
+            console.error("Razorpay verification failed:", error);
+
+            // Payment may already be captured even if the browser
+            // verification request failed or timed out.
+            let resumeError: unknown;
+            for (let attempt = 0; attempt < 4; attempt += 1) {
+              try {
+                const resume = await api<any>(`/payments/resume/${id}`, {
+                  method: "POST",
+                });
+
+                if (resume?.paid) {
+                  nav(`/published/${id}`);
+                  return;
+                }
+              } catch (error) {
+                resumeError = error;
+              }
+
+              if (attempt < 3) {
+                await new Promise((resolve) => setTimeout(resolve, 1500));
+              }
+            }
+
+            if (resumeError) {
+              console.error("Razorpay payment recovery failed:", resumeError);
+            }
+
+            setCheckoutError(
+              error?.message ||
+                "Payment was received, but confirmation is still processing. Please wait a moment and refresh this page.",
+            );
+          } finally {
+            setLoading("");
+          }
+        },
+      });
+
+      razorpay.on("payment.failed", (response: any) => {
+        setCheckoutError(
+          response?.error?.description || "Razorpay payment failed.",
+        );
+        setLoading("");
+      });
+
+      razorpay.on("modal.ondismiss", () => {
+        setLoading("");
+      });
+
+      razorpay.open();
+    } catch (error: any) {
+      console.error("Razorpay payment error:", error);
+      setCheckoutError(error?.message || "Payment could not be started.");
+      setLoading("");
+    }
+  }
+
+  /* =========================================================
+     CHECKOUT UI
+     ========================================================= */
+
+  if (!project) {
+    return (
+      <div className="container section">
+        {checkoutError || "Checking payment status…"}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Nav />
+
+      <div className="container section">
+        <BackButton label="Back to Editor" />
+        <div className="section-head">
+          <div>
+            <span className="pill">
+              {isWeddingInvitation
+                ? "Wedding Invitation"
+                : isNavratri
+                ? "Navratri Partner Invite"
+                : isBloomAnniversary
+                  ? "Anniversary Bloom"
+                  : "Birthday Website"}
+            </span>
+
+            <h2>
+              {isWeddingInvitation
+                ? "Your wedding invitation package"
+                : isNavratri
+                ? "Your Navratri package"
+                : isBloomAnniversary
+                  ? "Your anniversary package"
+                  : "Your birthday package"}
+            </h2>
+
+            <p className="muted">
+              {isWeddingInvitation
+                ? "Review your Wedding Invitation price and selected options."
+                : isNavratri
+                ? "Review your Navratri invitation price and optional credit removal."
+                : isBloomAnniversary
+                ? "Choose optional extras and review your Anniversary Bloom price."
+                : "Choose your reveal style and review your final price."}
+            </p>
+          </div>
+        </div>
+
+        <div className="checkout-currency-section">
+          <h3>Choose Currency</h3>
+
+          <p className="muted">Select how you want to pay.</p>
+
+          <div className="actions">
+            <button
+              type="button"
+              className={`btn ${
+                currency === "INR" ? "btn-primary" : "btn-soft"
+              }`}
+              onClick={() => setCurrency("INR")}
+            >
+              🇮🇳 INR ₹
+            </button>
+
+            <button
+              type="button"
+              className={`btn ${
+                currency === "USD" ? "btn-primary" : "btn-soft"
+              }`}
+              onClick={() => setCurrency("USD")}
+            >
+              🌎 USD $
+            </button>
+          </div>
+        </div>
+
+        {/* ===================================================
+            REVEAL STYLE
+           =================================================== */}
+
+        {!isNavratri && <div className="checkout-reveal-section">
+          <h3>Choose how to share your surprise</h3>
+
+          <p className="muted">            {currency === "USD"
+              ? isWeddingInvitation
+                ? "The $55 international wedding package includes your selected sharing method."
+                : isBloomAnniversary
+                  ? "The $30 international package includes your selected sharing method."
+                  : "The $10 international package includes your selected reveal method."
+              : isWeddingInvitation
+                ? "The ₹999 wedding package includes your selected sharing method."
+                : isBloomAnniversary
+                  ? "Normal sharing is included. Add any special reveal method for ₹10."
+                  : "Normal is included. Any magical reveal method makes the package ₹119."}</p>
+
+          <div className="actions">
+            {[
+              ["NORMAL", "Normal"],
+              ["QR", "Magical Scanner"],
+              ["PIN", "Code Lock"],
+              ["LETTER", "Secret Letter"],
+              ["GIFT", "Gift Box"],
+              ["PUZZLE", "Puzzle"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={`btn ${
+                  revealMethod === value ? "btn-primary" : "btn-soft"
+                }`}
+                onClick={() =>
+                  setRevealMethod(
+                    value as
+                      | "NORMAL"
+                      | "QR"
+                      | "PIN"
+                      | "LETTER"
+                      | "GIFT"
+                      | "PUZZLE",
+                  )
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>}
+
+        {/* ===================================================
+            MAGICAL SCANNER STYLES
+           =================================================== */}
+
+        {!isNavratri && revealMethod === "QR" && (
+          <div className="scanner-style-section">
+            <div className="scanner-style-heading">
+              <h3>Choose your Magical Scanner</h3>
+
+              <p className="muted">
+                {isWeddingInvitation
+                  ? "Choose the style for sharing your wedding invitation."
+                  : isBloomAnniversary
+                  ? "Choose the style for sharing your anniversary story."
+                  : "Choose how your birthday website link will appear when you share it."}
+              </p>
+            </div>
+
+            <div className="scanner-style-grid">
+              {/* =================================================
+          HEART SCANNER
+         ================================================= */}
+
+              <button
+                type="button"
+                className={`scanner-style-card ${
+                  scannerStyle === "HEART" ? "is-selected" : ""
+                }`}
+                onClick={() => setScannerStyle("HEART")}
+              >
+                <div className="scanner-image-preview scanner-heart-preview">
+                  <div className="fake-heart-qr">
+                    <span className="qr-corner qr-corner-1" />
+                    <span className="qr-corner qr-corner-2" />
+                    <span className="qr-corner qr-corner-3" />
+
+                    <div className="qr-heart">♥</div>
+                  </div>
+                </div>
+
+                <strong>Heart Scanner</strong>
+
+                <span>Heart-shaped QR design</span>
+              </button>
+
+              {/* =================================================
+          SQUARE SCANNER
+         ================================================= */}
+
+              <button
+                type="button"
+                className={`scanner-style-card ${
+                  scannerStyle === "SQUARE" ? "is-selected" : ""
+                }`}
+                onClick={() => setScannerStyle("SQUARE")}
+              >
+                <div className="scanner-image-preview scanner-square-preview">
+                  <div className="fake-square-qr">
+                    <span className="qr-square-corner qr-sq-1" />
+                    <span className="qr-square-corner qr-sq-2" />
+                    <span className="qr-square-corner qr-sq-3" />
+
+                    <div className="qr-random-pattern">
+                      ▪ ▪ ▪ ▪<br />
+                      ▪ ▪ ▪ ▪<br />
+                      ▪ ▪ ▪ ▪<br />▪ ▪ ▪ ▪
+                    </div>
+                  </div>
+                </div>
+
+                <strong>Square Scanner</strong>
+
+                <span>Classic square QR design</span>
+              </button>
+            </div>
+
+            <div className="scanner-style-price">
+              <span>Magical Scanner</span>
+
+              <strong>
+                {currency === "USD" ? "$" : "₹"}
+                {displayPrice}
+              </strong>
+            </div>
+          </div>
+        )}
+
+        {/* ===================================================
+            THREE PRICE OPTIONS
+           =================================================== */}
+
+        {currency === "USD" ? (
+          <div className="birthday-checkout-pricing bloom-checkout-pricing">
+            <div className="birthday-price-card is-selected">
+              <span className="birthday-price-badge">INTERNATIONAL PACKAGE</span>
+              <div className="birthday-price-icon">🌎</div>
+              <h3>
+                {isNavratri
+                  ? "Navratri Partner Invite"
+                  : isBloomAnniversary
+                    ? "Anniversary Bloom"
+                    : checkoutTemplateName}
+              </h3>
+              <p>
+                {isNavratri
+                  ? "Includes the complete story, photos, playlist, video and invitation link."
+                  : isWeddingInvitation
+                    ? "Includes your complete wedding invitation website and selected sharing options."
+                  : isBloomAnniversary
+                    ? "Includes the complete story, selected movie/video and your chosen sharing method."
+                    : `Includes the complete ${checkoutTemplateName} website, selected movie/video and your chosen reveal method.`}
+              </p>
+              <strong className="birthday-price">${usdBasePrice}</strong>
+              <span className="birthday-price-note">One international package payment</span>
+            </div>
+            {supportsWatermarkRemoval && (
+              <div className={`birthday-price-card ${removeWatermarkSelected ? "is-selected" : ""}`}>
+                <span className="birthday-price-badge birthday-price-premium">OPTIONAL CREDIT REMOVAL</span>
+                <div className="birthday-price-icon">✨</div>
+                <h3>Remove Devsphere credit</h3>
+                <p>Remove the Devsphere, Instagram and Create your own links from the finale.</p>
+                <strong className="birthday-price">+$1</strong>
+                <span className="birthday-price-note">
+                  {removeWatermarkSelected
+                    ? `$${displayPrice} total`
+                    : `Optional — $${usdBasePrice + 1} total if selected`}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : isWeddingInvitation ? (
+          <div className="birthday-checkout-pricing bloom-checkout-pricing">
+            <div className="birthday-price-card is-selected">
+              <span className="birthday-price-badge">WEDDING INVITATION</span>
+              <div className="birthday-price-icon">💍</div>
+              <h3>Personalized wedding website</h3>
+              <p>Includes your event details, photos, selected sharing method and final invitation link.</p>
+              <strong className="birthday-price">₹999</strong>
+              <span className="birthday-price-note">One-time package price</span>
+            </div>
+          </div>
+        ) : isNavratri ? (
+          <div className="birthday-checkout-pricing bloom-checkout-pricing">
+            <div className="birthday-price-card is-selected">
+              <span className="birthday-price-badge">NAVRATRI PARTNER INVITE</span>
+              <div className="birthday-price-icon">🪔</div>
+              <h3>Personalized Garba-night story</h3>
+              <p>Includes the original interactive journey, your photos, playlist, optional video and published link.</p>
+              <strong className="birthday-price">₹101</strong>
+              <span className="birthday-price-note">Base price</span>
+            </div>
+            <div className={`birthday-price-card ${removeWatermarkSelected ? "is-selected" : ""}`}>
+              <span className="birthday-price-badge birthday-price-premium">OPTIONAL CREDIT REMOVAL</span>
+              <div className="birthday-price-icon">✨</div>
+              <h3>Remove Devsphere credit</h3>
+              <p>Remove the Devsphere, Instagram and Create your own links from the finale.</p>
+              <strong className="birthday-price">+₹99</strong>
+              <span className="birthday-price-note">₹200 total when selected</span>
+            </div>
+          </div>
+        ) : isBloomAnniversary ? (
+          <>
+            <div className="birthday-checkout-pricing bloom-checkout-pricing">
+              <div className="birthday-price-card is-selected">
+                <span className="birthday-price-badge">ANNIVERSARY BLOOM</span>
+                <div className="birthday-price-icon">🌸</div>
+                <h3>Personalized anniversary story</h3>
+                <p>Includes the complete interactive story, your photos, letters, playlist and final link.</p>
+                <strong className="birthday-price">₹449</strong>
+                <span className="birthday-price-note">Base price</span>
+              </div>
+              <div className={`birthday-price-card ${movieEnabled ? "is-selected" : ""}`}>
+                <span className="birthday-price-badge birthday-price-premium">OPTIONAL MOVIE</span>
+                <div className="birthday-price-icon">🎬</div>
+                <h3>Movie or video section</h3>
+                <p>{movieEnabled ? "Enabled in the editor and added to this package." : "Turn it on in the editor and upload your movie."}</p>
+                <strong className="birthday-price">+₹10</strong>
+                <span className="birthday-price-note">₹459 with the movie</span>
+              </div>
+              <div className={`birthday-price-card birthday-price-special ${specialRevealSelected ? "is-selected" : ""}`}>
+                <span className="birthday-price-badge birthday-price-luxury">OPTIONAL SHARE METHOD</span>
+                <div className="birthday-price-icon">✨</div>
+                <h3>Special reveal method</h3>
+                <p>Choose a QR, code lock, letter, gift box or puzzle reveal.</p>
+                <strong className="birthday-price">+₹10</strong>
+                <span className="birthday-price-note">Add ₹10 to the selected options</span>
+              </div>
+            </div>
+            <p className="birthday-checkout-note">
+              Optional Devsphere credit removal: +₹99, selected in the editor.
+            </p>
+          </>
+        ) : (
+        <div className="birthday-checkout-pricing">
+          {/* =========================
+              ₹99
+             ========================= */}
+
+          <div
+            className={`birthday-price-card ${
+              birthdayPrice === 99 ? "is-selected" : ""
+            }`}
+          >
+            <span className="birthday-price-badge">BASIC</span>
+
+            <div className="birthday-price-icon">🎂</div>
+
+            <h3>Birthday Website</h3>
+
+            <p>
+              Complete interactive birthday experience with all core sections.
+            </p>
+
+            <strong className="birthday-price">₹99</strong>
+
+            <span className="birthday-price-note">Base price</span>
+          </div>
+
+          {/* =========================
+              ₹109
+             ========================= */}
+
+          <div
+            className={`birthday-price-card ${
+              birthdayPrice === 109 ? "is-selected" : ""
+            }`}
+          >
+            <span className="birthday-price-badge birthday-price-premium">
+              + OUR MOVIE
+            </span>
+
+            <div className="birthday-price-icon">🎬</div>
+
+            <h3>
+              Birthday Website
+              <br />+ Our Movie
+            </h3>
+
+            <p>Add your personal birthday movie/video.</p>
+
+            <strong className="birthday-price">₹109</strong>
+
+            <span className="birthday-price-note">₹99 + ₹10 movie</span>
+          </div>
+
+          {/* =========================
+              ₹119
+             ========================= */}
+
+          <div
+            className={`birthday-price-card birthday-price-special ${
+              birthdayPrice === 119 ? "is-selected" : ""
+            }`}
+          >
+            <span className="birthday-price-badge birthday-price-luxury">
+              SPECIAL REVEAL
+            </span>
+
+            <div className="birthday-price-icon">✨</div>
+
+            <h3>
+              Birthday Website
+              <br />+ Special Reveal
+            </h3>
+
+            <p>QR, Code Lock, Secret Letter, Gift Box or Puzzle.</p>
+
+            <strong className="birthday-price">₹119</strong>
+
+            <span className="birthday-price-note">
+              Any special reveal method
+            </span>
+          </div>
+        </div>
+        )}
+
+        {/* ===================================================
+            CURRENT PACKAGE
+           =================================================== */}
+
+        <div
+          className="birthday-current-checkout card"
+          style={{
+            marginTop: 30,
+          }}
+        >
+          <span className="pill">{priceLabel}</span>
+
+          <h3>
+            {isWeddingInvitation
+              ? "Your Wedding Invitation total: "
+              : isNavratri
+              ? "Your Navratri Partner Invite total: "
+              : isBloomAnniversary
+                ? "Your Anniversary Bloom total: "
+                : "Your package: "}
+            {currency === "USD" ? "$" : "₹"}{displayPrice}
+          </h3>
+
+          <p className="muted">{priceDescription}</p>
+
+          <div className="birthday-current-price">
+            {currency === "USD" ? "$" : "₹"}
+            {displayPrice}
+          </div>
+
+          {/* MOVIE NOTE */}
+
+          {movieEnabled && (isBloomAnniversary || !specialRevealSelected) && (
+            <p className="birthday-checkout-note">              {currency === "USD"
+                ? `Movie/video included in the $${usdBasePrice} international package.`
+                : isWeddingInvitation
+                  ? "Movie/video included in the wedding package."
+                  : isBloomAnniversary
+                  ? "Movie section enabled — ₹10 added to the ₹449 base price."
+                  : "Our Movie is enabled — ₹10 added to the ₹99 base price."}</p>
+          )}
+
+          {/* REVEAL NOTE */}
+
+          {specialRevealSelected && (
+            <p className="birthday-checkout-note">              {revealMethod === "QR"
+                ? "Magical Scanner selected."
+                : revealMethod === "PIN"
+                  ? "Code Lock selected."
+                  : revealMethod === "LETTER"
+                    ? "Secret Letter selected."
+                    : revealMethod === "GIFT"
+                      ? "Gift Box selected."
+                      : "Puzzle selected."}{" "}
+              {isWeddingInvitation
+                ? "Selected sharing method included in the wedding package. "
+                : isBloomAnniversary
+                ? currency === "USD"
+                  ? "Selected sharing method included. "
+                  : "Special reveal selected (+₹10). "
+                : "Your package price is "}
+              {currency === "USD" ? "$" : "₹"}
+              {displayPrice}.</p>
+          )}
+
+          {removeWatermarkSelected && (
+            <p className="birthday-checkout-note">Remove watermark: {currency === "USD" ? "+$1." : "+₹99."}</p>
+          )}
+
+          {checkoutError && (
+            <p className="birthday-checkout-error" role="alert">
+              {checkoutError}
+            </p>
+          )}
+
+          {currency === "INR" ? (
+            <button
+              className="btn btn-primary"
+              onClick={payRazorpay}
+              disabled={
+                !birthdayPlan?.id ||
+                loading === "birthday" ||
+                loading === "verifying"
+              }
+            >
+              {loading === "birthday"
+                ? "Opening Razorpay…"
+                : loading === "verifying"
+                  ? "Confirming payment…"
+                  : birthdayPlan?.id
+                    ? `Pay ₹${displayPrice} with Razorpay`
+                    : "Run db seed to load plan"}
+            </button>
+          ) : (
+            <div
+              style={{
+                marginTop: 16,
+                padding: 16,
+                border: "1px solid #dccbc2",
+                borderRadius: 14,
+                background: "#fff",
+              }}
+            >
+              <p className="muted" style={{ marginBottom: 10 }}>
+                International checkout — secure payment in USD.
+              </p>
+
+              <PayPalButtons
+                projectId={id || ""}
+                planId={birthdayPlan?.id || ""}
+                revealMethod={revealMethod}
+                scannerStyle={revealMethod === "QR" ? scannerStyle : null}
+                disabled={!birthdayPlan?.id || loading !== ""}
+                onSuccess={() => {
+                  nav(`/published/${id}`);
+                }}
+                onError={(error: any) => {
+                  console.error("PayPal error:", error);
+                  setCheckoutError(
+                    error?.message || "PayPal payment could not be completed.",
+                  );
+                  setLoading("");
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+function Public() {
+  const { slug } = useParams<{ slug: string }>();
+  const [payload, setPayload] = useState<any>();
+  const [unlock, setUnlock] = useState("");
+  const [question, setQuestion] = useState("");
+  const [gate, setGate] = useState(true);
+  useEffect(() => {
+    if (!slug) return;
+
+    api(`/public/${slug}`)
+      .then((x) => {
+        setPayload(x);
+
+        setGate(
+          x.accessRequired &&
+            ["PIN", "PUZZLE", "LETTER", "GIFT"].includes(x.site.revealMethod),
+        );
+
+        if (x.site.seoTitle) {
+          document.title = x.site.seoTitle;
+        }
+
+        if (x.site.seoDescription) {
+          let m = document.querySelector(
+            "meta[name=description]",
+          ) as HTMLMetaElement | null;
+
+          if (!m) {
+            m = document.createElement("meta");
+            m.name = "description";
+            document.head.appendChild(m);
+          }
+
+          m.content = x.site.seoDescription;
+        }
+      })
+      .catch((error) => {
+        console.error("PUBLIC WEBSITE LOAD FAILED:", error);
+        setQuestion(error?.message || "Unable to load this website.");
+        setGate(false);
+      });
+  }, [slug]);
+  if (!payload) {
+    return (
+      <div className="reveal">
+        <div className="reveal-box">
+          <h2>Loading your surprise…</h2>
+          {question && <p>{question}</p>}
+        </div>
+      </div>
+    );
+  }
+  async function submit() {
+    try {
+      if (
+        payload.site.revealMethod === "LETTER" ||
+        payload.site.revealMethod === "GIFT"
+      ) {
+        setGate(false);
+        return;
+      }
+      await api(`/public/${slug}/unlock`, {
+        method: "POST",
+        body: JSON.stringify(
+          payload.site.revealMethod === "PIN"
+            ? { pin: unlock }
+            : { answer: unlock },
+        ),
+      });
+      setGate(false);
+    } catch (e: any) {
+      setQuestion(e.message);
+    }
+  }
+  if (gate)
+    return (
+      <div className="reveal">
+        <div className="reveal-box">
+          <Heart fill="currentColor" size={30} />
+          <h1>
+            {payload.site.revealMethod === "LETTER"
+              ? "Someone left a letter for you…"
+              : payload.site.revealMethod === "GIFT"
+                ? "A little gift is waiting…"
+                : payload.site.revealMethod === "PUZZLE"
+                  ? "One question stands between you and the surprise…"
+                  : "A Special Memory Is Waiting"}
+          </h1>
+          {payload.site.revealMethod === "PUZZLE" && (
+            <p>
+              {payload?.accessRule?.puzzleQuestion ||
+                "Answer the question to unlock."}
+            </p>
+          )}{" "}
+          {(payload.site.revealMethod === "PIN" ||
+            payload.site.revealMethod === "PUZZLE") && (
+            <input
+              value={unlock}
+              onChange={(e) => setUnlock(e.target.value)}
+              placeholder={
+                payload.site.revealMethod === "PIN"
+                  ? "Secret PIN"
+                  : "Your answer"
+              }
+              style={{
+                width: "100%",
+                padding: 14,
+                borderRadius: 12,
+                border: "1px solid #6a5550",
+                background: "transparent",
+                color: "#fff",
+              }}
+            />
+          )}
+          <button
+            className="btn btn-primary"
+            style={{ marginTop: 14, background: "#fff", color: "#2b211e" }}
+            onClick={submit}
+          >
+            {payload.site.revealMethod === "PIN"
+              ? "Unlock ❤️"
+              : "Open My Surprise ❤️"}
+          </button>
+          {question && <p style={{ color: "#ffb4a6" }}>{question}</p>}
+        </div>
+      </div>
+    );
+  return (
+    <TemplateRenderer
+      template={payload.template}
+      data={payload.data}
+      customization={{
+        ...(payload.customization || {}),
+        publicUrl: `${window.location.origin}/r/${payload.site?.slug || slug}`,
+      }}
+    />
+  );
+}
+function RoutePublished() {
+  const { id } = useParams<{ id: string }>();
+
+  const [project, setProject] = useState<any>();
+  const [method, setMethod] = useState<
+    "NORMAL" | "QR" | "PIN" | "LETTER" | "GIFT" | "PUZZLE"
+  >("NORMAL");
+
+  const [pin, setPin] = useState("");
+  const [puzzleQuestion, setPuzzleQuestion] = useState("");
+  const [puzzleAnswer, setPuzzleAnswer] = useState("");
+
+  const [status, setStatus] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const [globalLoading, setGlobalLoading] = useState(false);
+
+  const qrRef = React.useRef<HTMLDivElement | null>(null);
+
+  const nav = useNavigate();
+
+  useEffect(() => {
+    if (!id) return;
+
+    api(`/projects/${id}`)
+      .then((response) => {
+        const p = response.project;
+
+        setProject(p);
+
+        const savedMethod = String(
+          p?.website?.revealMethod ?? p?.revealMethod ?? "NORMAL",
+        ).toUpperCase();
+
+        if (
+          ["NORMAL", "QR", "PIN", "LETTER", "GIFT", "PUZZLE"].includes(
+            savedMethod,
+          )
+        ) {
+          setMethod(savedMethod as any);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load published project:", error);
+      });
+  }, [id]);
+
+  if (!project) {
+    return (
+      <>
+        <Nav />
+
+        <div className="container section">
+          <BackButton label="Back to My Websites" />
+          Loading your published website…
+        </div>
+      </>
+    );
+  }
+
+  const website = project.website;
+
+  if (!website) {
+    return (
+      <>
+        <Nav />
+
+        <div className="container section">
+          <BackButton label="Back to My Websites" />
+          <div className="card" style={{ padding: 30 }}>
+            <h2>Website not published yet</h2>
+
+            <p className="muted">
+              Your payment may be complete, but the website still needs to be
+              published.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const publicUrl = `${window.location.origin}/r/${website.slug}`;
+
+  const projectData =
+    project.data && typeof project.data === "object" ? project.data : {};
+
+  const packagePrice =
+    projectData.packagePrice ||
+    (project.orders?.length
+      ? project.orders[project.orders.length - 1]?.amount
+      : 99);
+
+  const scannerStyle =
+    projectData.scannerStyle === "SQUARE" ? "SQUARE" : "HEART";
+
+  const isSpecialReveal =
+    packagePrice === 119 ||
+    method === "QR" ||
+    method === "PIN" ||
+    method === "LETTER" ||
+    method === "GIFT" ||
+    method === "PUZZLE";
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+
+      setStatus("Link copied ✓");
+
+      setTimeout(() => setStatus(""), 2200);
+    } catch {
+      setStatus("Could not copy. Please copy the link manually.");
+    }
+  }
+
+  async function shareWebsite() {
+    try {
+      setSharing(true);
+
+      if (navigator.share) {
+        await navigator.share({
+          title: project.name || "My Devsphere Website",
+          text: "Here's a special website made for you ❤️",
+          url: publicUrl,
+        });
+
+        setStatus("Shared ✓");
+      } else {
+        await navigator.clipboard.writeText(publicUrl);
+
+        setStatus("Sharing isn't supported here. Link copied ✓");
+      }
+    } catch (error: any) {
+      if (error?.name !== "AbortError") {
+        setStatus("Unable to share right now.");
+      }
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  function getQrSvgMarkup() {
+    const svg = qrRef.current?.querySelector("svg");
+
+    if (!svg) {
+      throw new Error("QR code is not ready.");
+    }
+
+    return new XMLSerializer().serializeToString(svg);
+  }
+
+  function createScannerSvg() {
+    const qrMarkup = getQrSvgMarkup();
+
+    const qrDataUrl = `data:image/svg+xml;base64,${btoa(
+      unescape(encodeURIComponent(qrMarkup)),
+    )}`;
+
+    const heart = scannerStyle === "HEART";
+
+    const frameColor = heart ? "#8f3044" : "#2b211e";
+    const title = heart ? "♥ Scan My Surprise ♥" : "Scan My Surprise";
+
+    if (!heart) {
+      return `
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="1200"
+        height="1400"
+        viewBox="0 0 1200 1400"
+      >
+        <rect
+          width="1200"
+          height="1400"
+          rx="70"
+          fill="#fffaf7"
+        />
+
+        <text
+          x="600"
+          y="115"
+          text-anchor="middle"
+          font-family="Georgia, serif"
+          font-size="54"
+          fill="${frameColor}"
+          font-weight="700"
+        >
+          ${title}
+        </text>
+
+        <image
+          href="${qrDataUrl}"
+          x="250"
+          y="220"
+          width="700"
+          height="700"
+          preserveAspectRatio="xMidYMid meet"
+        />
+
+        <text
+          x="600"
+          y="1010"
+          text-anchor="middle"
+          font-family="Arial, sans-serif"
+          font-size="34"
+          fill="#5d4b45"
+        >
+          Scan to open the surprise
+        </text>
+
+        <text
+          x="600"
+          y="1065"
+          text-anchor="middle"
+          font-family="Arial, sans-serif"
+          font-size="24"
+          fill="#8a7168"
+        >
+          Made with Devsphere
+        </text>
+      </svg>
+    `;
+    }
+
+    return `
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="1200"
+      height="1400"
+      viewBox="0 0 1200 1400"
+    >
+      <defs>
+        <!-- Heart silhouette -->
+        <clipPath id="heartClip">
+          <path
+            d="
+              M600 1135
+              C545 1090 135 800 135 465
+              C135 275 275 150 445 150
+              C520 150 575 180 600 245
+              C625 180 680 150 755 150
+              C925 150 1065 275 1065 465
+              C1065 800 655 1090 600 1135
+              Z
+            "
+          />
+        </clipPath>
+      </defs>
+
+      <!-- Background -->
+      <rect
+        width="1200"
+        height="1400"
+        rx="70"
+        fill="#fffaf7"
+      />
+
+      <!-- Heading -->
+      <text
+        x="600"
+        y="95"
+        text-anchor="middle"
+        font-family="Georgia, serif"
+        font-size="52"
+        fill="${frameColor}"
+        font-weight="700"
+      >
+        ${title}
+      </text>
+
+      <!-- HEART-SHAPED QR -->
+      <g clip-path="url(#heartClip)">
+        <image
+          href="${qrDataUrl}"
+          x="115"
+          y="150"
+          width="970"
+          height="970"
+          preserveAspectRatio="none"
+        />
+      </g>
+
+      <!-- Heart border -->
+      <path
+        d="
+          M600 1135
+          C545 1090 135 800 135 465
+          C135 275 275 150 445 150
+          C520 150 575 180 600 245
+          C625 180 680 150 755 150
+          C925 150 1065 275 1065 465
+          C1065 800 655 1090 600 1135
+          Z
+        "
+        fill="none"
+        stroke="${frameColor}"
+        stroke-width="14"
+      />
+
+      <!-- Small heart decoration -->
+      <text
+        x="600"
+        y="1210"
+        text-anchor="middle"
+        font-family="Georgia, serif"
+        font-size="34"
+        fill="${frameColor}"
+      >
+        Scan to open the surprise ❤️
+      </text>
+
+      <text
+        x="600"
+        y="1270"
+        text-anchor="middle"
+        font-family="Arial, sans-serif"
+        font-size="23"
+        fill="#8a7168"
+      >
+        Made with Devsphere
+      </text>
+    </svg>
+  `;
+  }
+
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+
+    a.href = url;
+    a.download = filename;
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadScanner() {
+    try {
+      const svg = createScannerSvg();
+
+      const blob = new Blob([svg], {
+        type: "image/svg+xml",
+      });
+
+      downloadBlob(blob, `${project.name || "devsphere"}-scanner.svg`);
+
+      setStatus("Scanner downloaded ✓");
+
+      setTimeout(() => setStatus(""), 2200);
+    } catch (error: any) {
+      console.error("Scanner download error:", error);
+
+      setStatus("Could not generate scanner.");
+    }
+  }
+
+  async function saveReveal() {
+    try {
+      await api(`/projects/${id}/reveal`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          method,
+          pin,
+          puzzleQuestion,
+          puzzleAnswer,
+          scannerStyle: method === "QR" ? scannerStyle : null,
+        }),
+      });
+
+      setStatus("Reveal settings saved ✓");
+    } catch (error: any) {
+      setStatus(error?.message || "Unable to save reveal settings.");
+    }
+  }
+
+  return (
+    <>
+      <Nav />
+
+      <div className="container section">
+        <BackButton label="Back to My Websites" />
+        <div
+          className="card"
+          style={{
+            padding: 32,
+          }}
+        >
+          <span className="pill">Website Published</span>
+
+          <h2>Your surprise is live 🎉</h2>
+
+          <p className="muted">
+            This website is now permanently saved to your Devsphere account.
+          </p>
+
+          {/* PUBLIC LINK */}
+
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+              marginTop: 20,
+            }}
+          >
+            <input
+              value={publicUrl}
+              readOnly
+              style={{
+                flex: 1,
+                minWidth: 260,
+                padding: 13,
+                borderRadius: 12,
+                border: "1px solid #dccbc2",
+                background: "#fff",
+              }}
+            />
+
+            <button className="btn btn-soft" onClick={copyLink}>
+              Copy Link
+            </button>
+
+            <button
+              className="btn btn-primary"
+              onClick={shareWebsite}
+              disabled={sharing}
+            >
+              {sharing ? "Sharing…" : "Share"}
+            </button>
+          </div>
+
+          {status && (
+            <p
+              className="muted"
+              style={{
+                marginTop: 14,
+              }}
+            >
+              {status}
+            </p>
+          )}
+
+          {/* OPEN WEBSITE */}
+
+          <div
+            style={{
+              marginTop: 22,
+            }}
+          >
+            <a
+              className="btn btn-primary"
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open Website
+            </a>
+          </div>
+        </div>
+
+        {/* =====================================================
+            SPECIAL REVEAL SCANNER
+           ===================================================== */}
+
+        {isSpecialReveal && (
+          <div
+            className="card"
+            style={{
+              marginTop: 24,
+              padding: 32,
+            }}
+          >
+            <span className="pill">
+              {scannerStyle === "HEART" ? "HEART SCANNER" : "SQUARE SCANNER"}
+            </span>
+
+            <h2>Your Magical Scanner ✨</h2>
+
+            <p className="muted">
+              Download this scanner or take a screenshot and share it with the
+              person receiving the surprise.
+            </p>
+
+            <div
+              ref={qrRef}
+              style={{
+                display: "grid",
+                placeItems: "center",
+                marginTop: 24,
+                padding: 28,
+                borderRadius: 24,
+                background: scannerStyle === "HEART" ? "#fff0f3" : "#f5eee9",
+              }}
+            >
+              <div
+                className={
+                  scannerStyle === "HEART"
+                    ? "heart-qr-wrapper is-heart"
+                    : "heart-qr-wrapper is-square"
+                }
+              >
+                {scannerStyle === "HEART" && (
+                  <>
+                    <span className="heart-qr-lobe heart-qr-lobe-left" />
+                    <span className="heart-qr-lobe heart-qr-lobe-right" />
+                  </>
+                )}
+
+                <div className="heart-qr-real-code">
+                  <QRCodeSVG
+                    value={publicUrl}
+                    size={230}
+                    level="H"
+                    includeMargin
+                    fgColor="#cf2638"
+                    bgColor="#fff0f3"
+                  />
+                </div>
+              </div>
+
+              <strong
+                style={{
+                  marginTop: 14,
+                  fontSize: 18,
+                }}
+              >
+                {scannerStyle === "HEART"
+                  ? "♥ Heart Scanner"
+                  : "Square Scanner"}
+              </strong>
+            </div>
+
+            <div
+              className="actions"
+              style={{
+                marginTop: 22,
+              }}
+            >
+              <button className="btn btn-primary" onClick={downloadScanner}>
+                Download Scanner
+              </button>
+
+              <button
+                className="btn btn-soft"
+                onClick={() => {
+                  setStatus("Take a screenshot of the scanner above ✓");
+
+                  setTimeout(() => setStatus(""), 2200);
+                }}
+              >
+                Screenshot Scanner
+              </button>
+            </div>
+
+            <p
+              className="muted"
+              style={{
+                marginTop: 16,
+                fontSize: ".88rem",
+              }}
+            >
+              Scanner style:{" "}
+              <strong>{scannerStyle === "HEART" ? "Heart" : "Square"}</strong>
+            </p>
+          </div>
+        )}
+
+        {/* =====================================================
+            REVEAL SETTINGS
+           ===================================================== */}
+
+        {isSpecialReveal && (
+          <div
+            className="auth-card"
+            style={{
+              marginTop: 24,
+            }}
+          >
+            <span className="pill">Reveal Settings</span>
+
+            <h3>Choose how the website opens</h3>
+
+            <div
+              className="actions"
+              style={{
+                marginTop: 16,
+              }}
+            >
+              {[
+                ["NORMAL", "Normal"],
+                ["QR", "Magical Scanner"],
+                ["PIN", "Code Lock"],
+                ["LETTER", "Secret Letter"],
+                ["GIFT", "Gift Box"],
+                ["PUZZLE", "Puzzle"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  className={`btn ${
+                    method === value ? "btn-primary" : "btn-soft"
+                  }`}
+                  onClick={() => setMethod(value as any)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {method === "PIN" && (
+              <div className="field">
+                <label>Secret PIN</label>
+
+                <input
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  minLength={4}
+                  placeholder="4+ digits"
+                />
+              </div>
+            )}
+
+            {method === "PUZZLE" && (
+              <>
+                <div className="field">
+                  <label>Question</label>
+
+                  <input
+                    value={puzzleQuestion}
+                    onChange={(e) => setPuzzleQuestion(e.target.value)}
+                    placeholder="Where did we have our first date?"
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Answer</label>
+
+                  <input
+                    value={puzzleAnswer}
+                    onChange={(e) => setPuzzleAnswer(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            <button className="btn btn-primary" onClick={saveReveal}>
+              Save Reveal Settings
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+function AdminTemplateEditor() {
+  const { id } = useParams<{ id: string }>();
+  const [t, setT] = useState<any>();
+  const [schema, setSchema] = useState("");
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    if (id)
+      api(`/templates/${id}`).then((x) => {
+        setT(x.template);
+        setSchema(JSON.stringify(x.template.schema, null, 2));
+      });
+  }, [id]);
+  async function save() {
+    try {
+      const parsed = JSON.parse(schema);
+      await api(`/admin/templates/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ schema: parsed }),
+      });
+      clearTemplatesCache();
+      setMessage("Template schema saved ✓");
+    } catch (e: any) {
+      setMessage(e.message || "Invalid JSON");
+    }
+  }
+  if (!t)
+    return (
+      <>
+        <Nav />
+        <div className="container section">Loading…</div>
+      </>
+    );
+  return (
+    <>
+      <Nav />
+      <div className="container section">
+        <BackButton label="Back to Admin" />
+        <span className="pill">Template editor</span>
+        <h2>{t.name}</h2>
+        <p className="muted">
+          Structured JSON editor for sections, fields and customization. This
+          updates the reusable template definition; customer project data stays
+          separate.
+        </p>
+        <div className="field">
+          <label>Template Schema</label>
+          <textarea
+            value={schema}
+            onChange={(e) => setSchema(e.target.value)}
+            style={{ minHeight: 520, fontFamily: "monospace", fontSize: 13 }}
+          />
+        </div>
+        <button className="btn btn-primary" onClick={save}>
+          Save Schema
+        </button>
+        {message && <p className="muted">{message}</p>}
+      </div>
+    </>
+  );
+}
+
+function Admin() {
+  const [stats, setStats] = useState<any>();
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const nav = useNavigate();
+  useEffect(() => {
+    Promise.all([
+      api("/admin/dashboard"),
+      api("/templates"),
+      api("/admin/orders"),
+    ])
+      .then(([dashboard, templateResponse, orderResponse]) => {
+        setStats(dashboard);
+        setTemplates(templateResponse.items || []);
+        setOrders(orderResponse.items || []);
+      })
+      .catch((error) => {
+        console.error("Admin load failed:", error);
+
+        if (error?.message === "Unauthorized") {
+          nav("/login");
+          return;
+        }
+
+        alert(error?.message || "Unable to load the admin dashboard.");
+      });
+  }, [nav]);
+  return (
+    <>
+      <Nav />
+      <div className="container section">
+        <BackButton label="Back" />
+        <span className="pill">Admin</span>
+        <h2>Devsphere Control Center</h2>
+        {stats && (
+          <div className="stat-grid">
+            <div className="stat">
+              Customers
+              <br />
+              <b>{stats.customers}</b>
+            </div>
+            <div className="stat">
+              Active Sites
+              <br />
+              <b>{stats.sites}</b>
+            </div>
+            <div className="stat">
+              Templates
+              <br />
+              <b>{stats.templates}</b>
+            </div>
+            <div className="stat">
+              Revenue
+              <br />
+              <b>₹{stats.revenue}</b>
+            </div>
+          </div>
+        )}
+        <section className="section">
+          <div className="section-head">
+            <h2>Orders</h2>
+          </div>
+          <div className="list">
+            {orders.map((o) => (
+              <div className="row-card" key={o.id}>
+                <div>
+                  <b>{o.project.name}</b>
+                  <div className="muted">
+                    {o.user.email} · {o.plan.name}
+                  </div>
+                </div>
+                <b>
+                  ₹{o.amount} · {o.status}
+                </b>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="section">
+          <div className="section-head">
+            <h2>Templates</h2>
+          </div>
+          <div className="grid">
+            {templates.map((t) => (
+              <div key={t.id}>
+                <TemplateCard t={t} />
+                <Link
+                  className="btn btn-soft"
+                  style={{ marginTop: 8 }}
+                  to={`/admin/templates/${t.id}`}
+                >
+                  Edit schema
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
+function BackButton({ label = "Back" }: { label?: string }) {
+  const navigate = useNavigate();
+
+  return (
+    <button
+      type="button"
+      className="back-button"
+      aria-label={label}
+      onClick={() => {
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          navigate("/");
+        }
+      }}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        marginBottom: 18,
+        padding: "9px 13px",
+        border: "1px solid #e1d2ca",
+        borderRadius: 999,
+        background: "rgba(255,255,255,0.72)",
+        color: "#4a3d37",
+        fontSize: 14,
+        fontWeight: 700,
+        cursor: "pointer",
+        boxShadow: "0 4px 14px rgba(73, 55, 48, 0.06)",
+      }}
+    >
+      ← {label}
+    </button>
+  );
+}
+
+function App() {
+  const [globalLoading, setGlobalLoading] = useState(false);
+
+  useEffect(() => {
+    let timer: number | undefined;
+
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ loading?: boolean }>;
+
+      const loading = Boolean(customEvent.detail?.loading);
+
+      window.clearTimeout(timer);
+
+      if (loading) {
+        timer = window.setTimeout(() => {
+          setGlobalLoading(true);
+        }, 180);
+      } else {
+        setGlobalLoading(false);
+      }
+    };
+
+    window.addEventListener("devsphere-loading", handler);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("devsphere-loading", handler);
+    };
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("is-loading", globalLoading);
+
+    return () => {
+      document.body.classList.remove("is-loading");
+    };
+  }, [globalLoading]);
+
+  return (
+    <>
+      <GlobalLoader show={globalLoading} />
+
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/templates" element={<Templates />} />
+        <Route path="/templates/:id" element={<TemplatePreview />} />
+        <Route path="/login" element={<Auth />} />
+        <Route path="/register" element={<Auth />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/templates/:id" element={<AdminTemplateEditor />} />
+        <Route path="/create/:id" element={<Create />} />
+        <Route path="/edit/:id" element={<Editor />} />
+        <Route path="/checkout/:id" element={<Checkout />} />
+        <Route path="/published/:id" element={<RoutePublished />} />
+        <Route path="/r/:slug" element={<Public />} />
+      </Routes>
+    </>
+  );
+}
+
+function RoutePageViews() {
+  const { pathname, search, hash } = useLocation();
+
+  useEffect(() => {
+    capturePageview();
+  }, [pathname, search, hash]);
+
+  return null;
+}
+
+export default function PlatformApp() {
+  return (
+    <BrowserRouter>
+      <RoutePageViews />
+      <App />
+    </BrowserRouter>
+  );
+}

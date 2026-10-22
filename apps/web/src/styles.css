@@ -2756,6 +2756,14 @@ body {
   isolation: isolate;
 }
 
+.hero-home-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
 .hero-home::before {
   position: absolute;
   z-index: -1;
@@ -2839,6 +2847,149 @@ body {
   border: 1px solid rgba(117, 5, 5, 0.14);
   background: var(--ds-cherry);
   color: var(--ds-cream-soft);
+}
+
+.template-rating {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 10px;
+  color: var(--ds-muted);
+  font-size: 0.82rem;
+}
+
+.template-rating strong {
+  color: var(--ds-ink);
+  font-size: 0.88rem;
+}
+
+.template-rating-stars {
+  color: #f6a623;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.template-price-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 8px;
+  color: var(--ds-ink);
+  font-size: 0.95rem;
+}
+
+.template-price-row > strong {
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+.template-price-row del {
+  color: #8b7d79;
+  font-size: 0.88rem;
+}
+
+.template-card-price {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 2px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(117, 5, 5, 0.12);
+  border-bottom: 1px solid rgba(117, 5, 5, 0.12);
+}
+
+.template-card-price-side {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.template-card-price-side-international {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.template-card-price-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.template-card-price-main strong {
+  color: var(--ds-ink);
+  font-size: 1.15rem;
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.template-card-price-main del {
+  color: var(--ds-muted);
+  font-size: 0.76rem;
+}
+
+.template-card-price-caption {
+  color: var(--ds-muted);
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.template-card-price-separator {
+  color: var(--ds-muted);
+  font-size: 0.72rem;
+}
+
+.template-card-price .template-discount-badge {
+  padding: 3px 7px;
+  font-size: 0.65rem;
+}
+
+.template-discount-badge {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #e7f5eb;
+  color: #20834a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.template-new-badge {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fff0d5;
+  color: #a65a00;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.blank-template-art {
+  aspect-ratio: 16 / 10;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(117, 5, 5, 0.12) 1px, transparent 1.5px),
+    linear-gradient(145deg, #fffdf8, #f4e9e2);
+  background-size: 18px 18px, auto;
+  color: var(--ds-cherry);
+}
+
+.blank-template-art span {
+  color: var(--ds-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.blank-template-card .card-body > p {
+  margin-bottom: 18px;
 }
 
 .card,

@@ -2,7 +2,9 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "../lib/db.js";
 import { TemplateSchema } from "@memora/shared";
+
 const r = Router();
+
 r.get("/:slug", async (req, res) => {
   const site = await db.publishedSite.findUnique({
     where: { slug: req.params.slug },
@@ -30,12 +32,14 @@ r.get("/:slug", async (req, res) => {
       },
     },
   });
+
   if (
     !site ||
     site.status !== "ACTIVE" ||
     (site.expiresAt && site.expiresAt < new Date())
-  )
+  ) {
     return res.status(404).json({ error: "Website not found" });
+  }
 
   const accessRequired =
     site.revealMethod === "PIN" ||
@@ -74,25 +78,18 @@ r.get("/:slug", async (req, res) => {
       : null,
   });
 });
+
 r.post("/:slug/unlock", async (req, res) => {
   const site = await db.publishedSite.findUnique({
     where: { slug: req.params.slug },
     include: { accessRule: true },
   });
 
-  if (
-    !site ||
-    site.status !== "ACTIVE" ||
-    !site.accessRule
-  ) {
-    return res.status(404).json({
-      error: "Website not found",
-    });
+  if (!site || site.status !== "ACTIVE" || !site.accessRule) {
+    return res.status(404).json({ error: "Website not found" });
   }
 
-  const rule = site.accessRule;
   const { pin, answer } = req.body || {};
-
   let ok = false;
 
   if (
@@ -100,10 +97,7 @@ r.post("/:slug/unlock", async (req, res) => {
     site.accessRule.pinHash &&
     typeof pin === "string"
   ) {
-    ok = await bcrypt.compare(
-      pin.trim(),
-      site.accessRule.pinHash,
-    );
+    ok = await bcrypt.compare(pin.trim(), site.accessRule.pinHash);
   }
 
   if (
@@ -118,11 +112,10 @@ r.post("/:slug/unlock", async (req, res) => {
   }
 
   if (!ok) {
-    return res.status(401).json({
-      error: "That unlock is not correct",
-    });
+    return res.status(401).json({ error: "That unlock is not correct" });
   }
 
   res.json({ ok: true });
 });
+
 export default r;

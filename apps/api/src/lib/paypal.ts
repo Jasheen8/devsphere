@@ -1,23 +1,52 @@
 type PayPalHeaders = Record<string, string | undefined>;
 
 const paypalBaseUrl =
-  process.env.PAYPAL_ENV === "live"
+  process.env.PAYPAL_ENV?.trim().toLowerCase() === "live"
     ? "https://api-m.paypal.com"
     : "https://api-m.sandbox.paypal.com";
 
-function requirePayPalConfig() {
-  const clientId = process.env.PAYPAL_CLIENT_ID;
-  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    throw new Error(
-      "PayPal is not configured. Check PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET.",
-    );
+function getPayPalConfigurationError() {
+  if (
+    !process.env.PAYPAL_CLIENT_ID?.trim() ||
+    !process.env.PAYPAL_CLIENT_SECRET?.trim()
+  ) {
+    return "PayPal requires PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET.";
   }
 
-  return { clientId, clientSecret };
+  if (!process.env.PAYPAL_WEBHOOK_ID?.trim()) {
+    return "PayPal requires PAYPAL_WEBHOOK_ID for payment confirmation.";
+  }
+
+  if (
+    process.env.NODE_ENV?.trim().toLowerCase() === "production" &&
+    process.env.PAYPAL_ENV?.trim().toLowerCase() !== "live"
+  ) {
+    return "Set PAYPAL_ENV=live in production to accept real international payments.";
+  }
+
+  return "";
 }
 
+export function isPayPalConfigured() {
+  return getPayPalConfigurationError() === "";
+}
+
+export function getPayPalSetupError() {
+  return getPayPalConfigurationError();
+}
+
+function requirePayPalConfig() {
+  const configurationError = getPayPalConfigurationError();
+
+  if (configurationError) {
+    throw new Error(configurationError);
+  }
+
+  return {
+    clientId: process.env.PAYPAL_CLIENT_ID!.trim(),
+    clientSecret: process.env.PAYPAL_CLIENT_SECRET!.trim(),
+  };
+}
 async function readPayPalResponse(response: Response) {
   const text = await response.text();
 
@@ -205,7 +234,7 @@ export async function verifyPayPalWebhook(
   headers: PayPalHeaders,
   rawBody: string,
 ) {
-  const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+  const webhookId = process.env.PAYPAL_WEBHOOK_ID?.trim();
 
   if (!webhookId) {
     throw new Error("PAYPAL_WEBHOOK_ID is not configured");
@@ -283,7 +312,7 @@ export async function verifyPayPalWebhook(
 }
 
 export function getPayPalClientId() {
-  return process.env.PAYPAL_CLIENT_ID || "";
+  return process.env.PAYPAL_CLIENT_ID?.trim() || "";
 }
 
 export function extractPayPalCapture(

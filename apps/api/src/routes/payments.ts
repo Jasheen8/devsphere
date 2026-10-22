@@ -15,6 +15,8 @@ import {
   extractPayPalCapture,
   extractPayPalOrderIdFromCaptureWebhook,
   getPayPalClientId,
+  getPayPalSetupError,
+  isPayPalConfigured,
   getPayPalOrder,
   verifyPayPalWebhook,
 } from "../lib/paypal.js";
@@ -22,6 +24,7 @@ import {
   calculateBirthdayPackage,
   calculateBloomAnniversaryPackage,
   calculateNavratriPartnerInvitePackage,
+  calculateWeddingInvitationPackage,
   finalizePaidOrder,
   publishPaidProject,
 } from "../lib/fulfillment.js";
@@ -103,9 +106,12 @@ async function failIfPaid(projectId: string, userId: string, res: any) {
 }
 
 r.get("/config", auth, (_req, res) => {
+  const paypalEnabled = isPayPalConfigured();
+
   res.json({
-    paypalClientId: getPayPalClientId(),
-    paypalEnabled: Boolean(getPayPalClientId()),
+    paypalClientId: paypalEnabled ? getPayPalClientId() : "",
+    paypalEnabled,
+    paypalError: paypalEnabled ? "" : getPayPalSetupError(),
   });
 });
 
@@ -150,20 +156,18 @@ r.post("/create-order", auth, async (req, res) => {
       project.template.slug === "anniversary-romantic-01";
     const isNavratri =
       project.template.slug === "navratri-partner-invite";
+    const isWeddingInvitation =
+      project.template.slug === "wedding-invitation";
     const checkoutRevealMethod = isNavratri ? "NORMAL" : data.revealMethod;
 
-    if ((isBloomAnniversary || isNavratri) && data.currency !== "INR") {
-      return res.status(400).json({
-        error: isBloomAnniversary
-          ? "Anniversary Bloom checkout is currently available in INR only."
-          : "Navratri Partner Invite checkout is currently available in INR only.",
-      });
-    }
-
-    if (data.currency === "USD" && !getPayPalClientId()) {
+    if (data.currency === "USD" && !isPayPalConfigured()) {
       return res
         .status(503)
-        .json({ error: "International payments are not configured yet" });
+        .json({
+          error:
+            getPayPalSetupError() ||
+            "International payments are not configured yet.",
+        });
     }
 
     const projectData = (project.data as Record<string, unknown> | null) || {};
@@ -181,7 +185,13 @@ r.post("/create-order", auth, async (req, res) => {
       ].includes(project.template.slug) &&
       projectCustomization.removeWatermark === true;
 
-    const pricing = isNavratri
+    const pricing = isWeddingInvitation
+      ? calculateWeddingInvitationPackage({
+          projectData,
+          revealMethod: checkoutRevealMethod,
+          currency: data.currency,
+        })
+      : isNavratri
       ? calculateNavratriPartnerInvitePackage({
           currency: data.currency,
           removeWatermark,
@@ -295,7 +305,7 @@ r.post("/create-order", auth, async (req, res) => {
     const paypalOrder = await createPayPalOrder({
       amountUsd: pricing.providerAmount,
       referenceId: order.id,
-      description: `Devsphere ${isNavratri ? "Navratri Partner Invite" : isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} - ${
+      description: `Devsphere ${isNavratri ? "Navratri Partner Invite" : isBloomAnniversary ? "Anniversary Bloom" : isWeddingInvitation ? "Wedding Invitation" : project.template.name} - ${
         pricing.specialReveal
           ? "Special Reveal"
           : pricing.movieEnabled

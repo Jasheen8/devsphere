@@ -20,11 +20,15 @@ describe("Anniversary Bloom checkout pricing", () => {
     expect(pricing.providerAmountMinor).toBe(expected * 100);
   });
 
-  it("rejects USD so the INR amounts cannot be silently converted", () => {
-    expect(() => calculateBloomAnniversaryPackage({
-      projectData: { movieEnabled: false },
-      revealMethod: "NORMAL",
+  it("uses the flat $30 international price regardless of movie or reveal options", () => {
+    const pricing = calculateBloomAnniversaryPackage({
+      projectData: { movieEnabled: true },
+      revealMethod: "QR",
       currency: "USD",
-    })).toThrow("available in INR only");
+    });
+
+    expect(pricing.packagePrice).toBe(469);
+    expect(pricing.providerAmount).toBe(30);
+    expect(pricing.providerAmountMinor).toBe(3000);
   });
 });

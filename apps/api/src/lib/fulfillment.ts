@@ -50,10 +50,6 @@ export function calculateBloomAnniversaryPackage(args: {
   currency: CheckoutCurrency;
   removeWatermark?: boolean;
 }) {
-  if (args.currency !== "INR") {
-    throw new Error("Anniversary Bloom checkout is available in INR only.");
-  }
-
   const movieEnabled = args.projectData.movieEnabled === true;
   const specialReveal = SPECIAL_REVEAL_METHODS.includes(
     args.revealMethod as (typeof SPECIAL_REVEAL_METHODS)[number],
@@ -66,12 +62,17 @@ export function calculateBloomAnniversaryPackage(args: {
     (specialReveal ? 10 : 0) +
     (removeWatermark ? 99 : 0);
 
+  const providerAmount =
+    args.currency === "USD"
+      ? 30 + (removeWatermark ? 1 : 0)
+      : packagePrice;
+
   return {
     basePackagePrice,
     packagePrice,
     removeWatermark,
-    providerAmount: packagePrice,
-    providerAmountMinor: packagePrice * 100,
+    providerAmount,
+    providerAmountMinor: Math.round(providerAmount * 100),
     specialReveal,
     movieEnabled,
   };
@@ -81,22 +82,45 @@ export function calculateNavratriPartnerInvitePackage(args: {
   currency: CheckoutCurrency;
   removeWatermark?: boolean;
 }) {
-  if (args.currency !== "INR") {
-    throw new Error("Navratri Partner Invite checkout is available in INR only.");
-  }
-
   const basePackagePrice = 101;
   const removeWatermark = args.removeWatermark === true;
   const packagePrice = basePackagePrice + (removeWatermark ? 99 : 0);
+
+  const providerAmount =
+    args.currency === "USD"
+      ? 10 + (removeWatermark ? 1 : 0)
+      : packagePrice;
 
   return {
     basePackagePrice,
     packagePrice,
     removeWatermark,
-    providerAmount: packagePrice,
-    providerAmountMinor: packagePrice * 100,
+    providerAmount,
+    providerAmountMinor: Math.round(providerAmount * 100),
     specialReveal: false,
     movieEnabled: false,
+  };
+}
+
+export function calculateWeddingInvitationPackage(args: {
+  projectData: Record<string, unknown>;
+  revealMethod: RevealMethod;
+  currency: CheckoutCurrency;
+}) {
+  const basePackagePrice = 999;
+  const providerAmount = args.currency === "USD" ? 55 : basePackagePrice;
+  const specialReveal = SPECIAL_REVEAL_METHODS.includes(
+    args.revealMethod as (typeof SPECIAL_REVEAL_METHODS)[number],
+  );
+
+  return {
+    basePackagePrice,
+    packagePrice: basePackagePrice,
+    removeWatermark: false,
+    providerAmount,
+    providerAmountMinor: Math.round(providerAmount * 100),
+    specialReveal,
+    movieEnabled: args.projectData.movieEnabled === true,
   };
 }
 

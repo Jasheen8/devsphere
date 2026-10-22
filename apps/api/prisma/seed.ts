@@ -102,6 +102,10 @@ async function main() {
     where: { slug: "couple" },
   });
 
+  const wedding = await db.category.findUniqueOrThrow({
+    where: { slug: "wedding" },
+  });
+
   const festivals = await db.category.findUniqueOrThrow({
     where: { slug: "festivals" },
   });
@@ -990,6 +994,41 @@ async function main() {
   // TEMPLATES
   // =========================================================
 
+  const weddingInvitationSections: Array<Record<string, unknown>> = [
+    { id: "wedding-hero", type: "hero", enabled: true, props: { eyebrow: "Together with their families" } },
+    { id: "wedding-intro", type: "intro", enabled: true, props: {} },
+    { id: "wedding-timeline", type: "timeline", enabled: true, props: {} },
+    { id: "wedding-gallery", type: "gallery", enabled: true, props: {} },
+    { id: "wedding-letter", type: "letter", enabled: true, props: {} },
+    { id: "wedding-countdown", type: "countdown", enabled: true, props: {} },
+    { id: "wedding-final", type: "final", enabled: true, props: {} },
+  ];
+
+  const weddingInvitationFields: Array<Record<string, unknown>> = [
+    { id: "name", type: "text", label: "Couple's names", required: true },
+    { id: "subtitle", type: "text", label: "Invitation subtitle" },
+    { id: "partnerName", type: "text", label: "Intro heading" },
+    { id: "intro", type: "longText", label: "Invitation message" },
+    {
+      id: "timeline",
+      type: "timeline",
+      label: "Wedding events",
+      itemFields: [
+        { id: "date", type: "text", label: "Date and time" },
+        { id: "title", type: "text", label: "Event name" },
+        { id: "description", type: "longText", label: "Event details" },
+        { id: "image", type: "image", label: "Event photo" },
+      ],
+    },
+    { id: "photos", type: "images", label: "Photo gallery" },
+    { id: "letterTitle", type: "text", label: "Closing heading" },
+    { id: "letter", type: "longText", label: "A note for your guests" },
+    { id: "countdownTitle", type: "text", label: "Countdown heading" },
+    { id: "countdownDate", type: "date", label: "Wedding date" },
+    { id: "finalTitle", type: "text", label: "Final heading" },
+    { id: "finalMessage", type: "longText", label: "Final message" },
+  ];
+
   const templates: TemplateSeed[] = [
     {
       slug: "cutie-birthday",
@@ -1058,7 +1097,7 @@ async function main() {
         "A cinematic birthday experience filled with memories, letters, music and interactive surprises.",
       cat: birthday,
       price: 99,
-      tags: ["birthday", "cinematic", "interactive", "memories", "premium"],
+      tags: ["birthday", "cinematic", "interactive", "memories", "premium",],
       featured: true,
 
       liveDemoUrl: "https://birthdaydemoweb.netlify.app/",
@@ -1431,6 +1470,48 @@ async function main() {
     },
 
     {
+      slug: "wedding-invitation",
+      name: "Wedding Invitation",
+      thumbnailUrl: "/images/invitation.png",
+      description:
+        "A personal wedding invitation with your story, event details, photos and a countdown to the big day.",
+      cat: wedding,
+      price: 999,
+      tags: ["wedding", "invitation", "celebration"],
+      featured: true,
+      data: {
+        name: "Alex & Sam",
+        subtitle: "Together with their families, they invite you to celebrate.",
+        partnerName: "Join us for our wedding",
+        intro:
+          "Your presence would make our celebration even more special. We can't wait to share this day with you.",
+        timeline: [
+          {
+            date: "June 20, 2027 · 5:00 PM",
+            title: "Wedding Ceremony",
+            description: "Join us as we begin our next chapter together.",
+            image: "",
+          },
+          {
+            date: "June 20, 2027 · 7:00 PM",
+            title: "Dinner & Celebration",
+            description: "Stay for dinner, music and a night of celebration.",
+            image: "",
+          },
+        ],
+        photos: [],
+        letterTitle: "With love",
+        letter: "Thank you for being part of our story. We hope to celebrate with you.",
+        countdownTitle: "Counting down to our day",
+        countdownDate: "2027-06-20",
+        finalTitle: "We can't wait to see you",
+        finalMessage: "Save the date and celebrate with us!",
+      },
+      schema: demoSchema(weddingInvitationFields, weddingInvitationSections),
+      sections: weddingInvitationSections,
+    },
+
+    {
       slug: "anniversary-editorial-02",
       name: "Timeless Editorial",
       description: "Minimal, elegant and photo-forward.",
@@ -1567,11 +1648,14 @@ async function main() {
 
   const bloomOnly = process.argv.includes("--bloom-only");
   const navratriOnly = process.argv.includes("--navratri-only");
+  const weddingOnly = process.argv.includes("--wedding-only");
   const templatesToSeed = bloomOnly
     ? templates.filter((template) => template.slug === "anniversary-romantic-01")
     : navratriOnly
       ? templates.filter((template) => template.slug === "navratri-partner-invite")
-      : templates;
+      : weddingOnly
+        ? templates.filter((template) => template.slug === "wedding-invitation")
+        : templates;
 
   // =========================================================
   // TEMPLATE UPSERT
@@ -1683,6 +1767,11 @@ async function main() {
 
   if (navratriOnly) {
     console.log("Navratri Partner Invite template seed complete");
+    return;
+  }
+
+  if (weddingOnly) {
+    console.log("Wedding Invitation template seed complete");
     return;
   }
 
