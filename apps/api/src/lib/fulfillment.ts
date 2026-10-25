@@ -213,17 +213,10 @@ async function publishInsideTransaction(tx: any, order: any) {
     throw new Error("Project must be finalized before publishing");
   }
 
-  const limits = (order.plan?.limits || {}) as Record<
-    string,
-    unknown
-  >;
-
-  const expirationDays = limits.expirationDays;
-
-  const expiresAt =
-    typeof expirationDays === "number"
-      ? new Date(Date.now() + expirationDays * 86_400_000)
-      : null;
+  // Template checkouts are one-time purchases. The checkout currently uses a
+  // default pricing-plan row only to satisfy the order relation, so its
+  // hidden Basic-plan expiration must not make a paid gift link disappear.
+  const expiresAt = null;
 
   let site = await tx.publishedSite.findUnique({
     where: {

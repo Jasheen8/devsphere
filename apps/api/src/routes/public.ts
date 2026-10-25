@@ -6,10 +6,11 @@ import { TemplateSchema } from "@memora/shared";
 const r = Router();
 
 r.get("/:slug", async (req, res) => {
-  const site = await db.publishedSite.findUnique({
+  let site = await db.publishedSite.findUnique({
     where: { slug: req.params.slug },
     select: {
       slug: true,
+      projectId: true,
       status: true,
       expiresAt: true,
       revealMethod: true,
@@ -32,6 +33,50 @@ r.get("/:slug", async (req, res) => {
       },
     },
   });
+
+  const isExpired =
+    site?.status === "EXPIRED" ||
+    (site?.status === "ACTIVE" &&
+      site.expiresAt !== null &&
+      site.expiresAt <= new Date());
+
+  if (site && isExpired) {
+    const paidOrder = await db.order.findFirst({
+      where: { projectId: site.projectId, status: "PAID" },
+      select: { id: true },
+    });
+
+    if (paidOrder) {
+      site = await db.publishedSite.update({
+        where: { slug: site.slug },
+        data: { status: "ACTIVE", expiresAt: null },
+        select: {
+          slug: true,
+          projectId: true,
+          status: true,
+          expiresAt: true,
+          revealMethod: true,
+          seoTitle: true,
+          seoDescription: true,
+          ogImageUrl: true,
+          project: {
+            select: {
+              data: true,
+              customization: true,
+              template: { select: { schema: true } },
+            },
+          },
+          accessRule: {
+            select: {
+              puzzleQuestion: true,
+              letterTitle: true,
+              letterIntro: true,
+            },
+          },
+        },
+      });
+    }
+  }
 
   if (
     !site ||

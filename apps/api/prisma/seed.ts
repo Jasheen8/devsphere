@@ -1803,8 +1803,6 @@ async function main() {
         limits: {
           photos: 20,
           video: true,
-          expirationDays:
-            slug === "basic" ? 30 : slug === "premium" ? 365 : null,
         },
       },
 
@@ -1820,8 +1818,6 @@ async function main() {
         limits: {
           photos: 20,
           video: true,
-          expirationDays:
-            slug === "basic" ? 30 : slug === "premium" ? 365 : null,
         },
       },
     });
