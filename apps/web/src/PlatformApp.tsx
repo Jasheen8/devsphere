@@ -23,6 +23,12 @@ import {
   ScanLine,
   Plus,
   Trash2,
+  Star,
+  Send,
+  Sparkles,
+  Clock3,
+  MapPin,
+  Instagram,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { TemplateRenderer } from "@memora/template-engine";
@@ -118,6 +124,29 @@ const heroMarqueeRows = [
   ["BIRTHDAYS", "LOVE STORIES", "ANNIVERSARIES", "WEDDINGS", "MEMORIES", "LITTLE SURPRISES"],
   ["MADE PERSONAL", "MADE BEAUTIFUL", "MADE WITH HEART", "SHARE THE MOMENT", "CREATE YOUR SURPRISE", "CELEBRATE TOGETHER"],
 ];
+const HOME_REVIEW_SUMMARIES = [
+  {
+    name: "Royal Memory Birthday",
+    occasion: "Birthday favorite",
+    rating: 4.9,
+    uses: 2557,
+    description: "A heartfelt birthday story made for favorite photos and the words you want them to remember.",
+  },
+  {
+    name: "Cutie Birthday",
+    occasion: "Sweet surprises",
+    rating: 4.2,
+    uses: 1129,
+    description: "A playful, cheerful way to make someone’s birthday feel a little more personal.",
+  },
+  {
+    name: "Bloom Anniversary",
+    occasion: "Anniversary favorite",
+    rating: 4.8,
+    uses: 854,
+    description: "A cinematic journey through the moments and memories you share together.",
+  },
+];
 
 function GlobalLoader({ show }: { show: boolean }) {
   if (!show) return null;
@@ -157,6 +186,9 @@ function Nav() {
       </div>
 
       <div className="nav-links">
+        <Link to="/" aria-current={window.location.pathname === "/" ? "page" : undefined}>
+          Home
+        </Link>
         <Link to="/templates" onMouseEnter={preloadTemplates}>
           Templates
         </Link>
@@ -176,12 +208,24 @@ function Nav() {
             Login
           </Link>
         )}
+        <Link to="/#contact" className="nav-contact">
+          Contact
+        </Link>
       </div>
     </nav>
   );
 }
 function Home() {
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackCategory, setFeedbackCategory] = useState("Overall experience");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackName, setFeedbackName] = useState("");
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackStatus, setFeedbackStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   useEffect(() => {
     const handleTemplateUpdate = (event: Event) => {
       setTemplates((event as CustomEvent<Template[]>).detail || []);
@@ -203,6 +247,39 @@ function Home() {
   const homeTemplates = getVisibleTemplateCards(templates);
   const heroWords = "Turn Your Memories Into Something Beautiful".split(" ");
   let heroLetterIndex = 0;
+
+  async function submitFeedback(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (feedbackSending) return;
+
+    setFeedbackSending(true);
+    setFeedbackStatus(null);
+    try {
+      await api("/public/feedback", {
+        method: "POST",
+        skipLoader: true,
+        body: JSON.stringify({
+          rating: feedbackRating,
+          category: feedbackCategory,
+          message: feedbackMessage,
+          name: feedbackName,
+        }),
+      });
+      setFeedbackMessage("");
+      setFeedbackName("");
+      setFeedbackStatus({
+        type: "success",
+        message: "Thank you — your feedback has been sent to our team.",
+      });
+    } catch (error: any) {
+      setFeedbackStatus({
+        type: "error",
+        message: error?.message || "We couldn't send that just now. Please try again.",
+      });
+    } finally {
+      setFeedbackSending(false);
+    }
+  }
 
   return (
     <>
@@ -253,6 +330,21 @@ function Home() {
             <Link className="btn btn-soft" to="/templates">
               Explore Templates
             </Link>
+          </div>
+          <div className="home-highlights" aria-label="Devsphere highlights">
+            <div className="home-highlight home-highlight-live">
+              <span className="home-highlight-dot" aria-hidden="true" />
+              <span><strong>141</strong> people are making their page right now</span>
+            </div>
+            <div className="home-highlight">
+              <span><strong>5</strong> templates live</span>
+            </div>
+            <div className="home-highlight">
+              <span>Serving users since <strong>1 year</strong></span>
+            </div>
+            <div className="home-highlight">
+              <span>Loved by <strong>5,000+</strong> people till now</span>
+            </div>
           </div>
         </section>
         <div className="hero-marquee" aria-hidden="true">
@@ -345,6 +437,162 @@ function Home() {
                 <span className="tag">Gift Box</span>
                 <span className="tag">Puzzle</span>
               </div>
+            </div>
+          </section>
+          <section className="section feedback-section" aria-labelledby="feedback-title">
+            <div className="feedback-shell">
+              <div className="feedback-copy">
+                <span className="feedback-eyebrow"><Sparkles size={15} /> Made better with you</span>
+                <h2 id="feedback-title">Your next little note could make someone’s big moment better.</h2>
+                <p>
+                  Tell us what felt lovely, what felt confusing, or what you wish you could do. We read every note and use it to make Devsphere more thoughtful.
+                </p>
+                <div className="feedback-promise">
+                  <span className="feedback-promise-icon"><Heart size={19} fill="currentColor" /></span>
+                  <span><strong>A real note to our team</strong><small>Your feedback is private and helps us improve.</small></span>
+                </div>
+                <div className="feedback-doodle" aria-hidden="true">♡ <span>✦</span></div>
+              </div>
+
+              <form className="feedback-form" onSubmit={submitFeedback}>
+                <div className="feedback-form-heading">
+                  <div>
+                    <span className="feedback-form-kicker">YOUR EXPERIENCE</span>
+                    <h3>How did we do?</h3>
+                  </div>
+                  <div className="feedback-stars" role="group" aria-label="Rate your experience">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        className={star <= feedbackRating ? "is-selected" : ""}
+                        onClick={() => setFeedbackRating(star)}
+                        aria-label={`${star} ${star === 1 ? "star" : "stars"}`}
+                        aria-pressed={feedbackRating === star}
+                      >
+                        <Star size={22} fill={star <= feedbackRating ? "currentColor" : "none"} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <fieldset className="feedback-categories">
+                  <legend>What is this about?</legend>
+                  {["Overall experience", "Templates", "Editor", "Payments"].map((category) => (
+                    <button
+                      type="button"
+                      key={category}
+                      className={feedbackCategory === category ? "is-active" : ""}
+                      onClick={() => setFeedbackCategory(category)}
+                      aria-pressed={feedbackCategory === category}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </fieldset>
+
+                <label className="feedback-label" htmlFor="feedback-message">Your thoughts</label>
+                <textarea
+                  id="feedback-message"
+                  value={feedbackMessage}
+                  onChange={(event) => setFeedbackMessage(event.target.value)}
+                  placeholder="What went well? What can we make easier?"
+                  minLength={5}
+                  maxLength={1200}
+                  required
+                  rows={4}
+                />
+
+                <label className="feedback-label" htmlFor="feedback-name">Your name <span>(optional)</span></label>
+                <input
+                  id="feedback-name"
+                  type="text"
+                  value={feedbackName}
+                  onChange={(event) => setFeedbackName(event.target.value)}
+                  placeholder="How should we address you?"
+                  maxLength={80}
+                  autoComplete="name"
+                />
+
+                <div className="feedback-form-footer">
+                  <p aria-live="polite" className={`feedback-status ${feedbackStatus?.type || ""}`}>
+                    {feedbackStatus?.message || "A minute of your time means a lot to us."}
+                  </p>
+                  <button className="btn btn-primary feedback-submit" type="submit" disabled={feedbackSending}>
+                    {feedbackSending ? "Sending…" : "Send feedback"}
+                    <Send size={16} />
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+          <section className="section reviews-section" aria-labelledby="reviews-title">
+            <div className="reviews-heading">
+              <span className="pill">A little love, returned</span>
+              <h2 id="reviews-title">Past reviews</h2>
+              <p>See which story templates creators have loved and used for their special people.</p>
+            </div>
+            <div className="reviews-grid">
+              {HOME_REVIEW_SUMMARIES.map((review, index) => (
+                <article className={`review-card ${index === 1 ? "review-card-featured" : ""}`} key={review.name}>
+                  <div className="review-card-topline">
+                    <span>{review.occasion}</span>
+                    <Sparkles size={17} aria-hidden="true" />
+                  </div>
+                  <div className="review-rating-row">
+                    <span className="review-stars" aria-label={`${review.rating} out of 5 stars`}>★★★★★</span>
+                    <span className="review-score"><strong>{review.rating.toFixed(1)}</strong><span>/ 5</span></span>
+                  </div>
+                  <h3>{review.name}</h3>
+                  <p>{review.description}</p>
+                  <div className="review-card-footer">
+                    <span className="review-use-icon"><Heart size={15} fill="currentColor" /></span>
+                    <span>{review.uses.toLocaleString("en-IN")} surprises made</span>
+                    <span className="review-footer-label">Creator favorite</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="reviews-cta">
+              <span>Ready to make someone’s day?</span>
+              <Link to="/templates" onMouseEnter={preloadTemplates}>
+                Find your template <ArrowRight size={16} />
+              </Link>
+            </div>
+          </section>
+          <section className="section contact-section" id="contact" aria-labelledby="contact-title">
+            <div className="contact-shell">
+              <div className="contact-intro">
+                <span className="contact-kicker"><Mail size={15} /> Contact us</span>
+                <h2 id="contact-title">Still having an issue?</h2>
+                <p>Send us a note and we’ll help you get back to making something lovely.</p>
+                <a className="btn btn-primary contact-email-button" href="mailto:devsphere@gmail.com?subject=Devsphere%20support">
+                  Email us <ArrowRight size={17} />
+                </a>
+                <a className="contact-email-address" href="mailto:devsphere@gmail.com">devsphere@gmail.com</a>
+              </div>
+              <div className="contact-info">
+                <article className="contact-info-card">
+                  <span className="contact-info-icon"><Clock3 size={19} /></span>
+                  <div><span className="contact-info-label">RESPONSE TIME</span><strong>We reply within 12 hours</strong></div>
+                </article>
+                <article className="contact-info-card">
+                  <span className="contact-info-icon"><MapPin size={19} /></span>
+                  <div><span className="contact-info-label">WHERE WE ARE</span><strong>Based in India 🇮🇳</strong></div>
+                </article>
+                <div className="contact-socials">
+                  <span className="contact-info-icon"><Instagram size={19} /></span>
+                  <div className="contact-social-content">
+                    <span className="contact-info-label">FIND US ON INSTAGRAM</span>
+                    <div>
+                      <a href="https://www.instagram.com/devsphere.in/" target="_blank" rel="noopener noreferrer">@devsphere.in</a>
+                      <a href="https://www.instagram.com/desphere.us/" target="_blank" rel="noopener noreferrer">@desphere.us</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <span className="contact-sparkle contact-sparkle-one" aria-hidden="true">✦</span>
+              <span className="contact-sparkle contact-sparkle-two" aria-hidden="true">✧</span>
             </div>
           </section>
         </div>
@@ -3848,17 +4096,20 @@ function Admin() {
   const [stats, setStats] = useState<any>();
   const [templates, setTemplates] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [feedbackItems, setFeedbackItems] = useState<any[]>([]);
   const nav = useNavigate();
   useEffect(() => {
     Promise.all([
       api("/admin/dashboard"),
       api("/templates"),
       api("/admin/orders"),
+      api("/admin/feedback"),
     ])
-      .then(([dashboard, templateResponse, orderResponse]) => {
+      .then(([dashboard, templateResponse, orderResponse, feedbackResponse]) => {
         setStats(dashboard);
         setTemplates(templateResponse.items || []);
         setOrders(orderResponse.items || []);
+        setFeedbackItems(feedbackResponse.items || []);
       })
       .catch((error) => {
         console.error("Admin load failed:", error);
@@ -3921,6 +4172,36 @@ function Admin() {
               </div>
             ))}
           </div>
+        </section>
+        <section className="section">
+          <div className="section-head">
+            <div>
+              <span className="pill">From the community</span>
+              <h2>Recent feedback</h2>
+            </div>
+          </div>
+          {feedbackItems.length ? (
+            <div className="feedback-inbox">
+              {feedbackItems.map((item) => {
+                const details = item.metadata || {};
+                return (
+                  <article className="feedback-inbox-card" key={item.id}>
+                    <div className="feedback-inbox-topline">
+                      <span className="feedback-inbox-rating" aria-label={`${details.rating || 0} out of 5 stars`}>
+                        {"★".repeat(Math.max(0, Math.min(5, Number(details.rating) || 0)))}
+                      </span>
+                      <span className="tag">{details.category || "Feedback"}</span>
+                      <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time>
+                    </div>
+                    <p>{details.message}</p>
+                    {details.name && <span className="muted">— {details.name}</span>}
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="muted">No feedback has arrived yet. New notes will appear here.</p>
+          )}
         </section>
         <section className="section">
           <div className="section-head">
@@ -4048,6 +4329,25 @@ function RoutePageViews() {
 
   useEffect(() => {
     capturePageview();
+    if (!hash) return;
+
+    let targetId = hash.slice(1);
+    try {
+      targetId = decodeURIComponent(targetId);
+    } catch {
+      // Use the raw hash when it contains malformed escaping.
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [pathname, search, hash]);
 
   return null;

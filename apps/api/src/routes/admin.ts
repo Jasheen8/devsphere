@@ -3,6 +3,14 @@ const r=Router();r.use(auth,requireRole('ADMIN','SUPER_ADMIN'));
 r.get('/dashboard',async(_req,res)=>{const [customers,sites,templates,orders,revenue,pending]=await Promise.all([db.user.count({where:{role:'CUSTOMER'}}),db.publishedSite.count({where:{status:'ACTIVE'}}),db.template.count(),db.order.count(),db.order.aggregate({where:{status:'PAID'},_sum:{amount:true}}),db.order.count({where:{status:'PENDING'}})]);res.json({customers,sites,templates,orders,revenue:revenue._sum.amount||0,pending})});
 r.get('/users',async(_req,res)=>res.json({items:await db.user.findMany({where:{role:'CUSTOMER'},select:{id:true,email:true,name:true,status:true,createdAt:true,_count:{select:{projects:true}}},orderBy:{createdAt:'desc'}})}));
 r.get('/orders',async(_req,res)=>res.json({items:await db.order.findMany({include:{user:{select:{email:true,name:true}},project:{select:{id:true,name:true}},plan:true},orderBy:{createdAt:'desc'}})}));
+r.get('/feedback', async (_req, res) => {
+  const items = await db.analyticsEvent.findMany({
+    where: { type: "feedback_submitted" },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+  res.json({ items });
+});
 r.post('/templates',async(req,res)=>{const t=await db.template.create({data:req.body});res.status(201).json({template:t})});
 r.patch('/templates/:id',async(req,res)=>res.json({template:await db.template.update({where:{id:req.params.id},data:req.body})}));
 r.delete('/templates/:id',async(req,res)=>{await db.template.update({where:{id:req.params.id},data:{published:false}});res.status(204).end()});

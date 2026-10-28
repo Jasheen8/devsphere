@@ -5,6 +5,39 @@ import { TemplateSchema } from "@memora/shared";
 
 const r = Router();
 
+r.post("/feedback", async (req, res) => {
+  const body = req.body || {};
+  const categories = ["Overall experience", "Templates", "Editor", "Payments"];
+  const message = typeof body.message === "string" ? body.message.trim() : "";
+  const rating = body.rating;
+
+  if (
+    !Number.isInteger(rating) ||
+    rating < 1 ||
+    rating > 5 ||
+    !categories.includes(body.category) ||
+    message.length < 5 ||
+    message.length > 1200
+  ) {
+    return res.status(400).json({ error: "Choose a rating and topic, then enter 5 to 1,200 characters of feedback." });
+  }
+
+  const name = typeof body.name === "string" ? body.name.trim().slice(0, 80) : "";
+  await db.analyticsEvent.create({
+    data: {
+      type: "feedback_submitted",
+      metadata: {
+        rating,
+        category: body.category,
+        message,
+        ...(name ? { name } : {}),
+      },
+    },
+  });
+
+  res.status(201).json({ ok: true });
+});
+
 function slugBase(value: string) {
   return (
     value
