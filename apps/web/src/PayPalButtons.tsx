@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "./lib/api";
 
 declare global {
@@ -123,6 +123,7 @@ export default function PayPalButtons({
 }: Props) {
   const containerRef =
     useRef<HTMLDivElement | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const successRef = useRef(onSuccess);
   const errorRef = useRef(onError);
@@ -148,6 +149,8 @@ export default function PayPalButtons({
       ) {
         return;
       }
+
+      setIsInitializing(true);
 
       try {
         /*
@@ -350,8 +353,12 @@ export default function PayPalButtons({
         await buttons.render(
           containerRef.current,
         );
+        if (!cancelled) {
+          setIsInitializing(false);
+        }
       } catch (error) {
         if (!cancelled) {
+          setIsInitializing(false);
           errorRef.current(error);
         }
       }
@@ -388,5 +395,14 @@ export default function PayPalButtons({
     );
   }
 
-  return <div ref={containerRef} />;
+  return (
+    <div>
+      {isInitializing && (
+        <p className="muted" role="status">
+          Connecting to PayPal…
+        </p>
+      )}
+      <div ref={containerRef} />
+    </div>
+  );
 }

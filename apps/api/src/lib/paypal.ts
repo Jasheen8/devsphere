@@ -13,10 +13,6 @@ function getPayPalConfigurationError() {
     return "PayPal requires PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET.";
   }
 
-  if (!process.env.PAYPAL_WEBHOOK_ID?.trim()) {
-    return "PayPal requires PAYPAL_WEBHOOK_ID for payment confirmation.";
-  }
-
   if (
     process.env.NODE_ENV?.trim().toLowerCase() === "production" &&
     process.env.PAYPAL_ENV?.trim().toLowerCase() !== "live"

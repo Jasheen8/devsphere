@@ -403,6 +403,12 @@ function TemplateCard({ t }: { t: Template }) {
   const liveDemoUrl = isWeddingInvitation
     ? "https://wedding-invitation-tau-three-37.vercel.app/"
     : t.liveDemoUrl || t.previewUrl;
+  const cardTags = [
+    ...(isAnniversary ? ["romantic", "journey", "cinematic"] : t.tags),
+    ...(details?.liveDemoCode
+      ? [`live demo code ${details.liveDemoCode}`]
+      : []),
+  ];
 
   const imageUrl = isAnniversary
     ? "/images/anniversary.png"
@@ -470,13 +476,11 @@ function TemplateCard({ t }: { t: Template }) {
           </div>
         </div>
         <div className="tags">
-          {(isAnniversary ? ["romantic", "journey", "cinematic"] : t.tags).map(
-            (tag) => (
-              <span className="tag" key={tag}>
-                {tag}
-              </span>
-            ),
-          )}
+          {cardTags.map((tag) => (
+            <span className="tag" key={tag}>
+              {tag}
+            </span>
+          ))}
         </div>
 
         <div className="actions">
@@ -2447,7 +2451,9 @@ function Checkout() {
         <div className="checkout-currency-section">
           <h3>Choose Currency</h3>
 
-          <p className="muted">Select how you want to pay.</p>
+          <p className="muted">
+            Choose INR for Razorpay in India, or USD to use PayPal for international checkout.
+          </p>
 
           <div className="actions">
             <button
