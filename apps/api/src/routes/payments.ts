@@ -126,6 +126,7 @@ r.post("/create-order", auth, async (req, res) => {
   const data = parsed.data;
 
   let createdOrderId: string | null = null;
+  let providerRequestInFlight = false;
 
   try {
     if (await failIfPaid(data.projectId, user.id, res)) {
@@ -259,14 +260,6 @@ r.post("/create-order", auth, async (req, res) => {
       });
     }
 
-    await db.project.update({
-      where: { id: project.id },
-      data: {
-        revealMethod: checkoutRevealMethod,
-        data: updatedData,
-      },
-    });
-
     const order = await db.order.create({
       data: {
         userId: user.id,
@@ -282,10 +275,16 @@ r.post("/create-order", auth, async (req, res) => {
     createdOrderId = order.id;
 
     if (provider === "razorpay") {
+      providerRequestInFlight = true;
       const razorpayOrder = await createRazorpayOrder(
         pricing.providerAmountMinor,
         order.id,
       );
+      providerRequestInFlight = false;
+
+      if (!razorpayOrder?.id) {
+        throw new Error("Razorpay did not return an order ID.");
+      }
 
       const saved = await db.order.update({
         where: { id: order.id },
@@ -302,6 +301,7 @@ r.post("/create-order", auth, async (req, res) => {
       });
     }
 
+    providerRequestInFlight = true;
     const paypalOrder = await createPayPalOrder({
       amountUsd: pricing.providerAmount,
       referenceId: order.id,
@@ -313,6 +313,11 @@ r.post("/create-order", auth, async (req, res) => {
             : "Basic"
       }${pricing.removeWatermark ? " + Remove Devsphere Credit" : ""}`,
     });
+    providerRequestInFlight = false;
+
+    if (!paypalOrder?.id) {
+      throw new Error("PayPal did not return an order ID.");
+    }
 
     const saved = await db.order.update({
       where: { id: order.id },
@@ -345,8 +350,19 @@ r.post("/create-order", auth, async (req, res) => {
         });
     }
 
-    return res.status(500).json({
-      error: "Unable to start payment",
+    const providerMessage =
+      error?.error?.description ||
+      error?.details?.[0]?.description ||
+      error?.message;
+    const safeProviderMessage =
+      providerRequestInFlight &&
+      typeof providerMessage === "string" &&
+      providerMessage.trim()
+        ? providerMessage.trim().slice(0, 240)
+        : "Unable to start payment. Please retry or contact support.";
+
+    return res.status(providerRequestInFlight ? 502 : 500).json({
+      error: safeProviderMessage,
     });
   }
 });

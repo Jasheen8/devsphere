@@ -31,18 +31,13 @@ export async function createRazorpayOrder(
 
   const client = requireRazorpay();
 
+  // Capture policy is configured in Razorpay Dashboard. The verification
+  // flow explicitly captures an authorized payment when automatic capture
+  // has not completed yet.
   return client.orders.create({
     amount: amountMinor,
     currency: "INR",
     receipt: receipt.slice(0, 40),
-    payment: {
-      capture: "automatic",
-      capture_options: {
-        automatic_expiry_period: 12,
-        manual_expiry_period: 720,
-        refund_speed: "normal",
-      },
-    },
   });
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./lib/api";
+import { loadPaymentSdk } from "./lib/loadPaymentSdk";
 
 declare global {
   interface Window {
@@ -7,90 +8,30 @@ declare global {
   }
 }
 
-let paypalSdkPromise: Promise<void> | null = null;
-
 function loadPayPalSdk(clientId: string) {
-  if (window.paypal) {
-    return Promise.resolve();
-  }
-
-  if (paypalSdkPromise) {
-    return paypalSdkPromise;
-  }
-
   const src =
     `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}` +
     `&currency=USD&intent=capture&components=buttons`;
+  const existingScript = document.querySelector(
+    'script[data-payment-sdk="paypal"]',
+  ) as HTMLScriptElement | null;
 
-  paypalSdkPromise = new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector(
-      'script[data-devsphere-paypal-sdk="true"]',
-    ) as HTMLScriptElement | null;
+  if (
+    window.paypal &&
+    existingScript &&
+    existingScript.src !== new URL(src, window.location.href).href
+  ) {
+    return Promise.reject(
+      new Error("PayPal account settings changed. Refresh checkout and try again."),
+    );
+  }
 
-    if (existing) {
-      const finish = () => {
-        if (window.paypal) {
-          resolve();
-        } else {
-          reject(
-            new Error(
-              "PayPal SDK loaded but is unavailable.",
-            ),
-          );
-        }
-      };
-
-      if (window.paypal) {
-        resolve();
-        return;
-      }
-
-      existing.addEventListener("load", finish, {
-        once: true,
-      });
-
-      existing.addEventListener(
-        "error",
-        () => {
-          reject(
-            new Error("Unable to load PayPal."),
-          );
-        },
-        { once: true },
-      );
-
-      return;
-    }
-
-    const script = document.createElement("script");
-
-    script.src = src;
-    script.async = true;
-    script.dataset.devspherePaypalSdk = "true";
-
-    script.onload = () => {
-      if (window.paypal) {
-        resolve();
-      } else {
-        reject(
-          new Error(
-            "PayPal SDK loaded but is unavailable.",
-          ),
-        );
-      }
-    };
-
-    script.onerror = () => {
-      reject(new Error("Unable to load PayPal."));
-    };
-
-    document.body.appendChild(script);
-  }).catch((error) => {
-    paypalSdkPromise = null;
-    throw error;
-  });
-
-  return paypalSdkPromise;
+  return loadPaymentSdk(
+    "paypal",
+    src,
+    () => Boolean(window.paypal),
+    "Unable to load PayPal.",
+  );
 }
 
 type Props = {

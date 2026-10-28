@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   BrowserRouter,
@@ -28,6 +28,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { TemplateRenderer } from "@memora/template-engine";
 import type { TemplateDefinition } from "@memora/shared";
 import { captureEvent, capturePageview } from "./analytics";
+import { loadPaymentSdk } from "./lib/loadPaymentSdk";
 import {
   api,
   apiBase,
@@ -2029,6 +2030,7 @@ function Checkout() {
   const [scannerStyle, setScannerStyle] = useState<"HEART" | "SQUARE">("HEART");
 
   const nav = useNavigate();
+  const paymentResolutionInProgress = useRef(false);
 
   /* =========================================================
      LOAD PROJECT + PRICING PLAN
@@ -2236,6 +2238,7 @@ function Checkout() {
 
     setLoading("birthday");
     setCheckoutError("");
+    paymentResolutionInProgress.current = false;
 
     try {
       const order = await api<any>("/payments/create-order", {
@@ -2270,48 +2273,12 @@ function Checkout() {
         throw new Error(`Invalid Razorpay amount: ${order?.amount}`);
       }
 
-      if (!(window as any).Razorpay) {
-        await new Promise<void>((resolve, reject) => {
-          const src = "https://checkout.razorpay.com/v1/checkout.js";
-          const existing = document.querySelector(
-            `script[src="${src}"]`,
-          ) as HTMLScriptElement | null;
-
-          if ((window as any).Razorpay) {
-            resolve();
-            return;
-          }
-
-          if (existing) {
-            const done = () =>
-              (window as any).Razorpay
-                ? resolve()
-                : reject(new Error("Razorpay SDK is unavailable."));
-
-            existing.addEventListener("load", done, { once: true });
-            existing.addEventListener(
-              "error",
-              () => reject(new Error("Unable to load Razorpay.")),
-              { once: true },
-            );
-
-            setTimeout(() => {
-              if ((window as any).Razorpay) resolve();
-            }, 100);
-            return;
-          }
-
-          const script = document.createElement("script");
-          script.src = src;
-          script.async = true;
-          script.onload = () =>
-            (window as any).Razorpay
-              ? resolve()
-              : reject(new Error("Razorpay SDK is unavailable."));
-          script.onerror = () => reject(new Error("Unable to load Razorpay."));
-          document.body.appendChild(script);
-        });
-      }
+      await loadPaymentSdk(
+        "razorpay",
+        "https://checkout.razorpay.com/v1/checkout.js",
+        () => Boolean((window as any).Razorpay),
+        "Unable to load Razorpay.",
+      );
 
       const razorpay = new (window as any).Razorpay({
         key: order.keyId,
@@ -2322,6 +2289,7 @@ function Checkout() {
         order_id: order.providerOrderId,
 
         handler: async (response: any) => {
+          paymentResolutionInProgress.current = true;
           setLoading("verifying");
           setCheckoutError("");
 
@@ -2372,20 +2340,45 @@ function Checkout() {
                 "Payment was received, but confirmation is still processing. Please wait a moment and refresh this page.",
             );
           } finally {
+            paymentResolutionInProgress.current = false;
             setLoading("");
           }
         },
       });
 
-      razorpay.on("payment.failed", (response: any) => {
-        setCheckoutError(
-          response?.error?.description || "Razorpay payment failed.",
-        );
-        setLoading("");
+      razorpay.on("payment.failed", async (response: any) => {
+        paymentResolutionInProgress.current = true;
+        setLoading("verifying");
+        setCheckoutError("Checking the payment status…");
+
+        try {
+          const resume = await api<any>(`/payments/resume/${id}`, {
+            method: "POST",
+          });
+
+          if (resume?.paid) {
+            nav(`/published/${id}`);
+            return;
+          }
+
+          setCheckoutError(
+            response?.error?.description || "Razorpay payment failed.",
+          );
+        } catch (resumeError: any) {
+          console.error("Razorpay failed-payment recovery failed:", resumeError);
+          setCheckoutError(
+            "We couldn’t confirm the payment status. Please check My Websites before trying to pay again.",
+          );
+        } finally {
+          paymentResolutionInProgress.current = false;
+          setLoading("");
+        }
       });
 
       razorpay.on("modal.ondismiss", () => {
-        setLoading("");
+        if (!paymentResolutionInProgress.current) {
+          setLoading("");
+        }
       });
 
       razorpay.open();
@@ -3079,6 +3072,8 @@ function RoutePublished() {
   const { id } = useParams<{ id: string }>();
 
   const [project, setProject] = useState<any>();
+  const [projectLoadError, setProjectLoadError] = useState("");
+  const [projectLoadAttempt, setProjectLoadAttempt] = useState(0);
   const now = useCurrentTimeForDeadlines([project?.paidEditUntil]);
   const [method, setMethod] = useState<
     "NORMAL" | "QR" | "PIN" | "LETTER" | "GIFT" | "PUZZLE"
@@ -3099,8 +3094,13 @@ function RoutePublished() {
   useEffect(() => {
     if (!id) return;
 
+    let cancelled = false;
+    setProject(undefined);
+    setProjectLoadError("");
+
     api(`/projects/${id}`)
       .then((response) => {
+        if (cancelled) return;
         const p = response.project;
 
         setProject(p);
@@ -3119,8 +3119,17 @@ function RoutePublished() {
       })
       .catch((error) => {
         console.error("Failed to load published project:", error);
+        if (!cancelled) {
+          setProjectLoadError(
+            error?.message || "Unable to load your published website.",
+          );
+        }
       });
-  }, [id]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, projectLoadAttempt]);
 
   if (!project) {
     return (
@@ -3129,7 +3138,21 @@ function RoutePublished() {
 
         <div className="container section">
           <BackButton label="Back to My Websites" />
-          Loading your published website…
+          {projectLoadError ? (
+            <div className="card" style={{ padding: 30 }}>
+              <h2>We couldn’t load your website</h2>
+              <p className="muted">{projectLoadError}</p>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setProjectLoadAttempt((attempt) => attempt + 1)}
+              >
+                Try again
+              </button>
+            </div>
+          ) : (
+            "Loading your published website…"
+          )}
         </div>
       </>
     );
