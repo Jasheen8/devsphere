@@ -1,4 +1,4 @@
-# Memora — Digital Gift Website Generator
+# Devsphere — Digital Gift Website Generator
 
 A production-oriented full-stack SaaS foundation for creating personalized occasion websites from reusable, database-driven templates.
 
