@@ -394,6 +394,7 @@ function BlankTemplateCard() {
   );
 }
 function TemplateCard({ t }: { t: Template }) {
+  const isRoyalMemoryBirthday = t.slug === "birthday-royal-memory";
   const isAnniversary = t.slug === "anniversary-romantic-01";
   const isWeddingInvitation = t.slug === "wedding-invitation";
   const details = TEMPLATE_CARD_DETAILS[t.slug];
@@ -405,6 +406,8 @@ function TemplateCard({ t }: { t: Template }) {
 
   const imageUrl = isAnniversary
     ? "/images/anniversary.png"
+    : isRoyalMemoryBirthday
+      ? "/images/royal-birthday.png"
     : t.thumbnailUrl ||
       "/images/invitation.png";
 
@@ -412,7 +415,13 @@ function TemplateCard({ t }: { t: Template }) {
     <article className={`card ${isAnniversary ? "anniversary-card" : ""}`}>
       <img
         src={imageUrl}
-        alt={isAnniversary ? "Bloom Anniversary" : t.name}
+        alt={
+          isAnniversary
+            ? "Bloom Anniversary"
+            : isRoyalMemoryBirthday
+              ? "Royal Memory Birthday"
+              : t.name
+        }
         loading="lazy"
         decoding="async"
       />
@@ -855,9 +864,54 @@ function Auth() {
     </div>
   );
 }
+function paidEditTimeLeft(until?: string | null, now = Date.now()) {
+  if (!until) return "";
+
+  const minutesLeft = Math.ceil((Date.parse(until) - now) / 60_000);
+  if (minutesLeft <= 0) return "";
+
+  const hours = Math.floor(minutesLeft / 60);
+  const minutes = minutesLeft % 60;
+
+  if (hours === 0) return `${minutes}m left`;
+  if (minutes === 0) return `${hours}h left`;
+  return `${hours}h ${minutes}m left`;
+}
+
+function useCurrentTimeForDeadlines(deadlines: Array<string | null | undefined>) {
+  const [now, setNow] = useState(() => Date.now());
+  const deadlineKey = deadlines.filter(Boolean).join("|");
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const nextDeadline = deadlineKey
+      .split("|")
+      .map((value) => Date.parse(value))
+      .filter((value) => Number.isFinite(value) && value > now)
+      .sort((a, b) => a - b)[0];
+
+    if (!nextDeadline) return;
+
+    const timer = window.setTimeout(
+      () => setNow(Date.now()),
+      Math.max(1, nextDeadline - Date.now() + 1),
+    );
+    return () => window.clearTimeout(timer);
+  }, [deadlineKey, now]);
+
+  return now;
+}
+
 function Dashboard() {
   const [projects, setProjects] = useState<any[]>([]);
   const [me, setMe] = useState<any>();
+  const now = useCurrentTimeForDeadlines(
+    projects.map((project) => project.paidEditUntil),
+  );
   const nav = useNavigate();
   useEffect(() => {
     Promise.all([getCurrentUser(), api("/projects")])
@@ -980,6 +1034,17 @@ function Dashboard() {
 
                 {(p.status === "PUBLISHED" || p.isPaid) && p.website && (
                   <>
+                    {p.isPaid &&
+                      p.paidEditUntil &&
+                      Date.parse(p.paidEditUntil) > now && (
+                        <button
+                          className="btn btn-soft"
+                          onClick={() => nav(`/edit/${p.id}`)}
+                        >
+                          Edit Website · {paidEditTimeLeft(p.paidEditUntil, now)}
+                        </button>
+                      )}
+
                     <button
                       className="btn btn-primary"
                       onClick={() => nav(`/published/${p.id}`)}
@@ -1637,6 +1702,19 @@ function Editor() {
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState("");
   const nav = useNavigate();
+  const now = useCurrentTimeForDeadlines([project?.paidEditUntil]);
+
+  const hasPaidOrder = Boolean(
+    project?.orders?.some((order: any) => order.status === "PAID"),
+  );
+  const paidEditUntil = project?.paidEditUntil as string | null | undefined;
+  const canEditPublished = Boolean(
+    project?.status === "PUBLISHED" &&
+      hasPaidOrder &&
+      paidEditUntil &&
+      Date.parse(paidEditUntil) > now,
+  );
+
   useEffect(() => {
     if (id)
       api(`/projects/${id}`).then((x) => {
@@ -1646,6 +1724,8 @@ function Editor() {
       });
   }, [id]);
   useEffect(() => {
+    if (project?.status === "PUBLISHED" && !canEditPublished) return;
+
     const t = setTimeout(() => {
       if (project) {
         api(`/projects/${project.id}`, {
@@ -1653,13 +1733,52 @@ function Editor() {
           body: JSON.stringify({ data, customization }),
           skipLoader: true,
         })
-          .then(() => setSaved("Saved just now ✓"))
+          .then(() =>
+            setSaved(
+              canEditPublished
+                ? "Saved to your live website ✓"
+                : "Saved just now ✓",
+            ),
+          )
           .catch(() => setSaved("Could not save"));
       }
     }, 700);
     return () => clearTimeout(t);
-  }, [data, customization]);
+  }, [data, customization, project, canEditPublished]);
   if (!project) return <div className="container section">Loading editor…</div>;
+
+  if (project.status === "PUBLISHED" && !canEditPublished) {
+    return (
+      <>
+        <Nav />
+        <div className="container section">
+          <BackButton label="Back to My Websites" />
+          <div
+            className="card"
+            style={{ padding: 30, maxWidth: 620, margin: "24px auto" }}
+          >
+            <h2>
+              {hasPaidOrder
+                ? "Editing window closed"
+                : "This website can’t be edited here"}
+            </h2>
+            <p className="muted">
+              {hasPaidOrder
+                ? "Editing is available for 24 hours after payment. Your published website and its link are still available."
+                : "Published websites can only be edited during the 24-hour period after payment."}
+            </p>
+            <button
+              className="btn btn-primary"
+              onClick={() => nav(`/published/${project.id}`)}
+            >
+              Manage Website
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   const schema = project.template.schema as TemplateDefinition;
   const supportsWatermarkRemoval = [
     "birthday-royal-memory",
@@ -1685,6 +1804,18 @@ function Editor() {
     } catch (e: any) {
       console.error("Finalize failed:", e);
       alert(e.message || "Could not finalize the project.");
+    }
+  }
+
+  async function savePaidEdits() {
+    try {
+      await api(`/projects/${project.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ data, customization }),
+      });
+      setSaved("Changes saved to your existing live link ✓");
+    } catch (e: any) {
+      setSaved(e.message || "Could not save changes");
     }
   }
   return (
@@ -1737,7 +1868,7 @@ function Editor() {
             </div>
           </>
         )}
-        {supportsWatermarkRemoval && (
+        {supportsWatermarkRemoval && !canEditPublished && (
           <div className="field remove-watermark-option">
             <label className="remove-watermark-control">
               <input
@@ -1764,11 +1895,13 @@ function Editor() {
         <button
           className="btn btn-primary"
           style={{ width: "100%" }}
-          onClick={finalize}
+          onClick={canEditPublished ? savePaidEdits : finalize}
         >
-          {project.template.isFree
-            ? "Finalize & Get Free Link"
-            : "Finalize & Continue"}
+          {canEditPublished
+            ? "Save Changes to Live Website"
+            : project.template.isFree
+              ? "Finalize & Get Free Link"
+              : "Finalize & Continue"}
         </button>
         <p className="muted" style={{ fontSize: ".8rem" }}>
           {saved}
@@ -2940,6 +3073,7 @@ function RoutePublished() {
   const { id } = useParams<{ id: string }>();
 
   const [project, setProject] = useState<any>();
+  const now = useCurrentTimeForDeadlines([project?.paidEditUntil]);
   const [method, setMethod] = useState<
     "NORMAL" | "QR" | "PIN" | "LETTER" | "GIFT" | "PUZZLE"
   >("NORMAL");
@@ -2996,6 +3130,11 @@ function RoutePublished() {
   }
 
   const website = project.website;
+  const canEditPaidWebsite =
+    project.status === "PUBLISHED" &&
+    project.orders?.some((order: any) => order.status === "PAID") &&
+    project.paidEditUntil &&
+    Date.parse(project.paidEditUntil) > now;
 
   if (!website) {
     return (
@@ -3388,6 +3527,10 @@ function RoutePublished() {
 
           <div
             style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 14,
+              flexWrap: "wrap",
               marginTop: 22,
             }}
           >
@@ -3399,6 +3542,22 @@ function RoutePublished() {
             >
               Open Website
             </a>
+            {canEditPaidWebsite && (
+              <div>
+                <button
+                  className="btn btn-soft"
+                  onClick={() => nav(`/edit/${project.id}`)}
+                >
+                  Edit Website · {paidEditTimeLeft(project.paidEditUntil, now)}
+                </button>
+                <p
+                  className="muted"
+                  style={{ margin: "8px 0 0", fontSize: ".86rem" }}
+                >
+                  Your changes keep this same link.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

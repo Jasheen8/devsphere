@@ -1092,7 +1092,7 @@ async function main() {
     {
       slug: "birthday-royal-memory",
       name: "Royal Memory Birthday",
-      thumbnailUrl: "/images/royal-birthday.jpg",
+      thumbnailUrl: "/images/royal-birthday.png",
       description:
         "A cinematic birthday experience filled with memories, letters, music and interactive surprises.",
       cat: birthday,

@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "../lib/db.js";
 import { auth } from "../lib/auth.js";
 import { TemplateSchema } from "@memora/shared";
+import { getPaidEditUntil } from "../lib/paid-edit-window.js";
 import {
   publishFreeProject,
   publishPaidProject,
@@ -128,7 +129,18 @@ r.get("/", async (req, res) => {
       }),
       db.order.findMany({
         where: { userId: u.id, status: "PAID" },
-        select: { projectId: true },
+        select: {
+          projectId: true,
+          status: true,
+          updatedAt: true,
+          payments: {
+            where: { status: "CAPTURED" },
+            select: {
+              status: true,
+              createdAt: true,
+            },
+          },
+        },
       }),
     ]);
 
@@ -140,6 +152,11 @@ r.get("/", async (req, res) => {
       items: projects.map((project) => ({
         ...project,
         isPaid: paidProjectIds.has(project.id),
+        paidEditUntil: getPaidEditUntil(
+          paidOrders.filter((order) =>
+            project.id === order.projectId,
+          ),
+        )?.toISOString() || null,
       })),
     });
   } catch (error) {
@@ -172,7 +189,18 @@ r.get("/:id", async (req, res) => {
           },
         },
         website: true,
-        orders: true,
+        orders: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            payments: {
+              where: { status: "CAPTURED" },
+              select: {
+                status: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -183,7 +211,10 @@ r.get("/:id", async (req, res) => {
     }
 
     return res.json({
-      project,
+      project: {
+        ...project,
+        paidEditUntil: getPaidEditUntil(project.orders)?.toISOString() || null,
+      },
     });
   } catch (error) {
     console.error("Get project failed:", error);
@@ -219,6 +250,21 @@ r.patch("/:id", async (req, res) => {
         id: projectId,
         userId: u.id,
       },
+      include: {
+        website: true,
+        orders: {
+          where: { status: "PAID" },
+          include: {
+            payments: {
+              where: { status: "CAPTURED" },
+              select: {
+                status: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!existing) {
@@ -227,14 +273,38 @@ r.patch("/:id", async (req, res) => {
       });
     }
 
-    /*
-     * A published project should not be edited through the
-     * normal project editor. Reveal settings have their own route.
-     */
+    let paidEditUntil: Date | null = null;
+
     if (existing.status === "PUBLISHED") {
-      return res.status(409).json({
-        error: "Published websites cannot be edited here.",
-      });
+      if (!existing.website) {
+        return res.status(409).json({
+          error: "This published website is unavailable for editing.",
+        });
+      }
+
+      if (
+        Object.keys(parsed.data).some(
+          (key) => key !== "data" && key !== "customization",
+        )
+      ) {
+        return res.status(409).json({
+          error: "Only website content can be changed after payment.",
+        });
+      }
+
+      paidEditUntil = getPaidEditUntil(existing.orders);
+
+      if (!paidEditUntil) {
+        return res.status(409).json({
+          error: "Published websites cannot be edited here.",
+        });
+      }
+
+      if (paidEditUntil.getTime() <= Date.now()) {
+        return res.status(403).json({
+          error: "The 24-hour editing period for this website has ended.",
+        });
+      }
     }
 
     const updateData: Prisma.ProjectUpdateInput = {};
@@ -290,6 +360,13 @@ r.patch("/:id", async (req, res) => {
 
     const project = await db.$transaction(
       async (tx) => {
+        if (
+          paidEditUntil &&
+          paidEditUntil.getTime() <= Date.now()
+        ) {
+          throw new Error("PAID_EDIT_WINDOW_CLOSED");
+        }
+
         await tx.projectRevision.create({
           data: {
             projectId: existing.id,
@@ -318,6 +395,15 @@ r.patch("/:id", async (req, res) => {
       project,
     });
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "PAID_EDIT_WINDOW_CLOSED"
+    ) {
+      return res.status(403).json({
+        error: "The 24-hour editing period for this website has ended.",
+      });
+    }
+
     console.error("Update project failed:", error);
 
     return res.status(500).json({

@@ -3,6 +3,7 @@ import { z } from "zod";
 import crypto from "node:crypto";
 import { auth } from "../lib/auth.js";
 import { db } from "../lib/db.js";
+import { hasOpenPaidEditWindow } from "../lib/paid-edit-window.js";
 import { presignUpload, publicUrl } from "../lib/storage.js";
 const r = Router();
 r.use(auth);
@@ -26,8 +27,27 @@ r.post("/presign", async (req, res) => {
   const u = (req as any).user;
   const project = await db.project.findFirst({
     where: { id: p.data.projectId, userId: u.id },
+    include: {
+      orders: {
+        where: { status: "PAID" },
+        include: {
+          payments: {
+            where: { status: "CAPTURED" },
+            select: { status: true, createdAt: true },
+          },
+        },
+      },
+    },
   });
   if (!project) return res.status(404).json({ error: "Project not found" });
+  if (
+    project.status === "PUBLISHED" &&
+    !hasOpenPaidEditWindow(project.orders)
+  ) {
+    return res.status(403).json({
+      error: "The 24-hour editing period for this website has ended.",
+    });
+  }
   const key = `users/${u.id}/projects/${project.id}/${crypto.randomUUID()}-${p.data.originalName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
   const uploadUrl = await presignUpload(key, p.data.mimeType);
   res.json({ uploadUrl, key, url: publicUrl(key) });
@@ -49,11 +69,38 @@ r.post("/attach", async (req, res) => {
   const u = (req as any).user;
   const project = await db.project.findFirst({
     where: { id: p.data.projectId, userId: u.id },
+    include: {
+      orders: {
+        where: { status: "PAID" },
+        include: {
+          payments: {
+            where: { status: "CAPTURED" },
+            select: { status: true, createdAt: true },
+          },
+        },
+      },
+    },
   });
   if (!project) return res.status(404).json({ error: "Project not found" });
+  if (
+    project.status === "PUBLISHED" &&
+    !hasOpenPaidEditWindow(project.orders)
+  ) {
+    return res.status(403).json({
+      error: "The 24-hour editing period for this website has ended.",
+    });
+  }
   const count = await db.projectMedia.count({
     where: { projectId: project.id },
   });
+  if (
+    project.status === "PUBLISHED" &&
+    !hasOpenPaidEditWindow(project.orders)
+  ) {
+    return res.status(403).json({
+      error: "The 24-hour editing period for this website has ended.",
+    });
+  }
   const media = await db.projectMedia.create({
     data: { ...p.data, sortOrder: count },
   });
@@ -63,8 +110,31 @@ r.delete("/:id", async (req, res) => {
   const u = (req as any).user;
   const media = await db.projectMedia.findFirst({
     where: { id: req.params.id, project: { userId: u.id } },
+    include: {
+      project: {
+        include: {
+          orders: {
+            where: { status: "PAID" },
+            include: {
+              payments: {
+                where: { status: "CAPTURED" },
+                select: { status: true, createdAt: true },
+              },
+            },
+          },
+        },
+      },
+    },
   });
   if (!media) return res.status(404).json({ error: "Media not found" });
+  if (
+    media.project.status === "PUBLISHED" &&
+    !hasOpenPaidEditWindow(media.project.orders)
+  ) {
+    return res.status(403).json({
+      error: "The 24-hour editing period for this website has ended.",
+    });
+  }
   await db.projectMedia.delete({ where: { id: media.id } });
   res.status(204).end();
 });

@@ -166,12 +166,9 @@ r.get("/:slug", async (req, res) => {
     site.revealMethod === "LETTER" ||
     site.revealMethod === "GIFT";
 
-  res.set(
-    "Cache-Control",
-    accessRequired
-      ? "private, no-store"
-      : "public, max-age=30, stale-while-revalidate=120",
-  );
+  // Published projects can be edited for a short period after purchase.
+  // Always fetch current project data so the same public URL reflects edits.
+  res.set("Cache-Control", "no-store");
 
   const template = TemplateSchema.parse(site.project.template.schema);
   res.json({
