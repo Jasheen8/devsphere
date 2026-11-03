@@ -1,0 +1,12 @@
+diff --git a/apps/api/src/routes/projects.ts b/apps/api/src/routes/projects.ts
+--- a/apps/api/src/routes/projects.ts
++++ b/apps/api/src/routes/projects.ts
+@@ -824,3 +824,8 @@
+ r.delete("/:id", async (req, res) => {
+   try {
++    // Migration-window safeguard; independent of affiliate schema and Prisma models.
++    if (process.env.PROJECT_DELETION_PAUSED === "true") {
++      res.setHeader("Retry-After", "60");
++      return res.status(503).json({ error: "Project deletion is temporarily paused for a database migration." });
++    }
+     const projectId = String(req.params.id);

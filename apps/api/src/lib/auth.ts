@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { db } from "./db.js";
-const secret = process.env.SESSION_SECRET || "dev-only-change-me";
+import { getSessionSecret } from "./session-secret.js";
 export async function hashPassword(p: string) {
   return bcrypt.hash(p, 12);
 }
@@ -11,7 +11,7 @@ export async function verifyPassword(p: string, h: string) {
   return bcrypt.compare(p, h);
 }
 export function makeToken(userId: string) {
-  return jwt.sign({ sub: userId }, secret, { expiresIn: "7d" });
+  return jwt.sign({ sub: userId }, getSessionSecret(), { expiresIn: "7d" });
 }
 export function setAuthCookie(res: Response, token: string) {
   const isProduction = process.env.NODE_ENV === "production";
@@ -39,7 +39,7 @@ export async function auth(req: Request, res: Response, next: NextFunction) {
   try {
     const token = req.cookies?.memora_session;
     if (!token) return res.status(401).json({ error: "Unauthorized" });
-    const payload = jwt.verify(token, secret) as jwt.JwtPayload;
+    const payload = jwt.verify(token, getSessionSecret()) as jwt.JwtPayload;
     const user = await db.user.findUnique({
       where: { id: String(payload.sub) },
     });

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "../lib/db.js";
 import crypto from "node:crypto";
-import { emailProvider } from "../lib/email.js";
+import { sendEmailSafely } from "../lib/email.js";
 import {
   hashPassword,
   verifyPassword,
@@ -111,7 +111,7 @@ r.post("/verify/request", async (req, res) => {
         expiresAt: new Date(Date.now() + 30 * 60 * 1000),
       },
     });
-    await emailProvider.send(
+    await sendEmailSafely(
       user.email,
       "Verify your Devsphere account",
       `Verify your account with token: ${token}`,
@@ -161,7 +161,7 @@ r.post("/password/request", async (req, res) => {
         expiresAt: new Date(Date.now() + 30 * 60 * 1000),
       },
     });
-    await emailProvider.send(
+    await sendEmailSafely(
       user.email,
       "Reset your Devsphere password",
       `Reset token: ${token}`,

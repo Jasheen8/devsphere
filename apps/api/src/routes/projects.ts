@@ -4,9 +4,12 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 
 import { db } from "../lib/db.js";
+import { logger } from "../lib/logger.js";
 import { auth } from "../lib/auth.js";
+import { isProjectDeletionPaused } from "../lib/project-deletion-gate.js";
 import { TemplateSchema } from "@memora/shared";
 import { getPaidEditUntil } from "../lib/paid-edit-window.js";
+import { deleteUnpaidProject, ProjectDeletionError } from "../lib/project-deletion.js";
 import {
   publishFreeProject,
   publishPaidProject,
@@ -85,7 +88,7 @@ r.post("/", async (req, res) => {
       project,
     });
   } catch (error) {
-    console.error("Create project failed:", error);
+    logger.error("create_project_failed", { error });
 
     return res.status(500).json({
       error: "Unable to create project",
@@ -160,7 +163,7 @@ r.get("/", async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error("Get projects failed:", error);
+    logger.error("get_projects_failed", { error });
 
     return res.status(500).json({
       error: "Unable to load projects",
@@ -217,7 +220,7 @@ r.get("/:id", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get project failed:", error);
+    logger.error("get_project_failed", { error });
 
     return res.status(500).json({
       error: "Unable to load project",
@@ -380,6 +383,7 @@ r.patch("/:id", async (req, res) => {
                 : (existing.customization as Prisma.InputJsonValue),
             status: existing.status,
           },
+          select: { id: true },
         });
 
         return tx.project.update({
@@ -404,7 +408,7 @@ r.patch("/:id", async (req, res) => {
       });
     }
 
-    console.error("Update project failed:", error);
+    logger.error("update_project_failed", { error });
 
     return res.status(500).json({
       error: "Unable to update project",
@@ -428,12 +432,25 @@ r.post("/:id/finalize", async (req, res) => {
       include: {
         template: true,
         website: true,
+        orders: {
+          where: { status: "PAID" },
+          take: 1,
+        },
       },
     });
 
     if (!project) {
       return res.status(404).json({
         error: "Project not found",
+      });
+    }
+
+    if (
+      project.template.slug === "my-hero-magazine" &&
+      project.orders.length === 0
+    ) {
+      return res.status(402).json({
+        error: "Complete payment before finalizing your Special Magazine.",
       });
     }
 
@@ -469,10 +486,7 @@ r.post("/:id/finalize", async (req, res) => {
         project.template.schema,
       );
     } catch (error) {
-      console.error(
-        "Invalid template schema:",
-        error,
-      );
+      logger.error("invalid_template_schema", { error });
 
       return res.status(500).json({
         error: "Template configuration is invalid",
@@ -526,7 +540,7 @@ r.post("/:id/finalize", async (req, res) => {
       project: updatedProject,
     });
   } catch (error) {
-    console.error("Finalize project failed:", error);
+    logger.error("finalize_project_failed", { error });
 
     return res.status(500).json({
       error: "Unable to finalize project",
@@ -806,10 +820,7 @@ r.patch("/:id/reveal", async (req, res) => {
       accessRule: result,
     });
   } catch (error) {
-    console.error(
-      "Failed to save reveal settings:",
-      error,
-    );
+    logger.error("save_reveal_settings_failed", { error });
 
     return res.status(500).json({
       error: "Unable to save reveal settings",
@@ -823,114 +834,18 @@ r.patch("/:id/reveal", async (req, res) => {
 
 r.delete("/:id", async (req, res) => {
   try {
+    if (isProjectDeletionPaused()) {
+      res.setHeader("Retry-After", "60");
+      return res.status(503).json({ error: "Project deletion is temporarily paused for a database migration." });
+    }
     const projectId = String(req.params.id);
-
     const u = (req as any).user;
-
-    const project = await db.project.findFirst({
-      where: {
-        id: projectId,
-        userId: u.id,
-      },
-      include: {
-        website: true,
-        orders: {
-          where: {
-            status: "PAID",
-          },
-          take: 1,
-        },
-      },
-    });
-
-    if (!project) {
-      return res.status(404).json({
-        error: "Project not found",
-      });
-    }
-
-    /*
-     * NEVER allow a paid project to be deleted.
-     */
-    if (project.orders.length > 0) {
-      return res.status(403).json({
-        error:
-          "Paid websites cannot be deleted.",
-      });
-    }
-
-    /*
-     * Published projects should never be deleted.
-     */
-    if (project.website) {
-      return res.status(403).json({
-        error:
-          "Published websites cannot be deleted.",
-      });
-    }
-
-    /*
-     * Only unpaid draft/finalized projects can be deleted.
-     */
-    if (
-      project.status !== "DRAFT" &&
-      project.status !== "FINALIZED"
-    ) {
-      return res.status(403).json({
-        error:
-          "Only unpaid draft or finalized websites can be deleted.",
-      });
-    }
-
-    await db.$transaction(async (tx) => {
-      /*
-       * Delete unpaid orders first.
-       */
-      await tx.order.deleteMany({
-        where: {
-          projectId: project.id,
-          status: {
-            not: "PAID",
-          },
-        },
-      });
-
-      /*
-       * Delete project media.
-       */
-      await tx.projectMedia.deleteMany({
-        where: {
-          projectId: project.id,
-        },
-      });
-
-      /*
-       * Delete revisions.
-       */
-      await tx.projectRevision.deleteMany({
-        where: {
-          projectId: project.id,
-        },
-      });
-
-      /*
-       * Finally delete the project.
-       */
-      await tx.project.delete({
-        where: {
-          id: project.id,
-        },
-      });
-    });
-
-    return res.json({
-      ok: true,
-    });
+    return res.json(await deleteUnpaidProject(db, projectId, u.id));
   } catch (error) {
-    console.error(
-      "Delete project failed:",
-      error,
-    );
+    if (error instanceof ProjectDeletionError) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
+    logger.error("delete_project_failed", { error });
 
     return res.status(500).json({
       error: "Unable to delete draft",

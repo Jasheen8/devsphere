@@ -236,11 +236,8 @@ export default function PayPalButtons({
                   );
                   return;
                 }
-              } catch (recoveryError) {
-                console.warn(
-                  "PayPal payment recovery failed:",
-                  recoveryError,
-                );
+              } catch {
+                console.warn("PayPal payment recovery failed.");
               }
 
               errorRef.current(

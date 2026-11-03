@@ -79,8 +79,8 @@ void application
     const PlatformApp = App as React.ComponentType;
     root.render(<PlatformApp />);
   })
-  .catch((error) => {
-    console.error("DEVSPHERE APP LOAD FAILED:", error);
+  .catch(() => {
+    console.error("DevSphere app load failed.");
     root.render(
       <div
         style={{

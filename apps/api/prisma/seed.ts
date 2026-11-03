@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { bloomDefaultReasons } from "./bloom-default-reasons";
+import { logger } from "../src/lib/logger.js";
 
 const db = new PrismaClient();
 
@@ -68,6 +69,7 @@ async function main() {
     ],
     ["baby", "Baby", "Little moments, big love.", "🍼"],
     ["festivals", "Festivals", "Share the feeling of celebration.", "✨"],
+    ["magazine", "Magazine", "Personalized photo magazines and keepsakes.", "📖"],
   ];
 
   for (let i = 0; i < cats.length; i++) {
@@ -108,6 +110,10 @@ async function main() {
 
   const festivals = await db.category.findUniqueOrThrow({
     where: { slug: "festivals" },
+  });
+
+  const magazine = await db.category.findUniqueOrThrow({
+    where: { slug: "magazine" },
   });
 
   // =========================================================
@@ -1287,6 +1293,130 @@ async function main() {
       sections: birthdayRoyalSections,
     },
 
+    {
+      slug: "my-hero-magazine",
+      name: "Special Magazine",
+      description:
+        "A 15-page birthday keepsake with original magazine layouts, editable text and photos, Heart Scanner or Code Lock reveals, and a personalized closing page.",
+      cat: magazine,
+      price: 510,
+      tags: ["birthday", "magazine", "photo", "memories", "premium"],
+      featured: true,
+      thumbnailUrl: "/templates/my-hero-magazine/assets/source/coverphoto.png",
+      data: {
+        recipientName: "Karan",
+        senderName: "Anjali",
+        coverNames: "Anjali & Karan",
+        coverMasthead: "MY HERO",
+        coverScript: "forever",
+        coverEdition: "Birthday Edition",
+        coverPromiseOne: "AS LONG AS I’M\nWITH YOU",
+        coverPromiseTwo: "I’VE GOT A SMILE\nON MY FACE",
+        coverPromiseThree: "YOU’RE MY\nTODAY,\nTOMORROW &\nFOREVER",
+        coverFeaturing: "featuring",
+        favoriteQuestion: "Who’s\nthat\nboy?",
+        favoriteCaption: "MY FAV\nHUMAN.",
+        letterHeading: "LOVE LETTER",
+        letterSalutation: "Dear Karan,",
+        loveLetter: "I don’t think I say it enough, but having you in\nmy life is one of my favourite things.\nSomewhere between our silly conversations,\nrandom laughs, little arguments, and all the\nordinary moments, you became someone who\nfeels like home.\nI love the way you make me laugh when I don’t\nfeel like smiling, the way you listen to the little\nthings, and the way simply having you around\ncan make an ordinary day feel a little better.\nYou’re not perfect, and neither am I—and\nmaybe that’s what makes us so special.\nThank you for being my person, my comfort,\nmy favourite notification, and the one I can\nalways count on. If I had to choose all over\nagain, I’d still choose you.\nHappy Boyfriend’s Day to the man who has my\nheart.\nAlways yours.",
+        thing1: "I love the way you make even\nordinary days feel special.",
+        thing2: "I love your smile because it\ninstantly brightens my day.",
+        thing3: "I love the way you care for\neveryone around you.",
+        thing4: "I love how safe, comfortable,\nand loved I feel with you.",
+        thing5: "I love your laugh\n—it never fails\nto make me smile.",
+        thing6: "I love how you\nalways support and\nbelieve in me.",
+        thing7: "Our little moments we share that\nbecome my fav memories.",
+        thing8: "I love that I can always be myself\nwhen I’m with you.",
+        thing9: "I love the dreams and future\nwe’re building together.",
+        thing10: "Most of all, I love you exactly\nas you are, today and always.",
+        mineCoverDate: "OCTOBER 2026",
+        mineCoverTitle: "MINE",
+        mineCoverSubtitle: "N O W  &  A L W A Y S",
+        mineCoverNote: "You make ordinary moments special.\nAnd every memory worth keeping.",
+        momentCaption: "Y O U  A R E  T H E  M O M E N T.",
+        boyfriendEdition: "BOYFRIEND’S DAY EDITION",
+        darlingLeft: "My forever\ncrush",
+        darlingCenter: "You & I",
+        darlingRight: "2021-\nforever",
+        darlingTitle: "DARLING",
+        gratefulTitle: "Forever Grateful",
+        gratefulCopy: "Forever grateful for the love we’ve found in each other, for every\nlaugh, every little moment, and every memory we’ve created\ntogether. Life feels a little brighter with you by my side, and I\nwouldn’t trade our story for anything. Here’s to everything we’ve\nbeen, everything we are, and all the beautiful moments still to come.",
+        amourHeader: "CHOOSING YOU, ALWAYS",
+        amourTitle: "AMOUR",
+        amourTaglines: "MY FAVOURITE KIND OF FOREVER.\nFOREVER THANKFUL FOR YOU.",
+        amourCaption: "Forever grateful for the person who makes ordinary days feel\nspecial. Thank you for being my comfort, my happiness, and my\nfavourite part of so many memories. Whatever the future holds, I\nhope it has plenty of moments with you.",
+        memoryStripOne: "m e m o r i e s",
+        memoryStripTwo: "t o g e t h e r",
+        memoryStripThree: "y o u & m e",
+        closingTitle: "MY FAVOURITE PERSON.",
+        finalMessage:
+          "Thank you for filling ordinary days with your laugh, your kindness, and all the little moments I want to keep. I hope this year brings you as much happiness as you bring to everyone around you.",
+        magazinePhotos: [],
+        storyPhotos: [],
+      },
+      schema: {
+        fields: [
+          { id: "recipientName", type: "text", label: "Birthday person's name", required: true, placeholder: "e.g. Alex" },
+          { id: "senderName", type: "text", label: "Your name", required: true, placeholder: "e.g. Sam" },
+          { id: "section-cover", type: "sectionHeading", label: "Cover" },
+          { id: "coverNames", type: "text", label: "Cover names", required: true, placeholder: "e.g. Anjali & Karan" },
+          { id: "coverMasthead", type: "text", label: "Masthead" },
+          { id: "coverScript", type: "text", label: "Cover script" },
+          { id: "coverEdition", type: "text", label: "Edition line" },
+          { id: "coverPromiseOne", type: "longText", label: "Cover promise · 1" },
+          { id: "coverPromiseTwo", type: "longText", label: "Cover promise · 2" },
+          { id: "coverPromiseThree", type: "longText", label: "Cover promise · 3" },
+          { id: "coverFeaturing", type: "text", label: "Cover featuring label" },
+          { id: "section-letter", type: "sectionHeading", label: "Favourite person & love letter" },
+          { id: "favoriteQuestion", type: "longText", label: "Page 2 headline" },
+          { id: "favoriteCaption", type: "longText", label: "Page 2 caption" },
+          { id: "letterHeading", type: "text", label: "Love letter heading" },
+          { id: "letterSalutation", type: "text", label: "Letter greeting" },
+          { id: "loveLetter", type: "longText", label: "Love letter", required: true },
+          { id: "section-things", type: "sectionHeading", label: "Ten things I love about you" },
+          ...Array.from({ length: 10 }, (_, index) => ({
+            id: `thing${index + 1}`,
+            type: "longText",
+            label: `Reason ${index + 1}`,
+          })),
+          { id: "section-pages-8-10", type: "sectionHeading", label: "Magazine pages 8–10" },
+          { id: "mineCoverDate", type: "text", label: "Page 8 date" },
+          { id: "mineCoverTitle", type: "text", label: "Page 8 headline" },
+          { id: "mineCoverSubtitle", type: "text", label: "Page 8 subtitle" },
+          { id: "mineCoverNote", type: "longText", label: "Page 8 message" },
+          { id: "momentCaption", type: "text", label: "Page 9 caption" },
+          { id: "boyfriendEdition", type: "text", label: "Page 10 edition line" },
+          { id: "darlingLeft", type: "longText", label: "Page 10 left caption" },
+          { id: "darlingCenter", type: "text", label: "Page 10 centre caption" },
+          { id: "darlingRight", type: "longText", label: "Page 10 right caption" },
+          { id: "darlingTitle", type: "text", label: "Page 10 headline" },
+          { id: "section-pages-11-14", type: "sectionHeading", label: "Grateful, amour & memories" },
+          { id: "gratefulTitle", type: "text", label: "Page 11 headline" },
+          { id: "gratefulCopy", type: "longText", label: "Page 11 message" },
+          { id: "amourHeader", type: "text", label: "Page 12 header" },
+          { id: "amourTitle", type: "text", label: "Page 12 headline" },
+          { id: "amourTaglines", type: "longText", label: "Page 12 taglines" },
+          { id: "amourCaption", type: "longText", label: "Page 12 message" },
+          { id: "memoryStripOne", type: "text", label: "Page 14 first caption" },
+          { id: "memoryStripTwo", type: "text", label: "Page 14 second caption" },
+          { id: "memoryStripThree", type: "text", label: "Page 14 third caption" },
+          { id: "section-photos", type: "sectionHeading", label: "Photos" },
+          { id: "storyPhotos", type: "images", label: "Replace magazine photos in page order (up to 40)", maxItems: 40 },
+          { id: "magazinePhotos", type: "images", label: "Final page photos (up to 6)", maxItems: 6 },
+          { id: "section-final-page", type: "sectionHeading", label: "Personalized final page" },
+          { id: "closingTitle", type: "text", label: "Final page headline", required: true, placeholder: "MY FAVOURITE PERSON." },
+          { id: "finalMessage", type: "longText", label: "Final page message", required: true, placeholder: "Write a heartfelt message for the final page." },
+        ],
+        sections: [
+          { id: "my-hero-magazine", type: "my-hero-magazine-experience", enabled: true, props: {} },
+        ],
+        customization: {},
+      },
+      sections: [
+        { id: "my-hero-magazine", type: "my-hero-magazine-experience", enabled: true, props: {} },
+      ],
+    },
+
     // =======================================================
     // ANNIVERSARY BLOOM: full editable story template, INR base ₹449.
     {
@@ -1649,13 +1779,16 @@ async function main() {
   const bloomOnly = process.argv.includes("--bloom-only");
   const navratriOnly = process.argv.includes("--navratri-only");
   const weddingOnly = process.argv.includes("--wedding-only");
+  const magazineOnly = process.argv.includes("--magazine-only");
   const templatesToSeed = bloomOnly
     ? templates.filter((template) => template.slug === "anniversary-romantic-01")
     : navratriOnly
       ? templates.filter((template) => template.slug === "navratri-partner-invite")
       : weddingOnly
         ? templates.filter((template) => template.slug === "wedding-invitation")
-        : templates;
+        : magazineOnly
+          ? templates.filter((template) => template.slug === "my-hero-magazine")
+          : templates;
 
   // =========================================================
   // TEMPLATE UPSERT
@@ -1883,7 +2016,7 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error(error);
+    logger.error("template_seed_failed", { error });
     process.exitCode = 1;
   })
   .finally(async () => {

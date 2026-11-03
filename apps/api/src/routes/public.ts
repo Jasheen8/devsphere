@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "../lib/db.js";
+import { getCurrentAffiliatePolicy } from "../lib/affiliate.js";
 import { TemplateSchema } from "@memora/shared";
 
 const r = Router();
@@ -78,6 +79,39 @@ r.get("/:slug", async (req, res) => {
       },
     },
   });
+
+  if (!site && requestedSlug.toLowerCase().startsWith("af-")) {
+    const now = new Date();
+    const [link, policy] = await Promise.all([
+      db.affiliateReferralLink.findUnique({
+        where: { code: requestedSlug.toLowerCase() },
+        include: {
+          affiliateProfile: { select: { status: true } },
+          offer: { include: { template: { select: { name: true, published: true, isFree: true } } } },
+        },
+      }),
+      getCurrentAffiliatePolicy(db, now),
+    ]);
+    if (
+      link &&
+      policy?.enabled &&
+      link.active &&
+      link.affiliateProfile.status === "APPROVED" &&
+      link.offer.status === "ACTIVE" &&
+      link.offer.startsAt <= now &&
+      (!link.offer.endsAt || link.offer.endsAt > now) &&
+      link.offer.template.published &&
+      !link.offer.template.isFree
+    ) {
+      return res.json({
+        affiliateLink: {
+          code: link.code,
+          templateName: link.offer.template.name,
+          attributionWindowDays: policy.attributionWindowDays,
+        },
+      });
+    }
+  }
 
   if (!site) {
     // Recover a paid, finalized project if a previous publishing failure left

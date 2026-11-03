@@ -17,6 +17,7 @@ export default function PublicPage({
   const [unlock, setUnlock] = useState("");
   const [question, setQuestion] = useState("");
   const [gate, setGate] = useState(true);
+  const [affiliateBusy, setAffiliateBusy] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -32,6 +33,14 @@ export default function PublicPage({
 
     request
       .then((result) => {
+        if (result?.affiliateLink) {
+          setPayload(result);
+          return;
+        }
+        if (result?.redirectUrl) {
+          window.location.replace(result.redirectUrl);
+          return;
+        }
         setPayload(result);
         setGate(
           result.accessRequired &&
@@ -60,7 +69,7 @@ export default function PublicPage({
       })
       .catch((error) => {
         if (controller.signal.aborted) return;
-        console.error("PUBLIC WEBSITE LOAD FAILED:", error);
+        console.error("Public website load failed.");
         setQuestion(error?.message || "Unable to load this website.");
         setGate(false);
       });
@@ -85,6 +94,47 @@ export default function PublicPage({
               Try again
             </button>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (payload.affiliateLink) {
+    async function continueToOffer(attributionConsent: boolean) {
+      setAffiliateBusy(true);
+      setQuestion("");
+      try {
+        const response = await api(
+          `/affiliate/redirect/${encodeURIComponent(payload.affiliateLink.code)}`,
+          {
+            method: "POST",
+            body: JSON.stringify({ attributionConsent }),
+          },
+        );
+        window.location.replace(response.redirectUrl);
+      } catch (error: any) {
+        setQuestion(error?.message || "This affiliate link is unavailable.");
+        setAffiliateBusy(false);
+      }
+    }
+
+    return (
+      <div className="reveal">
+        <div className="reveal-box" aria-live="polite">
+          <Heart fill="currentColor" size={30} />
+          <h1>{payload.affiliateLink.templateName}</h1>
+          <p>
+            An affiliate shared this template. Continue with attribution to remember this referral for {payload.affiliateLink.attributionWindowDays} days. A pseudonymous first-party identifier is used; no attribution is stored if you continue without it.
+          </p>
+          {question && <p role="alert">{question}</p>}
+          <div className="actions" style={{ justifyContent: "center", flexWrap: "wrap", marginTop: 18 }}>
+            <button className="btn btn-primary" disabled={affiliateBusy} onClick={() => void continueToOffer(true)}>
+              {affiliateBusy ? "Opening template…" : "Continue with attribution"}
+            </button>
+            <button className="btn btn-soft" disabled={affiliateBusy} onClick={() => void continueToOffer(false)}>
+              Continue without attribution
+            </button>
+          </div>
         </div>
       </div>
     );

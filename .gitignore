@@ -2,6 +2,9 @@ node_modules
 .env
 .env.*
 !.env.example
+!.env.staging.example
+# The magazine pages are rendered in code; do not ship generated full-page screenshots.
+apps/web/public/templates/my-hero-magazine/assets/pages/
 dist
 coverage
 .DS_Store

@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { logger } from "../src/lib/logger.js";
 
 const db = new PrismaClient();
 
@@ -109,7 +110,7 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error("Cutie Birthday template seed failed:", error);
+    logger.error("cutie_birthday_seed_failed", { error });
     process.exitCode = 1;
   })
   .finally(async () => {

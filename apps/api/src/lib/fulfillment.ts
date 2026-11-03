@@ -1,5 +1,9 @@
 import crypto from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { db } from "./db.js";
+import { recordVerifiedAffiliateConversion } from "./affiliate.js";
+import { affiliateEmails } from "./email.js";
+import { logger } from "./logger.js";
 
 const SPECIAL_REVEAL_METHODS = [
   "QR",
@@ -102,6 +106,31 @@ export function calculateNavratriPartnerInvitePackage(args: {
   };
 }
 
+export function calculateMyHeroMagazinePackage(args: {
+  currency: CheckoutCurrency;
+  revealMethod: RevealMethod;
+  removeWatermark?: boolean;
+}) {
+  const basePackagePrice = 510;
+  const removeWatermark = args.removeWatermark === true;
+  const specialReveal = args.revealMethod === "QR" || args.revealMethod === "PIN";
+  const packagePrice =
+    basePackagePrice +
+    (specialReveal ? 9 : 0) +
+    (removeWatermark ? 99 : 0);
+  const providerAmount = args.currency === "USD" ? 50 : packagePrice;
+
+  return {
+    basePackagePrice,
+    packagePrice,
+    removeWatermark,
+    providerAmount,
+    providerAmountMinor: Math.round(providerAmount * 100),
+    specialReveal,
+    movieEnabled: false,
+  };
+}
+
 export function calculateWeddingInvitationPackage(args: {
   projectData: Record<string, unknown>;
   revealMethod: RevealMethod;
@@ -134,6 +163,7 @@ async function applyPaidWatermarkSelection(
       "birthday-royal-memory",
       "anniversary-romantic-01",
       "navratri-partner-invite",
+      "my-hero-magazine",
     ].includes(
       project.template?.slug,
     )
@@ -192,11 +222,12 @@ async function makeUniqueSlug(tx: any, base: string) {
   let slug = root;
   let counter = 2;
 
-  while (
-    await tx.publishedSite.findUnique({
-      where: { slug },
-    })
-  ) {
+  while (true) {
+    const [existingSite, existingAffiliateCode] = await Promise.all([
+      tx.publishedSite.findUnique({ where: { slug }, select: { id: true } }),
+      tx.affiliateReferralLink.findUnique({ where: { code: slug }, select: { id: true } }),
+    ]);
+    if (!existingSite && !existingAffiliateCode) break;
     slug = `${root}-${counter++}`;
   }
 
@@ -292,6 +323,18 @@ function getProviderAmountMinor(providerAmount: number) {
   return Math.round(providerAmount * 100);
 }
 
+async function retrySerializableConflict<T>(operation: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      if (error?.code !== "P2034" || attempt === 2) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+    }
+  }
+  throw new Error("Serializable payment transaction did not complete");
+}
+
 export async function finalizePaidOrder(args: {
   orderId: string;
   userId?: string;
@@ -302,8 +345,14 @@ export async function finalizePaidOrder(args: {
   providerAmount: number;
   providerCurrency: "INR" | "USD";
 }) {
-  return db.$transaction(
+  const finalized = await retrySerializableConflict(() => db.$transaction(
     async (tx) => {
+      // Keep payment finalization serialized with draft/project deletion and
+      // refund processing. All three paths lock the order before payment rows.
+      await tx.$queryRaw`
+        SELECT "id" FROM "Order" WHERE "id" = ${args.orderId} FOR UPDATE
+      `;
+
       const order = await tx.order.findUnique({
         where: {
           id: args.orderId,
@@ -313,11 +362,16 @@ export async function finalizePaidOrder(args: {
             include: { template: true },
           },
           plan: true,
+          affiliateAttribution: true,
         },
       });
 
       if (!order) {
         throw new Error("Order not found");
+      }
+
+      if (order.status === "REFUNDED") {
+        throw new Error("A refunded order cannot be finalized again");
       }
 
       if (
@@ -383,6 +437,14 @@ export async function finalizePaidOrder(args: {
         .update(args.providerPaymentId)
         .digest("hex")}`;
 
+      const existingPayment = await tx.payment.findUnique({
+        where: { id: paymentId },
+        select: { status: true },
+      });
+      if (existingPayment?.status === "REFUNDED") {
+        throw new Error("A refunded payment cannot be finalized again");
+      }
+
       await tx.payment.upsert({
         where: {
           id: paymentId,
@@ -391,11 +453,12 @@ export async function finalizePaidOrder(args: {
           status: "CAPTURED",
           providerPaymentId:
             args.providerPaymentId,
-          signature:
-            args.signature || undefined,
+          // Provider signatures and response bodies are verified transiently;
+          // do not retain credentials or redundant payloads in payment rows.
+          signature: null,
           amount: order.amount,
           currency: order.currency,
-          raw: args.raw as any,
+          raw: Prisma.DbNull,
         },
         create: {
           id: paymentId,
@@ -406,16 +469,8 @@ export async function finalizePaidOrder(args: {
           currency: order.currency,
           providerPaymentId:
             args.providerPaymentId,
-          signature:
-            args.signature || undefined,
-          raw: {
-            providerAmount:
-              args.providerAmount,
-            providerCurrency:
-              args.providerCurrency,
-            payload:
-              args.raw ?? null,
-          } as any,
+          signature: null,
+          raw: Prisma.DbNull,
         },
       });
 
@@ -440,16 +495,35 @@ export async function finalizePaidOrder(args: {
               },
             });
 
+      const projectReadyForPublication =
+        order.project.template?.slug === "my-hero-magazine" &&
+        order.project.status === "DRAFT"
+          ? await tx.project.update({
+              where: { id: order.project.id },
+              data: {
+                status: "FINALIZED",
+                finalizedAt: new Date(),
+              },
+              include: { template: true },
+            })
+          : order.project;
       const projectWithPaidWatermarkSelection =
         await applyPaidWatermarkSelection(
           tx,
-          order.project,
+          projectReadyForPublication,
           order,
         );
       const paidOrder = {
         ...updatedOrder,
         project: projectWithPaidWatermarkSelection,
+        affiliateAttribution: order.affiliateAttribution,
       };
+
+      const affiliateCommissionCreated = await recordVerifiedAffiliateConversion(tx, {
+        order: paidOrder,
+        paymentId,
+        verifiedPaymentId: args.providerPaymentId,
+      });
 
       /*
        * Publish website inside the same transaction.
@@ -471,9 +545,12 @@ export async function finalizePaidOrder(args: {
           process.env.APP_URL ||
           "http://localhost:5173"
         }/r/${site.slug}`,
+        affiliateCommissionCreated,
+        affiliateProfileId: affiliateCommissionCreated ? order.affiliateAttribution?.affiliateProfileId : null,
       };
     },
     {
+      isolationLevel: "Serializable",
       /*
        * Production database can be slower than localhost.
        * Give the transaction enough time to finish
@@ -482,7 +559,24 @@ export async function finalizePaidOrder(args: {
       maxWait: 10_000,
       timeout: 20_000,
     },
-  );
+  ));
+  if (finalized.affiliateCommissionCreated && finalized.affiliateProfileId) {
+    try {
+      const commission = await db.affiliateCommission.findFirst({
+        where: { orderId: args.orderId },
+        include: { affiliateProfile: { include: { user: { select: { email: true } } } } },
+      });
+      if (commission) {
+        const amount = new Intl.NumberFormat("en", { style: "currency", currency: commission.currency }).format(commission.commissionAmountMinor / 100);
+        await affiliateEmails.commissionPending(commission.affiliateProfile.user.email, amount);
+      }
+    } catch (error) {
+      // Email delivery is best-effort after commit and cannot undo a verified payment.
+      logger.warn("affiliate_commission_notification_lookup_failed", { error });
+    }
+  }
+  const { affiliateCommissionCreated: _created, affiliateProfileId: _profile, ...result } = finalized;
+  return result;
 }
 
 export async function publishPaidProject(

@@ -1,0 +1,56 @@
+# Secrets and environment-specific configuration must never enter a build context.
+.env
+.env.*
+**/.env
+**/.env.*
+**/.env.staging
+**/.env.production
+**/.env.*.local
+
+# Build and developer artifacts.
+node_modules
+**/node_modules
+dist
+**/dist
+coverage
+**/coverage
+.git
+.github
+.vscode
+.idea
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# The magazine pages are rendered in code; keep unused full-page screenshot artifacts out of image contexts.
+apps/web/public/templates/my-hero-magazine/assets/pages/
+
+# Private signing material and local backups.
+*.pem
+*.key
+*.p12
+*.pfx
+*.p8
+*.der
+*.crt
+*.cer
+id_rsa
+id_ed25519
+**/id_rsa
+**/id_ed25519
+**/.ssh/
+**/.aws/
+**/.azure/
+**/.gcloud/
+**/.supabase/
+**/secrets/
+**/credentials/
+**/credentials.*
+**/*service-account*.json
+**/*.secret
+**/*.secrets
+**/*.tfstate*
+*.backup
+*.dump
+*.sql.gz

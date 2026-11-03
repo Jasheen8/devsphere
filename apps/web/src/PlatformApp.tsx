@@ -105,6 +105,7 @@ const TEMPLATE_CARD_DETAILS: Record<string, TemplateCardDetails> = {
     discountPercent: 20,
     badge: "NEW",
   },
+  "my-hero-magazine": { price: 510 },
 };
 
 const TEMPLATE_CARD_PRIORITY = [
@@ -113,6 +114,7 @@ const TEMPLATE_CARD_PRIORITY = [
   "anniversary-romantic-01",
   "wedding-invitation",
   "navratri-partner-invite",
+  "my-hero-magazine",
 ];
 
 function getVisibleTemplateCards(items: Template[]) {
@@ -193,6 +195,10 @@ function Nav() {
           Templates
         </Link>
         <Link to="/dashboard">My Websites</Link>
+        <Link to="/affiliate">Affiliate Hub</Link>
+        {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
+          <Link to="/admin/affiliates">Affiliate Admin</Link>
+        )}
 
         {user ? (
           <Link
@@ -237,7 +243,7 @@ function Home() {
         setTemplates(items);
       })
       .catch((error) => {
-        console.error("Failed to load templates:", error);
+        console.error("Template catalog load failed.");
       });
 
     return () => {
@@ -646,11 +652,14 @@ function TemplateCard({ t }: { t: Template }) {
   const isRoyalMemoryBirthday = t.slug === "birthday-royal-memory";
   const isAnniversary = t.slug === "anniversary-romantic-01";
   const isWeddingInvitation = t.slug === "wedding-invitation";
+  const isMagazine = t.slug === "my-hero-magazine";
   const details = TEMPLATE_CARD_DETAILS[t.slug];
   const inrPrice = details?.price ?? t.price;
   const usdPrice = details?.usdPrice ?? (t.isFree ? 0 : 10);
   const liveDemoUrl = isWeddingInvitation
     ? "https://wedding-invitation-tau-three-37.vercel.app/"
+    : isMagazine
+      ? `/templates/${t.slug}`
     : t.liveDemoUrl || t.previewUrl;
   const cardTags = [
     ...(isAnniversary ? ["romantic", "journey", "cinematic"] : t.tags),
@@ -663,6 +672,8 @@ function TemplateCard({ t }: { t: Template }) {
     ? "/images/anniversary.png"
     : isRoyalMemoryBirthday
       ? "/images/royal-birthday.png"
+    : isMagazine
+      ? "/templates/my-hero-magazine/assets/source/coverphoto.png"
     : t.thumbnailUrl ||
       "/images/invitation.png";
 
@@ -703,7 +714,7 @@ function TemplateCard({ t }: { t: Template }) {
             <span>({details.uses.toLocaleString("en-IN")})</span>
           </div>
         )}
-        <div className="template-card-price" aria-label="Template pricing in INR and USD">
+        <div className="template-card-price" aria-label={isMagazine ? "Magazine pricing in INR and USD" : "Template pricing in INR and USD"}>
           <div className="template-card-price-side">
             <div className="template-card-price-main">
               <strong>{t.isFree ? "Free" : `₹${inrPrice}`}</strong>
@@ -716,14 +727,31 @@ function TemplateCard({ t }: { t: Template }) {
               <span className="template-discount-badge">{details.discountPercent}% off</span>
             )}
           </div>
-          <span className="template-card-price-separator" aria-hidden="true">or</span>
-          <div className="template-card-price-side template-card-price-side-international">
-            <div className="template-card-price-main">
-              <strong>{t.isFree ? "Free" : `$${usdPrice}`}</strong>
-            </div>
-            <span className="template-card-price-caption">USD · International</span>
-          </div>
+          {isMagazine ? (
+            <>
+              <span className="template-card-price-separator" aria-hidden="true">or</span>
+              <div className="template-card-price-side template-card-price-side-international">
+                <div className="template-card-price-main"><strong>$50</strong></div>
+                <span className="template-card-price-caption">USD · all included</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="template-card-price-separator" aria-hidden="true">or</span>
+              <div className="template-card-price-side template-card-price-side-international">
+                <div className="template-card-price-main">
+                  <strong>{t.isFree ? "Free" : `$${usdPrice}`}</strong>
+                </div>
+                <span className="template-card-price-caption">USD · International</span>
+              </div>
+            </>
+          )}
         </div>
+        {isMagazine && (
+          <p className="muted" style={{ marginTop: 8, fontSize: ".78rem" }}>
+            INR: Heart Scanner or Code Lock +₹9; optional watermark removal +₹99. USD $50 includes both.
+          </p>
+        )}
         <div className="tags">
           {cardTags.map((tag) => (
             <span className="tag" key={tag}>
@@ -748,11 +776,11 @@ function TemplateCard({ t }: { t: Template }) {
               to={`/templates/${t.slug}`}
               onMouseEnter={() => preloadTemplate(t.slug)}
             >
-              Preview
+              {isMagazine ? "Live Demo" : "Preview"}
             </Link>
           )}
 
-          {!isWeddingInvitation && liveDemoUrl && (
+          {!isWeddingInvitation && !isMagazine && liveDemoUrl && (
             <a
               className="btn btn-primary"
               href={liveDemoUrl}
@@ -793,10 +821,10 @@ function Templates() {
 
     getTemplates()
       .then((templates) => setItems(templates))
-      .catch((error) => console.error("Failed to load templates:", error));
+      .catch(() => console.error("Template catalog refresh failed."));
     getCategories()
       .then((categories) => setCats(categories))
-      .catch((error) => console.error("Failed to load categories:", error));
+      .catch(() => console.error("Category catalog refresh failed."));
 
     return () => {
       window.removeEventListener("devsphere:templates-updated", handleTemplateUpdate);
@@ -811,7 +839,10 @@ function Templates() {
       `${template.name} ${template.description || ""}`
         .toLowerCase()
         .includes(search);
-    const matchesCategory = !cat || template.category?.slug === cat;
+    const matchesCategory =
+      !cat ||
+      template.category?.slug === cat ||
+      (cat === "birthday" && template.tags?.includes("birthday"));
     const matchesFree = !freeOnly || template.isFree;
     return matchesSearch && matchesCategory && matchesFree;
   });
@@ -882,7 +913,7 @@ function TemplatePreview() {
         });
       })
       .catch((error) => {
-        console.error("Failed to load template:", error);
+        console.error("Template detail load failed.");
       });
   }, [id]);
   if (!t)
@@ -956,7 +987,7 @@ function Auth() {
 
       nav("/dashboard");
     } catch (e: any) {
-      console.error("Authentication failed:", e);
+      console.error("Authentication request failed.");
       setErr(e?.message || "Authentication failed.");
     }
   }
@@ -1173,7 +1204,7 @@ function Dashboard() {
         setProjects(p.items);
       })
       .catch((error) => {
-        console.error("Dashboard load failed:", error);
+        console.error("Dashboard load failed.");
 
         if (error?.message === "Unauthorized") {
           nav("/login");
@@ -1398,88 +1429,90 @@ function MediaField({
     accept = ".mp4,.webm,.mov,.mpeg,video/mp4,video/webm,video/quicktime";
   }
 
-  async function upload(file: File) {
+  async function uploadOne(file: File, kind: "image" | "audio" | "video") {
+    if (file.size > 25 * 1024 * 1024) {
+      throw new Error(`${file.name}: max file size is 25MB.`);
+    }
+    if (
+      kind === "image" &&
+      !["image/jpeg", "image/png", "image/webp"].includes(file.type)
+    ) {
+      throw new Error(`${file.name}: only JPG, JPEG, PNG and WebP images are supported.`);
+    }
+
+    const pres = await api("/media/presign", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId,
+        kind,
+        mimeType: file.type,
+        size: file.size,
+        originalName: file.name,
+      }),
+    });
+
+    const put = await fetch(pres.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+    if (!put.ok) throw new Error(`${file.name}: upload failed.`);
+
+    const attached = await api("/media/attach", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId,
+        kind,
+        url: pres.url,
+        storageKey: pres.key,
+        mimeType: file.type,
+        size: file.size,
+      }),
+    });
+    const uploadedUrl = attached?.media?.url || pres.url;
+    if (!uploadedUrl) throw new Error(`${file.name}: no image URL was returned.`);
+    return uploadedUrl as string;
+  }
+
+  async function uploadFiles(files: File[]) {
     if (!projectId) {
       setMsg("Project is not ready for upload.");
       return;
     }
 
-    // Basic client-side validation
-    if (file.size > 25 * 1024 * 1024) {
-      setMsg("Max file size is 25MB");
-      return;
-    }
-
-    if (
-      (isMultiple || isSingleImage) &&
-      !["image/jpeg", "image/png", "image/webp"].includes(file.type)
-    ) {
-      setMsg("Only JPG, JPEG, PNG and WebP images are supported.");
+    const kind = isMultiple || isSingleImage ? "image" : isAudio ? "audio" : "video";
+    const current = Array.isArray(value) ? value : [];
+    const maxItems = Number(field.maxItems) > 0 ? Number(field.maxItems) : Number.POSITIVE_INFINITY;
+    const remaining = isMultiple ? Math.max(0, maxItems - current.length) : 1;
+    const selectedFiles = files.slice(0, remaining);
+    if (selectedFiles.length === 0) {
+      setMsg(isMultiple ? `This field already has the maximum of ${maxItems} photos.` : "Choose a file to upload.");
       return;
     }
 
     setBusy(true);
-    setMsg("Uploading…");
-
+    setMsg(`Uploading ${selectedFiles.length} ${kind === "image" ? "photo(s)" : "file(s)"}…`);
     try {
-      const kind =
-        isMultiple || isSingleImage ? "image" : isAudio ? "audio" : "video";
+      const results = await Promise.allSettled(selectedFiles.map((file) => uploadOne(file, kind)));
+      const uploadedUrls = results
+        .filter((result): result is PromiseFulfilledResult<string> => result.status === "fulfilled")
+        .map((result) => result.value);
+      const failures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
 
-      const pres = await api("/media/presign", {
-        method: "POST",
-        body: JSON.stringify({
-          projectId,
-          kind,
-          mimeType: file.type,
-          size: file.size,
-          originalName: file.name,
-        }),
-      });
-
-      const put = await fetch(pres.uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type,
-        },
-        body: file,
-      });
-
-      if (!put.ok) {
-        throw new Error("Upload failed");
+      if (uploadedUrls.length > 0) {
+        onChange(isMultiple ? [...current, ...uploadedUrls] : uploadedUrls[0]);
       }
-
-      const attached = await api("/media/attach", {
-        method: "POST",
-        body: JSON.stringify({
-          projectId,
-          kind,
-          url: pres.url,
-          storageKey: pres.key,
-          mimeType: file.type,
-          size: file.size,
-        }),
-      });
-
-      const uploadedUrl = attached?.media?.url || pres.url;
-
-      if (!uploadedUrl) {
-        throw new Error("Upload succeeded but no image URL was returned.");
-      }
-
-      // Multiple image gallery
-      if (isMultiple) {
-        const current = Array.isArray(value) ? value : [];
-
-        onChange([...current, uploadedUrl]);
+      if (failures.length > 0) {
+        const firstError = failures[0].reason?.message || "Upload failed.";
+        setMsg(`${uploadedUrls.length} uploaded; ${failures.length} failed. ${firstError}`);
+      } else if (selectedFiles.length < files.length) {
+        setMsg(`${uploadedUrls.length} uploaded. This field holds up to ${maxItems} photos.`);
       } else {
-        // Single image / balloon image
-        onChange(uploadedUrl);
+        setMsg(`${uploadedUrls.length} uploaded ✓`);
       }
-
-      setMsg("Uploaded ✓");
-    } catch (e: any) {
-      console.error("Media upload error:", e);
-      setMsg(e?.message || "Upload failed");
+    } catch (error: any) {
+      console.error("Media upload failed.");
+      setMsg(error?.message || "Upload failed");
     } finally {
       setBusy(false);
     }
@@ -1498,18 +1531,19 @@ function MediaField({
         disabled={busy}
         onChange={(e) => {
           const files = Array.from(e.target.files || []);
-
-          if (isMultiple) {
-            files.forEach((file) => {
-              void upload(file);
-            });
-          } else if (files[0]) {
-            void upload(files[0]);
-          }
-
+          if (files.length > 0) void uploadFiles(files);
           e.currentTarget.value = "";
         }}
       />
+
+      {field.templateSlug === "my-hero-magazine" && field.id === "storyPhotos" && (
+        <small className="muted">
+          Photos replace the original pictures in order: cover, portrait, page 4 collage, then later page layouts. Remove or reorder a photo below to change its position.
+        </small>
+      )}
+      {isMultiple && Number(field.maxItems) > 0 && (
+        <small className="muted">{Array.isArray(value) ? value.length : 0} / {field.maxItems} photos</small>
+      )}
 
       {busy && <small className="muted">Uploading…</small>}
 
@@ -1549,17 +1583,34 @@ function MediaField({
           }}
         >
           {value.map((url: string, index: number) => (
-            <img
-              key={`${url}-${index}`}
-              src={url}
-              alt={`Uploaded photo ${index + 1}`}
-              style={{
-                width: "100%",
-                height: 80,
-                objectFit: "cover",
-                borderRadius: 8,
-              }}
-            />
+            <div key={`${url}-${index}`} style={{ position: "relative", minWidth: 0 }}>
+              <img
+                src={url}
+                alt={`Uploaded photo ${index + 1}`}
+                style={{
+                  width: "100%",
+                  height: 80,
+                  objectFit: "cover",
+                  borderRadius: 8,
+                  display: "block",
+                }}
+              />
+              {field.templateSlug === "my-hero-magazine" && (
+                <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
+                  <button type="button" className="btn btn-soft" disabled={index === 0 || busy} aria-label={`Move photo ${index + 1} earlier`} onClick={() => {
+                    const next = [...value];
+                    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                    onChange(next);
+                  }}>←</button>
+                  <button type="button" className="btn btn-soft" disabled={index === value.length - 1 || busy} aria-label={`Move photo ${index + 1} later`} onClick={() => {
+                    const next = [...value];
+                    [next[index + 1], next[index]] = [next[index], next[index + 1]];
+                    onChange(next);
+                  }}>→</button>
+                  <button type="button" className="btn btn-soft" disabled={busy} aria-label={`Remove photo ${index + 1}`} onClick={() => onChange(value.filter((_: string, itemIndex: number) => itemIndex !== index))}>×</button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -1870,6 +1921,14 @@ function Repeater({
 function getEditorData(template: any, projectData: any) {
   const saved = projectData && typeof projectData === "object" ? projectData : {};
 
+  if (template?.slug === "my-hero-magazine") {
+    const defaults =
+      template.defaultData && typeof template.defaultData === "object"
+        ? template.defaultData
+        : {};
+    return { ...defaults, ...saved };
+  }
+
   if (template?.slug === "navratri-partner-invite") {
     const defaults =
       template.defaultData && typeof template.defaultData === "object"
@@ -2033,10 +2092,12 @@ function Editor() {
   }
 
   const schema = project.template.schema as TemplateDefinition;
+  const isMyHeroMagazine = project.template.slug === "my-hero-magazine";
   const supportsWatermarkRemoval = [
     "birthday-royal-memory",
     "anniversary-romantic-01",
     "navratri-partner-invite",
+    "my-hero-magazine",
   ].includes(project.template.slug);
   async function finalize() {
     try {
@@ -2045,9 +2106,11 @@ function Editor() {
         body: JSON.stringify({ data, customization }),
       });
 
-      await api(`/projects/${project.id}/finalize`, {
-        method: "POST",
-      });
+      if (!isMyHeroMagazine) {
+        await api(`/projects/${project.id}/finalize`, {
+          method: "POST",
+        });
+      }
 
       nav(
         project.template.isFree
@@ -2055,7 +2118,7 @@ function Editor() {
           : `/checkout/${project.id}`,
       );
     } catch (e: any) {
-      console.error("Finalize failed:", e);
+      console.error("Project finalization failed.");
       alert(e.message || "Could not finalize the project.");
     }
   }
@@ -2092,7 +2155,8 @@ function Editor() {
           />
         ))}
         {!project.template.isFree &&
-          project.template.slug !== "navratri-partner-invite" && (
+          project.template.slug !== "navratri-partner-invite" &&
+          !isMyHeroMagazine && (
           <>
             <div className="field">
               <label>Accent</label>
@@ -2135,7 +2199,9 @@ function Editor() {
                 }
               />
               <span className="remove-watermark-copy">
-                <strong>Remove watermark · +₹99 / $1</strong>
+                <strong>
+                  {isMyHeroMagazine ? "Remove watermark · +₹99" : "Remove watermark · +₹99 / $1"}
+                </strong>
                 <small>
                   Removes the Devsphere credit, Instagram link and “Create your
                   own” link from the final page. This optional charge is added
@@ -2154,6 +2220,8 @@ function Editor() {
             ? "Save Changes to Live Website"
             : project.template.isFree
               ? "Finalize & Get Free Link"
+              : isMyHeroMagazine
+                ? `Pay ₹${customization.removeWatermark === true ? 609 : 510} to Unlock Finalization`
               : "Finalize & Continue"}
         </button>
         <p className="muted" style={{ fontSize: ".8rem" }}>
@@ -2198,7 +2266,7 @@ function Create() {
         setTemplate(template);
       })
       .catch((error) => {
-        console.error("Template loading failed:", error);
+        console.error("Template loading failed.");
         alert(error.message || "Unable to load template.");
       });
   }, [id]);
@@ -2225,7 +2293,7 @@ function Create() {
       });
       nav(`/edit/${p.project.id}`);
     } catch (e: any) {
-      console.error("Failed to create project:", e);
+      console.error("Project creation failed.");
 
       if (e.message === "Unauthorized") {
         nav("/login");
@@ -2323,7 +2391,7 @@ function Checkout() {
             return;
           }
         } catch (resumeError) {
-          console.warn("Payment resume check failed:", resumeError);
+          console.warn("Payment resume check failed.");
         }
 
         setProject(loadedProject);
@@ -2361,7 +2429,7 @@ function Checkout() {
         }
       })
       .catch((e) => {
-        console.error("Failed to load checkout:", e);
+        console.error("Checkout load failed.");
 
         setCheckoutError(e?.message || "Unable to load checkout details.");
       });
@@ -2377,6 +2445,7 @@ function Checkout() {
     project?.template?.slug === "anniversary-romantic-01";
   const isNavratri = project?.template?.slug === "navratri-partner-invite";
   const isWeddingInvitation = project?.template?.slug === "wedding-invitation";
+  const isMagazine = project?.template?.slug === "my-hero-magazine";
   const checkoutTemplateName = project?.template?.name || "Digital surprise";
 
   const projectCustomization =
@@ -2385,9 +2454,13 @@ function Checkout() {
     "birthday-royal-memory",
     "anniversary-romantic-01",
     "navratri-partner-invite",
+    "my-hero-magazine",
   ].includes(project?.template?.slug);
   const removeWatermarkSelected =
-    supportsWatermarkRemoval && projectCustomization.removeWatermark === true;
+    supportsWatermarkRemoval && (
+      (isMagazine && currency === "USD") ||
+      projectCustomization.removeWatermark === true
+    );
   const movieEnabled = projectData.movieEnabled === true;
 
   /* =========================================================
@@ -2396,8 +2469,9 @@ function Checkout() {
 
   const specialRevealMethods = ["QR", "PIN", "LETTER", "GIFT", "PUZZLE"];
 
-  const specialRevealSelected =
-    !isNavratri && specialRevealMethods.includes(revealMethod);
+  const specialRevealSelected = isMagazine
+    ? revealMethod === "QR" || revealMethod === "PIN"
+    : !isNavratri && specialRevealMethods.includes(revealMethod);
 
   /*
    * ₹99  = Normal
@@ -2413,18 +2487,26 @@ function Checkout() {
     (removeWatermarkSelected ? 99 : 0);
   const navratriPrice = 101 + (removeWatermarkSelected ? 99 : 0);
   const weddingInvitationPrice = 999;
-  const usdBasePrice = isWeddingInvitation ? 55 : isBloomAnniversary ? 30 : 10;
+  const magazinePrice =
+    510 +
+    (specialRevealSelected ? 9 : 0) +
+    (removeWatermarkSelected ? 99 : 0);
+  const usdBasePrice = isMagazine ? 50 : isWeddingInvitation ? 55 : isBloomAnniversary ? 30 : 10;
   const displayPrice =
     currency === "USD"
-      ? usdBasePrice + (removeWatermarkSelected ? 1 : 0)
-      : isNavratri
+      ? isMagazine ? 50 : usdBasePrice + (removeWatermarkSelected ? 1 : 0)
+      : isMagazine
+        ? magazinePrice
+        : isNavratri
         ? navratriPrice
         : isWeddingInvitation
           ? weddingInvitationPrice
         : isBloomAnniversary
           ? bloomAnniversaryPrice
           : birthdayPrice + (removeWatermarkSelected ? 99 : 0);
-  const priceLabel = isWeddingInvitation
+  const priceLabel = isMagazine
+    ? "SPECIAL MAGAZINE"
+    : isWeddingInvitation
     ? "WEDDING INVITATION"
     : isNavratri
     ? "NAVRATRI PARTNER INVITE"
@@ -2442,7 +2524,9 @@ function Checkout() {
       ? "OUR MOVIE"
       : "BASIC";
 
-  const basePriceDescription = isWeddingInvitation
+  const basePriceDescription = isMagazine
+    ? "Personalized 15-page MY HERO magazine, your photos and closing message."
+    : isWeddingInvitation
     ? `Wedding Invitation website${movieEnabled ? " with your movie/video" : ""}${specialRevealSelected ? " with your chosen sharing method" : ""}.`
     : isNavratri
     ? "Personalized Navratri story, photos, playlist, video and final invitation link."
@@ -2499,7 +2583,6 @@ function Checkout() {
           currency: "INR",
         }),
       });
-      console.log("Razorpay order response:", order);
 
       if (order?.alreadyPaid) {
         nav(`/published/${id}`);
@@ -2533,7 +2616,7 @@ function Checkout() {
         amount: order.amount,
         currency: "INR",
         name: "Devsphere",
-        description: `${isNavratri ? "Navratri Partner Invite" : isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} — ₹${displayPrice}`,
+        description: `${isMagazine ? "Special Magazine" : isNavratri ? "Navratri Partner Invite" : isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} — ₹${displayPrice}`,
         order_id: order.providerOrderId,
 
         handler: async (response: any) => {
@@ -2555,7 +2638,7 @@ function Checkout() {
             nav(`/published/${id}`);
             return;
           } catch (error: any) {
-            console.error("Razorpay verification failed:", error);
+            console.error("Payment verification failed.");
 
             // Payment may already be captured even if the browser
             // verification request failed or timed out.
@@ -2580,7 +2663,7 @@ function Checkout() {
             }
 
             if (resumeError) {
-              console.error("Razorpay payment recovery failed:", resumeError);
+              console.error("Payment recovery failed.");
             }
 
             setCheckoutError(
@@ -2613,7 +2696,7 @@ function Checkout() {
             response?.error?.description || "Razorpay payment failed.",
           );
         } catch (resumeError: any) {
-          console.error("Razorpay failed-payment recovery failed:", resumeError);
+          console.error("Failed-payment recovery failed.");
           setCheckoutError(
             "We couldn’t confirm the payment status. Please check My Websites before trying to pay again.",
           );
@@ -2631,7 +2714,7 @@ function Checkout() {
 
       razorpay.open();
     } catch (error: any) {
-      console.error("Razorpay payment error:", error);
+      console.error("Payment provider reported an error.");
       setCheckoutError(error?.message || "Payment could not be started.");
       setLoading("");
     }
@@ -2660,6 +2743,8 @@ function Checkout() {
             <span className="pill">
               {isWeddingInvitation
                 ? "Wedding Invitation"
+                : isMagazine
+                ? "Special Magazine"
                 : isNavratri
                 ? "Navratri Partner Invite"
                 : isBloomAnniversary
@@ -2670,6 +2755,8 @@ function Checkout() {
             <h2>
               {isWeddingInvitation
                 ? "Your wedding invitation package"
+                : isMagazine
+                ? "Your Special Magazine package"
                 : isNavratri
                 ? "Your Navratri package"
                 : isBloomAnniversary
@@ -2680,6 +2767,8 @@ function Checkout() {
             <p className="muted">
               {isWeddingInvitation
                 ? "Review your Wedding Invitation price and selected options."
+                : isMagazine
+                ? "Review the ₹510 magazine price and optional ₹99 watermark removal."
                 : isNavratri
                 ? "Review your Navratri invitation price and optional credit removal."
                 : isBloomAnniversary
@@ -2691,39 +2780,82 @@ function Checkout() {
 
         <div className="checkout-currency-section">
           <h3>Choose Currency</h3>
-
           <p className="muted">
-            Choose INR for Razorpay in India, or USD to use PayPal for international checkout.
+            Choose INR for Razorpay in India, or USD for secure PayPal checkout.
           </p>
-
           <div className="actions">
             <button
               type="button"
-              className={`btn ${
-                currency === "INR" ? "btn-primary" : "btn-soft"
-              }`}
+              className={`btn ${currency === "INR" ? "btn-primary" : "btn-soft"}`}
               onClick={() => setCurrency("INR")}
             >
               🇮🇳 INR ₹
             </button>
-
             <button
               type="button"
-              className={`btn ${
-                currency === "USD" ? "btn-primary" : "btn-soft"
-              }`}
-              onClick={() => setCurrency("USD")}
+              className={`btn ${currency === "USD" ? "btn-primary" : "btn-soft"}`}
+              onClick={() => {
+                setCurrency("USD");
+                if (isMagazine && !["QR", "PIN"].includes(revealMethod)) {
+                  setRevealMethod("QR");
+                  setScannerStyle("HEART");
+                }
+              }}
             >
               🌎 USD $
             </button>
           </div>
+          {isMagazine && (
+            <p className="muted">
+              {currency === "USD"
+                ? "The $50 package includes watermark removal and your selected Heart Scanner or Code Lock."
+                : "Special Magazine starts at ₹510. Add a Heart Scanner or Code Lock for ₹9, and watermark removal for ₹99."}
+            </p>
+          )}
         </div>
 
         {/* ===================================================
             REVEAL STYLE
            =================================================== */}
 
-        {!isNavratri && <div className="checkout-reveal-section">
+        {isMagazine ? (
+          <div className="checkout-reveal-section">
+            <h3>Choose a reveal</h3>
+            <p className="muted">
+              {currency === "USD"
+                ? "Choose a Heart Scanner or Code Lock. Both are included in the $50 package."
+                : "Normal sharing is included. Choose the Heart Scanner or Code Lock for +₹9."}
+            </p>
+            <div className="actions">
+              {currency === "INR" && (
+                <button
+                  type="button"
+                  className={`btn ${revealMethod === "NORMAL" ? "btn-primary" : "btn-soft"}`}
+                  onClick={() => setRevealMethod("NORMAL")}
+                >
+                  Normal link
+                </button>
+              )}
+              <button
+                type="button"
+                className={`btn ${revealMethod === "QR" ? "btn-primary" : "btn-soft"}`}
+                onClick={() => {
+                  setRevealMethod("QR");
+                  setScannerStyle("HEART");
+                }}
+              >
+                Heart Shape Scanner{currency === "INR" ? " · +₹9" : ""}
+              </button>
+              <button
+                type="button"
+                className={`btn ${revealMethod === "PIN" ? "btn-primary" : "btn-soft"}`}
+                onClick={() => setRevealMethod("PIN")}
+              >
+                Code Lock{currency === "INR" ? " · +₹9" : ""}
+              </button>
+            </div>
+          </div>
+        ) : !isNavratri && <div className="checkout-reveal-section">
           <h3>Choose how to share your surprise</h3>
 
           <p className="muted">            {currency === "USD"
@@ -2778,10 +2910,12 @@ function Checkout() {
         {!isNavratri && revealMethod === "QR" && (
           <div className="scanner-style-section">
             <div className="scanner-style-heading">
-              <h3>Choose your Magical Scanner</h3>
+              <h3>{isMagazine ? "Heart Shape Scanner" : "Choose your Magical Scanner"}</h3>
 
               <p className="muted">
-                {isWeddingInvitation
+                {isMagazine
+                  ? "The original heart-shaped scanner is selected for your Special Magazine."
+                  : isWeddingInvitation
                   ? "Choose the style for sharing your wedding invitation."
                   : isBloomAnniversary
                   ? "Choose the style for sharing your anniversary story."
@@ -2820,7 +2954,7 @@ function Checkout() {
           SQUARE SCANNER
          ================================================= */}
 
-              <button
+              {!isMagazine && <button
                 type="button"
                 className={`scanner-style-card ${
                   scannerStyle === "SQUARE" ? "is-selected" : ""
@@ -2844,7 +2978,7 @@ function Checkout() {
                 <strong>Square Scanner</strong>
 
                 <span>Classic square QR design</span>
-              </button>
+              </button>}
             </div>
 
             <div className="scanner-style-price">
@@ -2862,7 +2996,47 @@ function Checkout() {
             THREE PRICE OPTIONS
            =================================================== */}
 
-        {currency === "USD" ? (
+        {isMagazine ? (
+          currency === "USD" ? (
+            <div className="birthday-checkout-pricing bloom-checkout-pricing">
+              <div className="birthday-price-card is-selected">
+                <span className="birthday-price-badge">SPECIAL MAGAZINE · ALL INCLUDED</span>
+                <div className="birthday-price-icon">📖</div>
+                <h3>Personalized 15-page MY HERO magazine</h3>
+                <p>Includes your selected Heart Scanner or Code Lock, watermark removal, uploaded photos and a unique shareable link.</p>
+                <strong className="birthday-price">$50</strong>
+                <span className="birthday-price-note">One-time international package</span>
+              </div>
+            </div>
+          ) : (
+            <div className="birthday-checkout-pricing bloom-checkout-pricing">
+              <div className={`birthday-price-card ${!specialRevealSelected && !removeWatermarkSelected ? "is-selected" : ""}`}>
+                <span className="birthday-price-badge">SPECIAL MAGAZINE</span>
+                <div className="birthday-price-icon">📖</div>
+                <h3>Personalized 15-page MY HERO magazine</h3>
+                <p>Includes the original page layouts, editable messages, your uploaded photos and a unique shareable magazine link.</p>
+                <strong className="birthday-price">₹510</strong>
+                <span className="birthday-price-note">Base package price</span>
+              </div>
+              <div className={`birthday-price-card birthday-price-special ${specialRevealSelected ? "is-selected" : ""}`}>
+                <span className="birthday-price-badge birthday-price-luxury">OPTIONAL SPECIAL REVEAL</span>
+                <div className="birthday-price-icon">💗</div>
+                <h3>Heart Scanner or Code Lock</h3>
+                <p>Choose a heart-shaped scanner or protect the reveal with a code lock.</p>
+                <strong className="birthday-price">+₹9</strong>
+                <span className="birthday-price-note">{specialRevealSelected ? `₹${510 + (removeWatermarkSelected ? 99 : 0) + 9} total` : "Optional · choose one above"}</span>
+              </div>
+              <div className={`birthday-price-card ${removeWatermarkSelected ? "is-selected" : ""}`}>
+                <span className="birthday-price-badge birthday-price-premium">OPTIONAL CREDIT REMOVAL</span>
+                <div className="birthday-price-icon">✨</div>
+                <h3>Remove the final-page watermark</h3>
+                <p>Keep the Devsphere credit on the final page, or remove it with this one-time add-on.</p>
+                <strong className="birthday-price">+₹99</strong>
+                <span className="birthday-price-note">{removeWatermarkSelected ? `₹${510 + (specialRevealSelected ? 9 : 0) + 99} total` : `Optional · ₹${510 + (specialRevealSelected ? 9 : 0) + 99} total if selected`}</span>
+              </div>
+            </div>
+          )
+        ) : currency === "USD" ? (
           <div className="birthday-checkout-pricing bloom-checkout-pricing">
             <div className="birthday-price-card is-selected">
               <span className="birthday-price-badge">INTERNATIONAL PACKAGE</span>
@@ -3093,7 +3267,7 @@ function Checkout() {
 
           {specialRevealSelected && (
             <p className="birthday-checkout-note">              {revealMethod === "QR"
-                ? "Magical Scanner selected."
+                ? isMagazine ? "Heart Shape Scanner selected." : "Magical Scanner selected."
                 : revealMethod === "PIN"
                   ? "Code Lock selected."
                   : revealMethod === "LETTER"
@@ -3103,6 +3277,10 @@ function Checkout() {
                       : "Puzzle selected."}{" "}
               {isWeddingInvitation
                 ? "Selected sharing method included in the wedding package. "
+                : isMagazine
+                ? currency === "USD"
+                  ? "Special reveal included in the $50 package. "
+                  : "Special reveal selected (+₹9). "
                 : isBloomAnniversary
                 ? currency === "USD"
                   ? "Selected sharing method included. "
@@ -3113,7 +3291,13 @@ function Checkout() {
           )}
 
           {removeWatermarkSelected && (
-            <p className="birthday-checkout-note">Remove watermark: {currency === "USD" ? "+$1." : "+₹99."}</p>
+            <p className="birthday-checkout-note">
+              {isMagazine
+                ? currency === "USD"
+                  ? "Watermark removal included in the $50 package."
+                  : "Remove watermark: +₹99."
+                : `Remove watermark: ${currency === "USD" ? "+$1." : "+₹99."}`}
+            </p>
           )}
 
           {checkoutError && (
@@ -3164,7 +3348,7 @@ function Checkout() {
                   nav(`/published/${id}`);
                 }}
                 onError={(error: any) => {
-                  console.error("PayPal error:", error);
+                  console.error("Payment provider reported an error.");
                   setCheckoutError(
                     error?.message || "PayPal payment could not be completed.",
                   );
@@ -3215,7 +3399,7 @@ function Public() {
         }
       })
       .catch((error) => {
-        console.error("PUBLIC WEBSITE LOAD FAILED:", error);
+        console.error("Public website load failed.");
         setQuestion(error?.message || "Unable to load this website.");
         setGate(false);
       });
@@ -3366,7 +3550,7 @@ function RoutePublished() {
         }
       })
       .catch((error) => {
-        console.error("Failed to load published project:", error);
+        console.error("Published project load failed.");
         if (!cancelled) {
           setProjectLoadError(
             error?.message || "Unable to load your published website.",
@@ -3708,7 +3892,7 @@ function RoutePublished() {
 
       setTimeout(() => setStatus(""), 2200);
     } catch (error: any) {
-      console.error("Scanner download error:", error);
+      console.error("Scanner download failed.");
 
       setStatus("Could not generate scanner.");
     }
@@ -4092,6 +4276,425 @@ function AdminTemplateEditor() {
   );
 }
 
+function affiliateMoney(amountMinor: number, currency: string) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format((Number(amountMinor) || 0) / 100);
+}
+
+function toLocalDateTime(value?: string | Date | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function AffiliateHub() {
+  const nav = useNavigate();
+  const [me, setMe] = useState<any>();
+  const [dashboard, setDashboard] = useState<any>();
+  const [offers, setOffers] = useState<any[]>([]);
+  const [links, setLinks] = useState<any[]>([]);
+  const [accepted, setAccepted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  async function loadAffiliateData() {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await api("/affiliate/me");
+      setMe(response);
+      if (response.profile?.status === "APPROVED") {
+        const [metrics, products, myLinks] = await Promise.all([
+          api("/affiliate/dashboard"),
+          api("/affiliate/products"),
+          api("/affiliate/links"),
+        ]);
+        setDashboard(metrics);
+        setOffers(products.items || []);
+        setLinks(myLinks.items || []);
+      }
+    } catch (loadError: any) {
+      setError(loadError?.message || "Unable to load the Affiliate Hub.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadAffiliateData();
+  }, []);
+
+  async function apply() {
+    if (!me?.policy?.termsVersion || !accepted) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await api("/affiliate/apply", {
+        method: "POST",
+        body: JSON.stringify({ acceptedTermsVersion: me.policy.termsVersion }),
+      });
+      setNotice("Application submitted. An admin will review it.");
+      setAccepted(false);
+      await loadAffiliateData();
+    } catch (submitError: any) {
+      setError(submitError?.message || "Unable to submit your application.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createLink(offerId: string) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const created = await api("/affiliate/links", {
+        method: "POST",
+        body: JSON.stringify({ offerId }),
+      });
+      await navigator.clipboard?.writeText(created.url).catch(() => undefined);
+      setNotice(`Referral link created${navigator.clipboard ? " and copied" : ""}.`);
+      await loadAffiliateData();
+    } catch (createError: any) {
+      setError(createError?.message || "Unable to create a referral link.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const profile = me?.profile;
+  return (
+    <>
+      <Nav />
+      <div className="container section">
+        <BackButton label="Back" />
+        <span className="pill">DevSphere growth</span>
+        <h2>Affiliate Hub</h2>
+        <p className="muted">Create tracked links for active DevSphere offers and review pending earnings from verified purchases.</p>
+        {loading && <p className="muted">Loading Affiliate Hub…</p>}
+        {error && <p className="birthday-checkout-error" role="alert">{error}</p>}
+        {notice && <p className="muted" role="status">{notice}</p>}
+        {!loading && error === "Unauthorized" && (
+          <button className="btn btn-primary" onClick={() => nav("/login")}>Log in to apply</button>
+        )}
+        {!loading && me?.policy && !me.policy.enabled && (
+          <div className="card"><div className="card-body"><h3>Applications are paused</h3><p className="muted">The Affiliate Hub is temporarily closed to new referrals.</p></div></div>
+        )}
+        {!loading && me?.policy?.enabled && (!profile || profile.status === "REJECTED") && (
+          <section className="card section" aria-labelledby="affiliate-application-title">
+            <div className="card-body">
+              <h3 id="affiliate-application-title">Apply to become an affiliate</h3>
+              {profile?.reviewReason && <p className="muted">Previous review: {profile.reviewReason}</p>}
+              <div className="row-card" style={{ display: "block", margin: "16px 0" }}>
+                <strong>Program rules · {me.policy.termsVersion}</strong>
+                <ul>
+                  <li>Commissions are earned only on eligible orders after payment is verified.</li>
+                  <li>Rates are set by offer and recorded when an order is placed.</li>
+                  <li>Self-referrals, clicks and unpaid orders do not earn commissions.</li>
+                  <li>Pending commissions are for tracking only. DevSphere does not currently offer affiliate payouts.</li>
+                </ul>
+              </div>
+              <label className="field" style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />
+                <span>I have read and accept the current affiliate program rules ({me.policy.termsVersion}).</span>
+              </label>
+              <button className="btn btn-primary" onClick={() => void apply()} disabled={!accepted || busy}>
+                {busy ? "Submitting…" : "Submit application"}
+              </button>
+            </div>
+          </section>
+        )}
+        {!loading && profile?.status === "PENDING" && (
+          <div className="card"><div className="card-body"><h3>Application under review</h3><p className="muted">We’ll show your offers and referral links here after approval.</p><span className="tag">Pending review</span></div></div>
+        )}
+        {!loading && profile?.status === "SUSPENDED" && (
+          <div className="card"><div className="card-body"><h3>Affiliate account suspended</h3><p className="muted">{profile.reviewReason || "Contact DevSphere support if you have questions."}</p></div></div>
+        )}
+        {!loading && profile?.status === "APPROVED" && (
+          <>
+            <div className="stat-grid">
+              <div className="stat">Clicks<br /><b>{dashboard?.metrics?.clicks || 0}</b></div>
+              <div className="stat">Unique visitors<br /><b>{dashboard?.metrics?.uniqueVisitors || 0}</b></div>
+              <div className="stat">Verified conversions<br /><b>{dashboard?.metrics?.conversions || 0}</b></div>
+              <div className="stat">Conversion rate<br /><b>{((dashboard?.metrics?.conversionRate || 0) * 100).toFixed(1)}%</b></div>
+            </div>
+            <p className="muted">Clicks are informational. Earnings are created only after the existing payment flow verifies a paid order. Pending earnings are not payable; no payout workflow is available.</p>
+
+            <section className="section">
+              <div className="section-head"><div><span className="pill">Offers</span><h2>Discover templates</h2></div></div>
+              {offers.length ? <div className="grid">
+                {offers.map((offer) => (
+                  <article className="card" key={offer.id}>
+                    {offer.template.thumbnailUrl && <img src={offer.template.thumbnailUrl} alt="" loading="lazy" />}
+                    <div className="card-body">
+                      <span className="muted">{offer.commissionBps / 100}% commission · Offer v{offer.version}</span>
+                      <h3>{offer.template.name}</h3>
+                      <p className="muted">{offer.template.description || "Share this DevSphere template with your audience."}</p>
+                      {offer.links?.length ? (
+                        <p className="muted">You have {offer.links.length} active link{offer.links.length === 1 ? "" : "s"} for this template.</p>
+                      ) : (
+                        <button className="btn btn-primary" onClick={() => void createLink(offer.id)} disabled={busy}>Create referral link</button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div> : <p className="muted">No active offers are available yet.</p>}
+            </section>
+
+            <section className="section">
+              <div className="section-head"><div><span className="pill">Earnings</span><h2>Pending commissions</h2></div></div>
+              {(dashboard?.balances || []).length ? <div className="stat-grid">
+                {dashboard.balances.map((balance: any) => (
+                  <div className="stat" key={balance.currency}>{balance.currency} pending<br /><b>{affiliateMoney(balance.pendingMinor, balance.currency)}</b></div>
+                ))}
+              </div> : <p className="muted">No commissions yet. Verified conversions will appear here.</p>}
+              {dashboard?.recentCommissions?.length > 0 && <div className="list">
+                {dashboard.recentCommissions.map((commission: any) => (
+                  <div className="row-card" key={commission.id}>
+                    <div><b>{commission.order?.project?.name || "Template order"}</b><div className="muted">{commission.commissionBps / 100}% · {new Date(commission.createdAt).toLocaleDateString()}</div></div>
+                    <b>{affiliateMoney(Math.max(0, commission.commissionAmountMinor - (commission.reversedAmountMinor || 0)), commission.currency)} · {commission.status.toLowerCase()}</b>
+                  </div>
+                ))}
+              </div>}
+            </section>
+
+            <section className="section">
+              <div className="section-head"><div><span className="pill">Your links</span><h2>Referral links</h2></div></div>
+              {links.length ? <div className="list">
+                {links.map((link) => {
+                  const url = `${window.location.origin}/r/${link.code}`;
+                  return <div className="row-card" key={link.id}>
+                    <div><b>{link.offer.template.name}</b><div className="muted">{url}</div><div className="muted">{link._count.clicks} clicks · {link._count.conversions} conversions · {link.active ? "active" : "paused"}</div></div>
+                    <button className="btn btn-soft" onClick={() => void navigator.clipboard?.writeText(url)}>Copy link</button>
+                  </div>;
+                })}
+              </div> : <p className="muted">Create a link from an active offer to get started.</p>}
+            </section>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+function AdminAffiliateHub() {
+  const nav = useNavigate();
+  const [overview, setOverview] = useState<any>();
+  const [applications, setApplications] = useState<any[]>([]);
+  const [offerData, setOfferData] = useState<any>();
+  const [policy, setPolicy] = useState<any>();
+  const [templateId, setTemplateId] = useState("");
+  const [offerStartsAt, setOfferStartsAt] = useState("");
+  const [offerEndsAt, setOfferEndsAt] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  async function loadAdminAffiliate() {
+    setError("");
+    try {
+      const [summary, appResponse, offersResponse, settingsResponse] = await Promise.all([
+        api("/admin/affiliate/overview"),
+        api("/admin/affiliate/applications"),
+        api("/admin/affiliate/offers"),
+        api("/admin/affiliate/settings"),
+      ]);
+      setOverview(summary);
+      setApplications(appResponse.items || []);
+      setOfferData(offersResponse);
+      setPolicy({
+        ...settingsResponse.policy,
+        defaultCommissionPercent: settingsResponse.policy.defaultCommissionBps / 100,
+      });
+    } catch (loadError: any) {
+      setError(loadError?.message || "Unable to load affiliate administration.");
+      if (loadError?.message === "Unauthorized" || loadError?.message === "Forbidden") nav("/login");
+    }
+  }
+
+  useEffect(() => {
+    void loadAdminAffiliate();
+  }, []);
+
+  async function decide(profileId: string, status: string) {
+    const reason = status === "APPROVED" ? "" : window.prompt(`Reason for ${status.toLowerCase()}:`) || "";
+    if (status !== "APPROVED" && !reason.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api(`/admin/affiliate/applications/${profileId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status, reviewReason: reason }),
+      });
+      setNotice(`Application ${status.toLowerCase()}.`);
+      await loadAdminAffiliate();
+    } catch (decisionError: any) {
+      setError(decisionError?.message || "Unable to update the application.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createOffer() {
+    if (!templateId) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("/admin/affiliate/offers", {
+        method: "POST",
+        body: JSON.stringify({
+          templateId,
+          ...(offerStartsAt ? { startsAt: new Date(offerStartsAt).toISOString() } : {}),
+          ...(offerEndsAt ? { endsAt: new Date(offerEndsAt).toISOString() } : {}),
+        }),
+      });
+      setNotice("Affiliate offer created.");
+      await loadAdminAffiliate();
+    } catch (createError: any) {
+      setError(createError?.message || "Unable to create this offer.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateOffer(offer: any, updates: Record<string, unknown>) {
+    setBusy(true);
+    setError("");
+    try {
+      await api(`/admin/affiliate/offers/${offer.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(updates),
+      });
+      setNotice(`${offer.template.name} offer updated.`);
+      await loadAdminAffiliate();
+    } catch (updateError: any) {
+      setError(updateError?.message || "Unable to update this offer.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function savePolicy() {
+    if (!policy) return;
+    const percent = Number(policy.defaultCommissionPercent);
+    if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+      setError("Enter a whole-number default rate between 0 and 100.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const { policy: saved } = await api("/admin/affiliate/settings", {
+        method: "PATCH",
+        body: JSON.stringify({
+          enabled: policy.enabled,
+          defaultCommissionBps: percent * 100,
+          creatorMinCommissionBps: Number(policy.creatorMinCommissionBps),
+          creatorMaxCommissionBps: Number(policy.creatorMaxCommissionBps),
+          attributionWindowDays: Number(policy.attributionWindowDays),
+          termsVersion: policy.termsVersion,
+        }),
+      });
+      setPolicy({ ...saved, defaultCommissionPercent: saved.defaultCommissionBps / 100 });
+      setCommissionPercent(String(saved.defaultCommissionBps / 100));
+      setNotice(`Affiliate policy v${saved.version} is now active.`);
+    } catch (saveError: any) {
+      setError(saveError?.message || "Unable to save affiliate settings.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <Nav />
+      <div className="container section">
+        <BackButton label="Back to Admin" />
+        <span className="pill">Admin</span>
+        <h2>Affiliate management</h2>
+        <p className="muted">Review applications, manage DevSphere template offers and version the program policy.</p>
+        {error && <p className="birthday-checkout-error" role="alert">{error}</p>}
+        {notice && <p className="muted" role="status">{notice}</p>}
+        {overview && <div className="stat-grid">
+          <div className="stat">Pending applications<br /><b>{overview.applications}</b></div>
+          <div className="stat">Approved affiliates<br /><b>{overview.approved}</b></div>
+          <div className="stat">Offers · clicks · conversions<br /><b>{overview.offers} · {overview.clicks} · {overview.conversions}</b></div>
+          <div className="stat">Pending commissions<br /><b>{(overview.pendingCommissionByCurrency || []).map((amount: any) => affiliateMoney(amount.amountMinor, amount.currency)).join(" · ") || "—"}</b></div>
+        </div>}
+
+        <section className="section">
+          <div className="section-head"><div><span className="pill">Configuration</span><h2>Program policy</h2></div></div>
+          {policy && <div className="card"><div className="card-body">
+            <p className="muted">Version {policy.version} is effective now. The 20% DevSphere rate and 30-day attribution window in v1 are proposed defaults from the specification; confirm before production.</p>
+            <label className="field" style={{ display: "flex", gap: 10 }}><input type="checkbox" checked={policy.enabled} onChange={(event) => setPolicy({ ...policy, enabled: event.target.checked })} /> Program enabled</label>
+            <label className="field">Default commission (%)<input type="number" min="0" max="100" step="1" value={policy.defaultCommissionPercent ?? policy.defaultCommissionBps / 100} onChange={(event) => setPolicy({ ...policy, defaultCommissionPercent: event.target.value })} /></label>
+            <label className="field">Attribution window (days)<input type="number" min="1" max="365" value={policy.attributionWindowDays} onChange={(event) => setPolicy({ ...policy, attributionWindowDays: Number(event.target.value) })} /></label>
+            <label className="field">Terms version<input value={policy.termsVersion} onChange={(event) => setPolicy({ ...policy, termsVersion: event.target.value })} /></label>
+            <p className="muted">Creator rate bounds are versioned for Phase 2. Current DevSphere offers keep their own snapshotted rates.</p>
+            <button className="btn btn-primary" onClick={() => void savePolicy()} disabled={busy}>Save as next policy version</button>
+          </div></div>}
+        </section>
+
+        <section className="section">
+          <div className="section-head"><div><span className="pill">Applications</span><h2>Affiliate applications</h2></div></div>
+          {applications.length ? <div className="list">
+            {applications.map((application) => <div className="row-card" key={application.id}>
+              <div><b>{application.user.name || application.user.email}</b><div className="muted">{application.user.email} · {application.status} · applied {new Date(application.appliedAt).toLocaleDateString()}</div>{application.reviewReason && <div className="muted">Review: {application.reviewReason}</div>}</div>
+              <div className="actions">
+                {application.status !== "APPROVED" && <button className="btn btn-primary" disabled={busy} onClick={() => void decide(application.id, "APPROVED")}>Approve</button>}
+                {application.status !== "REJECTED" && <button className="btn btn-soft" disabled={busy} onClick={() => void decide(application.id, "REJECTED")}>Reject</button>}
+                {application.status !== "SUSPENDED" && application.status === "APPROVED" && <button className="btn btn-soft" disabled={busy} onClick={() => void decide(application.id, "SUSPENDED")}>Suspend</button>}
+              </div>
+            </div>)}
+          </div> : <p className="muted">No affiliate applications yet.</p>}
+        </section>
+
+        <section className="section">
+          <div className="section-head"><div><span className="pill">DevSphere offers</span><h2>Template offers</h2></div></div>
+          <div className="card"><div className="card-body">
+            <label className="field">Paid template<select value={templateId} onChange={(event) => setTemplateId(event.target.value)}><option value="">Choose a template</option>{(offerData?.templates || []).filter((template: any) => !(offerData.items || []).some((offer: any) => offer.templateId === template.id)).map((template: any) => <option key={template.id} value={template.id}>{template.name} · ₹{template.price}</option>)}</select></label>
+            <p className="muted">Approved DevSphere default rate: {policy?.defaultCommissionPercent ?? 20}%</p>
+            <label className="field">Starts at (optional)<input type="datetime-local" value={offerStartsAt} onChange={(event) => setOfferStartsAt(event.target.value)} /></label>
+            <label className="field">Ends at (optional)<input type="datetime-local" value={offerEndsAt} onChange={(event) => setOfferEndsAt(event.target.value)} /></label>
+            <button className="btn btn-primary" onClick={() => void createOffer()} disabled={busy || !templateId}>Create offer</button>
+          </div></div>
+          <div className="list" style={{ marginTop: 16 }}>
+            {(offerData?.items || []).map((offer: any) => <OfferAdminCard key={offer.id} offer={offer} busy={busy} onSave={updateOffer} />)}
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
+
+function OfferAdminCard({ offer, busy, onSave }: { offer: any; busy: boolean; onSave: (offer: any, changes: Record<string, unknown>) => void }) {
+  const [status, setStatus] = useState(offer.status);
+  const [startsAt, setStartsAt] = useState(toLocalDateTime(offer.startsAt));
+  const [endsAt, setEndsAt] = useState(toLocalDateTime(offer.endsAt));
+  useEffect(() => {
+    setStatus(offer.status);
+    setStartsAt(toLocalDateTime(offer.startsAt));
+    setEndsAt(toLocalDateTime(offer.endsAt));
+  }, [offer.status, offer.version]);
+  return <div className="row-card">
+    <div><b>{offer.template.name}</b><div className="muted">v{offer.version} · {offer._count.links} links · {offer._count.conversions} conversions · {offer.template.published ? "published" : "unpublished"}</div></div>
+    <div className="actions">
+      <span className="muted">{offer.commissionBps / 100}% · policy default</span>
+      <label className="field" style={{ margin: 0 }}>Starts at<input aria-label={`${offer.template.name} starts at`} type="datetime-local" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} /></label>
+      <label className="field" style={{ margin: 0 }}>Ends at<input aria-label={`${offer.template.name} ends at`} type="datetime-local" value={endsAt} onChange={(event) => setEndsAt(event.target.value)} /></label>
+      <select aria-label={`${offer.template.name} offer status`} value={status} onChange={(event) => setStatus(event.target.value)}><option value="ACTIVE">Active</option><option value="PAUSED">Paused</option><option value="ENDED">Ended</option></select>
+      <button className="btn btn-soft" disabled={busy} onClick={() => onSave(offer, { status, startsAt: startsAt ? new Date(startsAt).toISOString() : undefined, endsAt: endsAt ? new Date(endsAt).toISOString() : null })}>Save</button>
+    </div>
+  </div>;
+}
+
 function Admin() {
   const [stats, setStats] = useState<any>();
   const [templates, setTemplates] = useState<any[]>([]);
@@ -4112,7 +4715,7 @@ function Admin() {
         setFeedbackItems(feedbackResponse.items || []);
       })
       .catch((error) => {
-        console.error("Admin load failed:", error);
+        console.error("Admin data load failed.");
 
         if (error?.message === "Unauthorized") {
           nav("/login");
@@ -4129,6 +4732,7 @@ function Admin() {
         <BackButton label="Back" />
         <span className="pill">Admin</span>
         <h2>Devsphere Control Center</h2>
+        <Link className="btn btn-soft" to="/admin/affiliates">Open Affiliate management</Link>
         {stats && (
           <div className="stat-grid">
             <div className="stat">
@@ -4312,7 +4916,9 @@ function App() {
         <Route path="/login" element={<Auth />} />
         <Route path="/register" element={<Auth />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/affiliate" element={<AffiliateHub />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/affiliates" element={<AdminAffiliateHub />} />
         <Route path="/admin/templates/:id" element={<AdminTemplateEditor />} />
         <Route path="/create/:id" element={<Create />} />
         <Route path="/edit/:id" element={<Editor />} />

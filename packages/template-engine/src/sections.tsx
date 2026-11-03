@@ -26,6 +26,11 @@ const CutieBirthdayExperience = React.lazy(() =>
     }),
   ),
 );
+const MyHeroMagazineExperience = React.lazy(() =>
+  import("./templates/MyHeroMagazineExperience").then(({ MyHeroMagazineExperience }) => ({
+    default: MyHeroMagazineExperience,
+  })),
+);
 
 type Props = {
   data: Record<string, any>;
@@ -137,4 +142,5 @@ export const SectionRegistry: Record<string, React.ElementType<Props>> = {
   "bloom-anniversary-experience": BloomAnniversaryExperience,
   "navratri-partner-invite": NavratriPartnerInviteExperience,
   "cutie-birthday-experience": CutieBirthdayExperience,
+  "my-hero-magazine-experience": MyHeroMagazineExperience,
 };

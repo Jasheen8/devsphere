@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../lib/db.js";
+import { logger } from "../lib/logger.js";
 import { auth } from "../lib/auth.js";
 import {
   captureRazorpayPaymentIfAuthorized,
@@ -23,11 +24,23 @@ import {
 import {
   calculateBirthdayPackage,
   calculateBloomAnniversaryPackage,
+  calculateMyHeroMagazinePackage,
   calculateNavratriPartnerInvitePackage,
   calculateWeddingInvitationPackage,
   finalizePaidOrder,
   publishPaidProject,
 } from "../lib/fulfillment.js";
+import {
+  AFFILIATE_ATTRIBUTION_COOKIE,
+  getCurrentAffiliatePolicy,
+  verifyAffiliateAttribution,
+} from "../lib/affiliate.js";
+import {
+  paypalDisputeStatus,
+  processAffiliatePaymentAdjustment,
+  stableWebhookEventId,
+} from "../lib/affiliate-payment-events.js";
+import { buildAffiliateAttributionSnapshot } from "../lib/affiliate-attribution.js";
 
 const r = Router();
 
@@ -47,6 +60,37 @@ function jsonBody(req: any) {
   }
 
   return req.body;
+}
+
+function unixOrIsoDate(value: unknown, fallback: unknown) {
+  const selected = value ?? fallback;
+  const date = typeof selected === "number"
+    ? new Date(selected < 10_000_000_000 ? selected * 1000 : selected)
+    : new Date(String(selected || ""));
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function usdMinorUnits(value: unknown) {
+  const normalized = String(value ?? "").trim();
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(normalized);
+  if (!match) throw new Error("PayPal adjustment has an invalid USD amount");
+  return Number(BigInt(match[1]) * 100n + BigInt((match[2] || "").padEnd(2, "0") || "0"));
+}
+
+function findPayPalCaptureIdFromRefund(refund: any) {
+  const href = refund?.links?.find((link: any) => link?.rel === "up")?.href;
+  if (typeof href !== "string") return "";
+  return /\/v2\/payments\/captures\/([^/?#]+)/.exec(href)?.[1] || "";
+}
+
+function extractPayPalDisputedCaptureId(dispute: any) {
+  const transactions = Array.isArray(dispute?.disputed_transactions)
+    ? dispute.disputed_transactions
+    : [];
+  const match = transactions.find((item: any) =>
+    typeof item?.seller_transaction_id === "string" && item.seller_transaction_id,
+  );
+  return String(match?.seller_transaction_id || "");
 }
 
 async function failIfPaid(projectId: string, userId: string, res: any) {
@@ -149,17 +193,47 @@ r.post("/create-order", auth, async (req, res) => {
       return res.status(409).json({ error: "This free template publishes without checkout." });
     }
 
-    if (project.status !== "FINALIZED") {
-      return res.status(409).json({ error: "Finalize the project first" });
-    }
-
     const isBloomAnniversary =
       project.template.slug === "anniversary-romantic-01";
     const isNavratri =
       project.template.slug === "navratri-partner-invite";
     const isWeddingInvitation =
       project.template.slug === "wedding-invitation";
-    const checkoutRevealMethod = isNavratri ? "NORMAL" : data.revealMethod;
+    const isMyHeroMagazine =
+      project.template.slug === "my-hero-magazine";
+    const checkoutRevealMethod = isNavratri
+      ? "NORMAL"
+      : isMyHeroMagazine && data.currency === "USD"
+        ? data.revealMethod === "PIN" ? "PIN" : "QR"
+        : data.revealMethod;
+
+    if (
+      isMyHeroMagazine &&
+      !["NORMAL", "QR", "PIN"].includes(data.revealMethod)
+    ) {
+      return res.status(400).json({
+        error: "Special Magazine supports Normal, Heart Scanner, or Code Lock reveals.",
+      });
+    }
+
+    if (project.status !== "FINALIZED" && !isMyHeroMagazine) {
+      return res.status(409).json({ error: "Finalize the project first" });
+    }
+
+    if (isMyHeroMagazine) {
+      const fields = Array.isArray((project.template.schema as any)?.fields)
+        ? (project.template.schema as any).fields
+        : [];
+      const missing = fields
+        .filter((field: any) => field.required)
+        .filter((field: any) => String(((project.data as Record<string, unknown> | null) || {})[field.id] ?? "").trim() === "")
+        .map((field: any) => field.label || field.id);
+      if (missing.length > 0) {
+        return res.status(400).json({
+          error: `Please complete: ${missing.join(", ")}`,
+        });
+      }
+    }
 
     if (data.currency === "USD" && !isPayPalConfigured()) {
       return res
@@ -178,15 +252,67 @@ r.post("/create-order", auth, async (req, res) => {
       !Array.isArray(project.customization)
         ? (project.customization as Record<string, unknown>)
         : {};
+    let affiliateAttributionSnapshot: ReturnType<typeof buildAffiliateAttributionSnapshot> = null;
+
+    const attributionPayload = verifyAffiliateAttribution(
+      req.cookies?.[AFFILIATE_ATTRIBUTION_COOKIE],
+    );
+    if (attributionPayload) {
+      const now = new Date();
+      const [click, policy] = await Promise.all([
+        db.affiliateClick.findUnique({
+          where: { id: attributionPayload.clickId },
+          include: {
+            affiliateProfile: { select: { id: true, userId: true, status: true } },
+            referralLink: {
+              include: {
+                offer: {
+                  include: { template: { select: { id: true, published: true, isFree: true } } },
+                },
+              },
+            },
+          },
+        }),
+        getCurrentAffiliatePolicy(db, now),
+      ]);
+
+      const snapshot = buildAffiliateAttributionSnapshot(
+        click,
+        policy,
+        user.id,
+        project.template.id,
+        now,
+      );
+      if (snapshot && click && attributionPayload.expiresAt <= click.expiresAt.getTime()) {
+        affiliateAttributionSnapshot = snapshot;
+      } else {
+        res.clearCookie(AFFILIATE_ATTRIBUTION_COOKIE, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+          path: "/",
+        });
+      }
+    }
     const removeWatermark =
-      [
+      (isMyHeroMagazine && data.currency === "USD") ||
+      (
+        [
         "birthday-royal-memory",
         "anniversary-romantic-01",
         "navratri-partner-invite",
-      ].includes(project.template.slug) &&
-      projectCustomization.removeWatermark === true;
+        "my-hero-magazine",
+        ].includes(project.template.slug) &&
+        projectCustomization.removeWatermark === true
+      );
 
-    const pricing = isWeddingInvitation
+    const pricing = isMyHeroMagazine
+      ? calculateMyHeroMagazinePackage({
+          currency: data.currency,
+          revealMethod: checkoutRevealMethod,
+          removeWatermark,
+        })
+      : isWeddingInvitation
       ? calculateWeddingInvitationPackage({
           projectData,
           revealMethod: checkoutRevealMethod,
@@ -244,12 +370,17 @@ r.post("/create-order", auth, async (req, res) => {
         currency: data.currency,
         removeWatermark: pricing.removeWatermark,
       },
+      include: { affiliateAttribution: { select: { clickId: true } } },
       orderBy: { createdAt: "desc" },
     });
 
+    const samePendingAttribution = affiliateAttributionSnapshot
+      ? existingPending?.affiliateAttribution?.clickId === affiliateAttributionSnapshot.clickId
+      : !existingPending?.affiliateAttribution;
+
     // Reuse pending orders only for PayPal.
     // For Razorpay, always create a fresh provider order.
-    if (existingPending?.providerOrderId && provider === "paypal") {
+    if (existingPending?.providerOrderId && provider === "paypal" && samePendingAttribution) {
       return res.status(200).json({
         orderId: existingPending.id,
         provider: existingPending.provider,
@@ -269,6 +400,13 @@ r.post("/create-order", auth, async (req, res) => {
         currency: data.currency,
         provider,
         removeWatermark: pricing.removeWatermark,
+        ...(affiliateAttributionSnapshot
+          ? {
+              affiliateAttribution: {
+                create: affiliateAttributionSnapshot,
+              },
+            }
+          : {}),
       },
     });
 
@@ -333,7 +471,7 @@ r.post("/create-order", auth, async (req, res) => {
       clientId: getPayPalClientId(),
     });
   } catch (error: any) {
-    console.error("Payment order creation failed:", error);
+    logger.error("payment_order_creation_failed", { error });
 
     if (createdOrderId) {
       await db.order
@@ -346,7 +484,7 @@ r.post("/create-order", auth, async (req, res) => {
           },
         })
         .catch((dbError) => {
-          console.error("Failed to mark payment order as FAILED:", dbError);
+          logger.error("mark_payment_failed_status_failed", { error: dbError });
         });
     }
 
@@ -439,7 +577,7 @@ r.post("/razorpay/verify", auth, async (req, res) => {
 
     return res.json(result);
   } catch (error: any) {
-    console.error("Razorpay verification failed:", error);
+    logger.error("razorpay_verification_failed", { error });
     return res.status(500).json({
       error: error?.message || "Unable to verify Razorpay payment",
     });
@@ -520,7 +658,7 @@ r.post("/paypal/capture", auth, async (req, res) => {
 
     return res.json(result);
   } catch (error: any) {
-    console.error("PayPal capture failed:", error);
+    logger.error("paypal_capture_failed", { error });
     return res.status(500).json({
       error: error?.message || "Unable to capture PayPal payment",
     });
@@ -607,7 +745,7 @@ r.post("/resume/:projectId", auth, async (req, res) => {
             return res.json({ paid: true, url: result.url });
           }
         } catch (error) {
-          console.warn("Razorpay resume check failed", error);
+          logger.warn("razorpay_resume_check_failed", { error });
         }
       }
 
@@ -641,14 +779,14 @@ r.post("/resume/:projectId", auth, async (req, res) => {
             return res.json({ paid: true, url: result.url });
           }
         } catch (error) {
-          console.warn("PayPal resume check failed", error);
+          logger.warn("paypal_resume_check_failed", { error });
         }
       }
     }
 
     return res.json({ paid: false });
   } catch (error: any) {
-    console.error("Payment resume failed:", error);
+    logger.error("payment_resume_failed", { error });
     return res.status(500).json({
       error: error?.message || "Unable to check payment status",
     });
@@ -669,6 +807,70 @@ r.post("/webhook/razorpay", async (req, res) => {
     }
 
     const event = jsonBody(req);
+    const eventType = String(event?.event || "");
+    const webhookId = stableWebhookEventId(
+      "razorpay",
+      req.headers["x-razorpay-event-id"],
+      rawBody,
+    );
+
+    const refund = event?.payload?.refund?.entity;
+    if (["refund.created", "refund.processed", "refund.failed"].includes(eventType)) {
+      if (!refund?.id || !refund?.payment_id || !Number.isSafeInteger(Number(refund.amount)) || Number(refund.amount) <= 0) {
+        throw new Error("Razorpay refund webhook is missing valid refund and payment details");
+      }
+      if (eventType === "refund.processed" && refund.status && refund.status !== "processed") {
+        throw new Error("Razorpay processed refund webhook has an unexpected provider status");
+      }
+      const status = eventType === "refund.processed"
+        ? "COMPLETED"
+        : eventType === "refund.created" ? "PENDING" : "FAILED";
+      await processAffiliatePaymentAdjustment(db, {
+        provider: "razorpay",
+        eventId: webhookId,
+        eventType,
+        kind: "REFUND",
+        externalId: String(refund.id),
+        providerPaymentId: String(refund.payment_id),
+        status,
+        amountMinor: Number(refund.amount),
+        currency: String(refund.currency || "INR"),
+        occurredAt: unixOrIsoDate(event?.created_at, refund?.created_at),
+      });
+      return res.json({ received: true });
+    }
+
+    const dispute = event?.payload?.dispute?.entity;
+    const disputeStatuses: Record<string, "OPEN" | "WON" | "LOST" | "CLOSED"> = {
+      "payment.dispute.created": "OPEN",
+      "payment.dispute.under_review": "OPEN",
+      "payment.dispute.action_required": "OPEN",
+      "payment.dispute.closed": "CLOSED",
+      "payment.dispute.won": "WON",
+      "payment.dispute.lost": "LOST",
+    };
+    if (eventType in disputeStatuses) {
+      const relatedPayment = event?.payload?.payment?.entity;
+      const amountMinor = Number(dispute?.amount);
+      const currency = String(dispute?.currency || relatedPayment?.currency || "");
+      if (!dispute?.id || !dispute?.payment_id || !Number.isSafeInteger(amountMinor) || amountMinor <= 0 || !currency) {
+        throw new Error("Razorpay dispute webhook is missing valid dispute and payment details");
+      }
+      await processAffiliatePaymentAdjustment(db, {
+        provider: "razorpay",
+        eventId: webhookId,
+        eventType,
+        kind: "CHARGEBACK",
+        externalId: String(dispute.id),
+        providerPaymentId: String(dispute.payment_id),
+        status: disputeStatuses[eventType],
+        amountMinor,
+        currency,
+        occurredAt: unixOrIsoDate(event?.created_at, dispute?.created_at),
+      });
+      return res.json({ received: true });
+    }
+
     const payment = event?.payload?.payment?.entity;
 
     if (!payment?.order_id) {
@@ -717,7 +919,7 @@ r.post("/webhook/razorpay", async (req, res) => {
 
     return res.json({ received: true });
   } catch (error) {
-    console.error("Razorpay webhook failed:", error);
+    logger.error("razorpay_webhook_failed", { error });
     return res.status(500).json({ error: "Webhook processing failed" });
   }
 });
@@ -738,6 +940,54 @@ r.post("/webhook/paypal", async (req, res) => {
 
     const event = JSON.parse(rawBody);
     const eventType = String(event?.event_type || "");
+    const webhookId = stableWebhookEventId("paypal", event?.id, rawBody);
+
+    if (eventType === "PAYMENT.CAPTURE.REFUNDED") {
+      const refund = event?.resource;
+      const captureId = findPayPalCaptureIdFromRefund(refund);
+      if (!refund?.id || !captureId || refund?.status !== "COMPLETED") {
+        throw new Error("PayPal refund webhook is missing its completed refund and capture details");
+      }
+      const currency = String(refund?.amount?.currency_code || "");
+      if (currency !== "USD") throw new Error("Unsupported PayPal refund currency");
+      await processAffiliatePaymentAdjustment(db, {
+        provider: "paypal",
+        eventId: webhookId,
+        eventType,
+        kind: "REFUND",
+        externalId: String(refund.id),
+        providerPaymentId: captureId,
+        status: "COMPLETED",
+        amountMinor: usdMinorUnits(refund?.amount?.value),
+        currency,
+        occurredAt: unixOrIsoDate(event?.create_time, refund?.update_time),
+      });
+      return res.json({ received: true });
+    }
+
+    if (["CUSTOMER.DISPUTE.CREATED", "CUSTOMER.DISPUTE.UPDATED", "CUSTOMER.DISPUTE.RESOLVED"].includes(eventType)) {
+      const dispute = event?.resource;
+      const captureId = extractPayPalDisputedCaptureId(dispute);
+      const disputeAmount = dispute?.dispute_amount;
+      const currency = String(disputeAmount?.currency_code || "");
+      if (!dispute?.id || !captureId || currency !== "USD") {
+        throw new Error("PayPal dispute webhook is missing its dispute, capture, or currency details");
+      }
+      const status = paypalDisputeStatus(eventType, dispute?.dispute_outcome?.outcome);
+      await processAffiliatePaymentAdjustment(db, {
+        provider: "paypal",
+        eventId: webhookId,
+        eventType,
+        kind: "CHARGEBACK",
+        externalId: String(dispute.id),
+        providerPaymentId: captureId,
+        status,
+        amountMinor: usdMinorUnits(disputeAmount?.value),
+        currency,
+        occurredAt: unixOrIsoDate(event?.create_time, dispute?.update_time),
+      });
+      return res.json({ received: true });
+    }
 
     if (eventType === "CHECKOUT.ORDER.APPROVED") {
       const providerOrderId = String(event?.resource?.id || "");
@@ -754,7 +1004,7 @@ r.post("/webhook/paypal", async (req, res) => {
             await capturePayPalOrder(order.providerOrderId, order.id);
           }
         } catch (error) {
-          console.error("PayPal approved webhook capture failed:", error);
+          logger.error("paypal_approved_webhook_capture_failed", { error });
 
           return res.status(500).json({
             error: "PayPal capture processing failed",
@@ -818,7 +1068,7 @@ r.post("/webhook/paypal", async (req, res) => {
 
     return res.json({ received: true });
   } catch (error) {
-    console.error("PayPal webhook failed:", error);
+    logger.error("paypal_webhook_failed", { error });
     return res.status(500).json({ error: "Webhook processing failed" });
   }
 });
