@@ -428,12 +428,23 @@ r.post("/:id/finalize", async (req, res) => {
       include: {
         template: true,
         website: true,
+        orders: {
+          where: { status: "PAID" },
+          select: { id: true },
+          take: 1,
+        },
       },
     });
 
     if (!project) {
       return res.status(404).json({
         error: "Project not found",
+      });
+    }
+
+    if (project.template.slug === "my-hero-magazine" && project.orders.length === 0) {
+      return res.status(402).json({
+        error: "Complete payment before finalizing your Special Magazine.",
       });
     }
 

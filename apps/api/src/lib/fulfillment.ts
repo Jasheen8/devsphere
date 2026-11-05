@@ -124,6 +124,27 @@ export function calculateWeddingInvitationPackage(args: {
   };
 }
 
+export function calculateMyHeroMagazinePackage(args: {
+  currency: CheckoutCurrency;
+  revealMethod: RevealMethod;
+  removeWatermark?: boolean;
+}) {
+  const basePackagePrice = 510;
+  const specialReveal = args.revealMethod === "QR" || args.revealMethod === "PIN";
+  const removeWatermark = args.removeWatermark === true;
+  const packagePrice = basePackagePrice + (specialReveal ? 9 : 0) + (removeWatermark ? 99 : 0);
+  const providerAmount = args.currency === "USD" ? 50 : packagePrice;
+  return {
+    basePackagePrice,
+    packagePrice,
+    removeWatermark,
+    providerAmount,
+    providerAmountMinor: Math.round(providerAmount * 100),
+    specialReveal,
+    movieEnabled: false,
+  };
+}
+
 async function applyPaidWatermarkSelection(
   tx: any,
   project: any,
@@ -134,6 +155,7 @@ async function applyPaidWatermarkSelection(
       "birthday-royal-memory",
       "anniversary-romantic-01",
       "navratri-partner-invite",
+      "my-hero-magazine",
     ].includes(
       project.template?.slug,
     )
@@ -266,6 +288,46 @@ async function publishInsideTransaction(tx: any, order: any) {
   }
 
   return site;
+}
+
+async function persistMagazineCodeLock(tx: any, project: any, site: any) {
+  if (project.template?.slug !== "my-hero-magazine") return project;
+
+  const customization =
+    project.customization &&
+    typeof project.customization === "object" &&
+    !Array.isArray(project.customization)
+      ? { ...(project.customization as Record<string, unknown>) }
+      : {};
+  const pinHash = typeof customization.magazineUnlockPinHash === "string"
+    ? customization.magazineUnlockPinHash
+    : null;
+
+  if (project.revealMethod === "PIN" && pinHash) {
+    await tx.siteAccessRule.upsert({
+      where: { siteId: site.id },
+      update: {
+        pinHash,
+        puzzleQuestion: null,
+        puzzleAnswerHash: null,
+        letterTitle: null,
+        letterIntro: null,
+        attempts: 0,
+      },
+      create: { siteId: site.id, pinHash },
+    });
+  }
+
+  if ("magazineUnlockPinHash" in customization) {
+    delete customization.magazineUnlockPinHash;
+    const updated = await tx.project.update({
+      where: { id: project.id },
+      data: { customization: customization as any },
+    });
+    return { ...project, customization: updated.customization };
+  }
+
+  return project;
 }
 
 /**
@@ -440,10 +502,19 @@ export async function finalizePaidOrder(args: {
               },
             });
 
+      const projectReadyForPublication =
+        order.project.template?.slug === "my-hero-magazine" &&
+        order.project.status === "DRAFT"
+          ? await tx.project.update({
+              where: { id: order.project.id },
+              data: { status: "FINALIZED", finalizedAt: new Date() },
+              include: { template: true },
+            })
+          : order.project;
       const projectWithPaidWatermarkSelection =
         await applyPaidWatermarkSelection(
           tx,
-          order.project,
+          projectReadyForPublication,
           order,
         );
       const paidOrder = {
@@ -459,6 +530,7 @@ export async function finalizePaidOrder(args: {
           tx,
           paidOrder,
         );
+      await persistMagazineCodeLock(tx, paidOrder.project, site);
 
       return {
         ok: true,
@@ -542,6 +614,7 @@ export async function publishPaidProject(
           tx,
           order,
         );
+      await persistMagazineCodeLock(tx, order.project, site);
 
       return {
         ok: true,

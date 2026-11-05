@@ -1,0 +1,289 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,600;6..96,700&family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700&family=Cormorant+Garamond:wght@400;500;600;700&family=Cinzel:wght@400;500;600;700;800&family=Fahkwang:wght@400;500;600&family=Great+Vibes&family=Imbue:opsz,wght@10..100,200;10..100,300;10..100,400;10..100,500&family=Kalam:wght@300;400;700&family=League+Spartan:wght@400;500;600;700;800;900&family=Libre+Baskerville:wght@400;700&family=Open+Sans:wght@300;400;500;600;700&family=Pinyon+Script&family=Poppins:wght@300;400;500;600;700&display=swap');
+
+#my-hero-magazine-reader {
+  color-scheme: dark;
+  --reader-bg: #11100f;
+  --reader-chrome: #1a1816;
+  --chrome-line: rgba(255,255,255,.11);
+  --chrome-muted: rgba(255,255,255,.56);
+  --chrome-text: #f2eee8;
+  --accent: #b28a72;
+}
+
+#my-hero-magazine-reader, #my-hero-magazine-reader * { box-sizing: border-box; }
+#my-hero-magazine-reader button { font: inherit; }
+.mh-reader { font-family: 'Poppins', Arial, sans-serif; -webkit-font-smoothing: antialiased;
+  position: relative;
+  display: grid;
+  grid-template-rows: 54px minmax(0,1fr) 76px;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 46%, rgba(90,72,58,.20), transparent 57%),
+    linear-gradient(145deg, #151311, #0d0c0b 70%);
+}
+.mh-reader-top, .mh-reader-bottom { display:flex; align-items:center; justify-content:center; position:relative; z-index:5; }
+.mh-reader-top { border-bottom: 1px solid var(--chrome-line); padding: 0 24px; }
+.mh-page-count { color:var(--chrome-text); font-family:'Bricolage Grotesque', sans-serif; font-size:11px; letter-spacing:.22em; font-weight:600; font-variant-numeric:tabular-nums; }
+.mh-page-count span { color:var(--chrome-muted); padding:0 5px; }
+.mh-icon-button, .mh-nav-button {
+  border:1px solid rgba(255,255,255,.14); color:#eee9e2; background:rgba(255,255,255,.035);
+  display:grid; place-items:center; cursor:pointer; transition:background .2s ease,border-color .2s ease,transform .2s ease;
+}
+.mh-icon-button { position:absolute; right:22px; width:34px;height:34px;border-radius:50%; }
+.mh-icon-button:hover, .mh-nav-button:hover { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.32); }
+.mh-icon-button svg, .mh-nav-button svg { width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round; }
+.mh-stage { min-height:0; display:grid; place-items:center; padding: 8px 16px; overflow:hidden; perspective:1600px; touch-action:pan-y; }
+.mh-page-shell { width:min(86vw, calc((100dvh - 150px) * .7073), 760px); position:relative; transform-style:preserve-3d; }
+.mh-mag-page {
+  position:relative; display:none; width:100%; aspect-ratio:595.5 / 842.2; overflow:hidden;
+  container-type:inline-size; background:#fff; isolation:isolate;
+  box-shadow: 0 26px 80px rgba(0,0,0,.43), 0 3px 14px rgba(0,0,0,.25);
+  transform-origin: 50% 50%; backface-visibility:hidden;
+}
+.mh-mag-page[hidden] { display:none !important; }
+.mh-mag-page.mh-active { display:block; animation: mh-mag-page-enter .48s cubic-bezier(.22,.72,.18,1) both; }
+.mh-mag-page.mh-active.mh-turn-back { animation-name: mh-mag-page-enter-back; }
+@keyframes mh-mag-page-enter { from { opacity:.5; transform:translateX(22px) rotateY(-5deg) scale(.992); filter:brightness(.94); } to {opacity:1;transform:translateX(0) rotateY(0) scale(1);filter:brightness(1);} }
+@keyframes mh-mag-page-enter-back { from { opacity:.5; transform:translateX(-22px) rotateY(5deg) scale(.992); filter:brightness(.94); } to {opacity:1;transform:translateX(0) rotateY(0) scale(1);filter:brightness(1);} }
+.mh-page-image { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.mh-reader-bottom { gap:20px; padding:0 22px; border-top:1px solid var(--chrome-line); }
+.mh-nav-button { width:34px;height:34px;border-radius:50%;flex:0 0 auto; }
+.mh-nav-button:disabled { opacity:.28; cursor:default; }
+.mh-nav-button:disabled:hover { background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.14); }
+.mh-progress-wrap { width:min(420px, 48vw); display:flex; flex-direction:column; align-items:center; gap:10px; }
+.mh-progress-track { width:100%; height:2px; background:rgba(255,255,255,.15); overflow:hidden; }
+.mh-progress-track span { display:block; height:100%; width:7.1428%; background:#c8a58e; transition:width .35s ease; }
+.mh-page-dots { display:flex; align-items:center; justify-content:center; gap:7px; }
+.mh-page-dot { padding:0; width:4px;height:4px;border:0;border-radius:50%;background:rgba(255,255,255,.26);cursor:pointer;transition:all .2s ease; }
+.mh-page-dot.mh-active { width:17px; height:4px; border-radius:3px; background:#c8a58e; }
+.mh-sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+#my-hero-magazine-reader img { user-select:none; -webkit-user-drag:none; }
+
+/* PAGE 01 — Cover */
+.mh-cover { color:#fff; background:#17120e; }
+.mh-cover-photo { object-position:center 49%; }
+.mh-cover-masthead { position:absolute; left:15.2%; top:-1.9%; font-family:'Imbue','Bodoni Moda',serif; font-weight:200; font-size:31.4cqw; line-height:.91; letter-spacing:-.055em; white-space:nowrap; color:#fff; }
+.mh-cover-script { position:absolute; left:34.7%; top:2.7%; font-family:'Pinyon Script','Great Vibes',cursive; color:#7e1013; font-size:18.75cqw; line-height:1; transform:rotate(-7deg); white-space:nowrap; }
+.mh-cover-edition { position:absolute; left:64.8%; top:18.9%; font-family:'Imbue','Bodoni Moda',serif; font-size:5.6cqw; line-height:1; color:#fff; white-space:nowrap; }
+.mh-cover-promises { position:absolute; left:4.8%; top:68.7%; width:30%; color:#fff; font-family:'Bricolage Grotesque','Open Sans',sans-serif; font-size:4.03cqw; font-weight:300; line-height:1.01; text-align:center; }
+.mh-cover-promises p { margin:0 0 3.4cqw; }
+.mh-cover-promises p:last-child { margin-bottom:0; }
+.mh-cover-featuring { position:absolute; left:80.7%; top:77.2%; font-family:'Imbue',serif; font-size:5.4cqw; color:#fff; white-space:nowrap; }
+.mh-cover-names { position:absolute; left:52.8%; top:81.1%; width:46%; text-align:center; font-family:'Pinyon Script','Great Vibes',cursive; color:#fff; font-size:12.1cqw; line-height:.78; white-space:nowrap; }
+
+/* PAGE 02 — Favourite human */
+.mh-fav-human { background:#fff; color:#050505; }
+.mh-who-title { position:absolute; z-index:2; top:5.8%; left:22%; width:56%; text-align:center; font-family:'Libre Baskerville',Georgia,serif; font-size:14.4cqw; line-height:.79; letter-spacing:-.07em; font-weight:400; }
+.mh-fav-portrait { position:absolute; left:10%; top:32.9%; width:80%; height:44.2%; object-fit:cover; object-position:center 47%; }
+.mh-fav-caption { position:absolute; left:10%; top:76.4%; font-family:'Cinzel','Bodoni Moda',serif; color:#ac2e34; font-size:17.3cqw; font-weight:800; letter-spacing:-.03em; line-height:.98; white-space:nowrap; }
+
+/* PAGE 03 — Love letter */
+.mh-love-letter { background:repeating-linear-gradient(90deg,#fff 0 2.55%,#ac2e34 2.55% 5.05%); color:#17110e; }
+.mh-letter-oval { position:absolute; z-index:0; left:10.7%; top:8.1%; width:78.8%; height:84.2%; border:2px solid #ac2e34; border-radius:50% / 39%; background:#f0ebe3; box-shadow:inset 0 0 0 7px #f0ebe3,inset 0 0 0 9px #ac2e34; }
+.mh-letter-heading { position:absolute; z-index:1; left:29%; top:12.1%; width:42%; text-align:center; color:#ac2e34; font-family:'Libre Baskerville',Georgia,serif; font-size:4.4cqw; letter-spacing:.23em; transform:rotate(-2deg); }
+.mh-letter-bow { position:absolute; z-index:1; left:33.2%; top:18.2%; width:34%; height:14%; color:#ac2e34; }
+.mh-letter-dear { position:absolute; z-index:1; left:15%; top:29.4%; width:70%; color:#080808; text-align:center; font-family:'Pinyon Script','Great Vibes',cursive; font-size:4.8cqw; line-height:1; white-space:nowrap; }
+.mh-letter-copy { position:absolute; z-index:1; left:19.5%; top:36.3%; width:61%; margin:0; text-align:center; font-family:'Libre Baskerville',Georgia,serif; font-size:2.52cqw; line-height:1.35; color:#0a0908; white-space:nowrap; }
+
+/* PAGE 04 — full-page photo mosaic */
+.mh-you-me-mosaic { background:#fff; }
+.mh-mosaic-grid { position:absolute; inset:0; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:1.15%; }
+.mh-mosaic-grid img { width:100%;height:100%;object-fit:cover;min-width:0;min-height:0; }
+.mh-mosaic-grid img:nth-child(1) { object-position:center 34%; }
+.mh-mosaic-grid img:nth-child(2) { object-position:center 52%; }
+.mh-mosaic-grid img:nth-child(3) { object-position:center 40%; }
+.mh-mosaic-grid img:nth-child(4) { object-position:center 58%; }
+.mh-mosaic-grid .mh-you-me-type { object-fit:cover; object-position:center; }
+.mh-mosaic-grid img:nth-child(6) { object-position:center 40%; }
+.mh-mosaic-grid img:nth-child(7) { object-position:center; }
+.mh-mosaic-grid img:nth-child(8) { object-position:center; }
+.mh-mosaic-grid img:nth-child(9) { object-position:center 35%; }
+
+/* PAGE 05 — Mine. Yours. Forever. */
+.mh-mine-yours { background:#fff; }
+.mh-mine-photo { position:absolute; object-fit:cover; }
+.mh-mine-selfie { left:0; top:0; width:51%; height:36%; object-position:center 37%; }
+.mh-mine-night { left:51%; top:0; width:49%; height:47%; object-position:center 35%; }
+.mh-mine-car { left:0; top:36%; width:51%; height:17%; object-position:center 50%; }
+.mh-mine-words { position:absolute; left:4%; top:58.4%; z-index:2; font-family:'Anton','League Spartan',sans-serif; font-size:8.65cqw; line-height:.97; letter-spacing:-.035em; color:#050505; }
+.mh-mine-formal { left:76.3%; top:47.4%; width:23.7%; height:16.1%; object-position:center 38%; }
+.mh-mine-kittens { left:51.3%; top:47.4%; width:24.7%; height:16.1%; object-position:center; }
+.mh-mine-street { left:51.3%; top:63.9%; width:48.7%; height:36.1%; object-position:center 44%; }
+.mh-mine-masks { left:0; top:79%; width:29.7%; height:21%; object-position:center; }
+.mh-mine-helmets { left:29.8%; top:79%; width:21.2%; height:21%; object-position:center; }
+
+/* PAGES 06–07 — ten things */
+.mh-ten-things { background:#800000; color:#fff; }
+.mh-portrait-frame { position:absolute; left:4.5%; top:4.1%; width:37.8%; height:34%; padding:1.65%; background:#fff; }
+.mh-portrait-frame img { width:100%;height:100%;object-fit:cover;object-position:center 43%; }
+.mh-tape { position:absolute; object-fit:fill; }
+.mh-tape-six { left:15.8%; top:2.1%; width:15.3%; height:4.1%; z-index:3; }
+.mh-things-heading { position:absolute; right:4.4%; top:4.1%; width:52%; display:flex; flex-direction:column; align-items:flex-end; font-family:'League Spartan',Arial,sans-serif; font-size:9.65cqw; font-weight:800; letter-spacing:-.035em; line-height:1.38; }
+.mh-thing-copy { position:absolute; margin:0; color:#fff; font-family:'Kalam','Bricolage Grotesque',sans-serif; font-size:4.2cqw; font-weight:400; line-height:1.38; letter-spacing:.015em; white-space:nowrap; }
+.mh-metal-number { position:absolute; object-fit:contain; }
+.mh-num-one { left:6.2%; top:40.3%; width:13.2%; height:14.8%; }
+.mh-thing-1 { left:21.3%; top:43.5%; }
+.mh-num-two { left:81.5%; top:54.8%; width:15.3%; height:13.5%; }
+.mh-thing-2 { left:18%; top:57.2%; }
+.mh-num-three { left:6%; top:68.8%; width:14.5%; height:14.3%; }
+.mh-thing-3 { left:23.5%; top:70.8%; }
+.mh-num-four { left:79.5%; top:81.5%; width:17.5%; height:14.5%; }
+.mh-thing-4 { left:14.8%; top:84.1%; }
+
+.mh-things-two .mh-num-five { left:3.2%; top:5.7%; width:14.8%; height:12.5%; }
+.mh-things-two .mh-thing-5 { left:18.8%; top:6.1%; }
+.mh-things-two .mh-thing-6 { left:8.4%; top:25.1%; text-align:center; }
+.mh-things-two .mh-num-six { left:41.5%; top:24.1%; width:16%; height:14%; }
+.mh-carousel-frame { position:absolute; left:58%; top:4.1%; width:38%; height:34%; padding:1.8%; background:#fff; }
+.mh-carousel-frame img { width:100%;height:100%;object-fit:cover;object-position:center; }
+.mh-tape-seven { left:69.4%; top:2.1%; width:15.3%; height:4.1%; z-index:3; }
+.mh-things-two .mh-num-seven { left:2.8%; top:42%; width:17%; height:14%; }
+.mh-things-two .mh-thing-7 { left:21.3%; top:44.3%; }
+.mh-things-two .mh-thing-8 { left:8.5%; top:66.3%; }
+.mh-things-two .mh-num-eight { left:80.5%; top:57.4%; width:15.5%; height:13%; }
+.mh-things-two .mh-num-nine { left:3.7%; top:78.4%; width:17%; height:14%; }
+.mh-things-two .mh-thing-9 { left:23.5%; top:80.6%; }
+.mh-things-two .mh-num-one-ten { left:68%; top:82.1%; width:12%; height:14.7%; }
+.mh-things-two .mh-num-zero-ten { left:79%; top:83.4%; width:16%; height:14.2%; }
+.mh-things-two .mh-thing-10 { left:3.6%; top:90.5%; font-size:3.8cqw; }
+
+/* PAGE 08 — Mine now & always */
+.mh-mine-cover { background:#fcf1ec; color:#8b0000; }
+.mh-mine-cover .mh-date-line { position:absolute; left:8.3%; top:3.2%; font-family:'Poppins',sans-serif; color:#8a7566; font-size:2.9cqw; font-weight:300; }
+.mh-date-rule { position:absolute; left:8.3%; top:7.8%; width:83.2%; height:1px; background:#987e70; }
+.mh-mine-cover img { position:absolute; left:8.3%; top:15.2%; width:83.3%; height:68.5%; object-fit:cover; object-position:center 48%; }
+.mh-mine-cover-title { position:absolute; z-index:2; left:27.3%; top:10.7%; font-family:'Fahkwang','Poppins',sans-serif; font-size:17.2cqw; line-height:1; letter-spacing:.02em; color:#800000; }
+.mh-mine-cover-subtitle { position:absolute; z-index:2; left:29.2%; top:20.8%; font-family:'Poppins',sans-serif; font-size:4.1cqw; letter-spacing:.28em; color:#fff; white-space:nowrap; }
+.mh-mine-cover-note { position:absolute; z-index:2; left:18%; top:87%; width:64%; margin:0; text-align:center; color:#800000; font-family:'Cormorant Garamond',Georgia,serif; font-size:3.3cqw; font-weight:700; line-height:1.6; letter-spacing:.06em; }
+
+/* PAGE 09 — You are the moment */
+.mh-you-are-moment { background:#cab39a; }
+.mh-moment-background { position:absolute; inset:0;width:100%;height:100%;object-fit:cover;object-position:center; }
+.mh-polaroid-card { position:absolute; left:11.2%; top:16.7%; width:77.5%; height:70.1%; background:#fff; padding:2.7% 2.7% 0; }
+.mh-moment-grid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:1.8%; height:86%; }
+.mh-moment-grid img { width:100%;height:100%;object-fit:cover; }
+.mh-moment-grid img:nth-child(1) { object-position:center 38%; }
+.mh-moment-grid img:nth-child(2) { object-position:center 48%; }
+.mh-moment-grid img:nth-child(3) { object-position:center; }
+.mh-moment-grid img:nth-child(4) { object-position:center 38%; }
+.mh-moment-caption { height:14%; display:grid; place-items:center; color:#1b1b1b; font-family:'Open Sans',sans-serif; font-size:2.7cqw; font-weight:300; letter-spacing:.18em; white-space:nowrap; }
+.mh-tape-moment-top { left:31.7%; top:-4.6%; width:29.7%; height:9.1%; transform:rotate(-1deg); z-index:2; }
+.mh-tape-moment-bottom { right:8.2%; bottom:-2%; width:21%; height:6.2%; transform:rotate(2deg); z-index:2; }
+
+/* PAGE 10 — Darling */
+.mh-darling { background:#800000; color:#fff; }
+.mh-darling > img { position:absolute; left:9.9%; top:7.5%; width:79.8%; height:85%; object-fit:cover; object-position:center 45%; }
+.mh-boyfriend-edition { position:absolute; left:5.7%; top:4.1%; font-family:'League Spartan',sans-serif; font-size:3.6cqw; font-weight:800; letter-spacing:.015em; }
+.mh-darling-top { position:absolute; z-index:2; top:9.2%; font-family:'Open Sans',Arial,sans-serif; font-size:3.7cqw; line-height:1.42; font-weight:700; color:#fff; }
+.mh-darling-left { left:14.5%; }
+.mh-darling-center { left:45.5%; }
+.mh-darling-right { left:76%; }
+.mh-darling-word { position:absolute; z-index:3; left:2%; top:72.6%; width:96%; text-align:center; font-family:'Bodoni Moda','Cormorant Garamond',serif; font-weight:500; font-size:18cqw; line-height:.94; letter-spacing:-.065em; color:#fff; white-space:nowrap; transform:scaleX(.96); transform-origin:center center; }
+
+/* PAGE 11 — Forever grateful */
+.mh-forever-grateful { background:#800000; color:#fff; }
+.mh-grateful-banner { position:absolute; left:9.3%; top:2.6%; width:80%; height:18%; object-fit:cover; object-position:center 44%; }
+.mh-grateful-script { position:absolute; left:28%; top:23.4%; width:45%; text-align:center; color:#fff; font-family:'Great Vibes','Pinyon Script',cursive; font-size:7.7cqw; line-height:1.05; }
+.mh-grateful-copy { position:absolute; left:9.5%; top:33.5%; width:81%; margin:0; color:#fff; text-align:center; font-family:'Poppins','Open Sans',sans-serif; font-size:2.7cqw; font-weight:300; line-height:1.36; white-space:nowrap; }
+.mh-grateful-large { position:absolute; left:10%; top:50.7%; width:39.5%; height:42.2%; object-fit:cover; object-position:center; }
+.mh-grateful-right { position:absolute; left:50.8%; width:39.2%; object-fit:cover; }
+.mh-grateful-top-right { top:50.7%; height:13.5%; }
+.mh-grateful-mid-right { top:65%; height:13.5%; }
+.mh-grateful-bottom-right { top:79.3%; height:13.5%; }
+
+/* PAGE 12 — Amour */
+.mh-amour { background:#fff; color:#2b2118; }
+.mh-amour-header { position:absolute; top:5.4%; left:0; width:100%; display:flex; align-items:center; justify-content:space-between; gap:4%; font-family:'Poppins',sans-serif; font-size:3.5cqw; font-weight:300; white-space:nowrap; }
+.mh-amour-header span { height:1px; background:#372a20; flex:1; }
+.mh-amour-title { position:absolute; left:21.9%; top:9.9%; font-family:'Cormorant Garamond',Georgia,serif; font-size:15cqw; font-weight:600; letter-spacing:-.025em; line-height:1; }
+.mh-amour-taglines { position:absolute; top:19.4%; left:22%; width:56%; text-align:center; font-family:'Poppins',sans-serif; font-size:2.55cqw; font-weight:300; line-height:1.65; }
+.mh-amour > img { position:absolute; left:10%; top:25.9%; width:80%; height:66.7%; object-fit:cover; object-position:center 48%; }
+.mh-amour-caption { position:absolute; z-index:2; left:14%; top:79.2%; width:72%; padding:.9% 2.2%; margin:0; background:#fff; color:#30251c; text-align:center; font-family:'Poppins',sans-serif; font-size:2.25cqw; line-height:1.42; font-weight:300; white-space:nowrap; }
+
+/* PAGE 13 — Precious moments collage */
+.mh-precious-moments { background:#3b2c22; }
+.mh-memory-photo { position:absolute; object-fit:cover; }
+.mh-memory-top-left { left:-8.6%; top:0; width:49%; height:55%; object-position:center 37%; }
+.mh-memory-top-right { left:41.8%; top:-12.5%; width:58.2%; height:66%; object-position:center 42%; }
+.mh-memory-bottom-left { left:-2.8%; top:49.3%; width:55%; height:54%; object-position:center 43%; }
+.mh-memory-bottom-right { left:41.8%; top:35.3%; width:58.2%; height:70%; object-position:center 44%; }
+.mh-memory-tear { position:absolute; object-fit:fill; pointer-events:none; }
+.mh-memory-tear-vertical { left:37%; top:-8%; width:15%; height:116%; transform:rotate(1deg); opacity:.98; }
+.mh-memory-tear-horizontal { left:-5%; top:50%; width:110%; height:11%; transform:rotate(-4deg); }
+.mh-memory-note { position:absolute; left:26%; top:41.2%; width:49%; height:19%; object-fit:contain; transform:rotate(-2deg); }
+
+/* PAGE 14 — Closing memories */
+.mh-memories-together { background:#fff; }
+.mh-memory-strip { position:absolute; left:5.5%; width:89%; height:30.8%; overflow:hidden; }
+.mh-memory-strip img { width:100%;height:100%;object-fit:cover; }
+.mh-memory-strip span { position:absolute; left:0; top:0; width:100%; height:100%; display:grid; place-items:center; color:#fff; font-family:'Poppins',sans-serif; font-size:3.4cqw; font-weight:300; letter-spacing:.13em; }
+.mh-strip-one { top:2.1%; }
+.mh-strip-one img { object-position:center 50%; }
+.mh-strip-two { top:34.5%; }
+.mh-strip-two img { object-position:center 50%; }
+.mh-strip-three { top:67.1%; }
+.mh-strip-three img { object-position:center 50%; }
+
+@media (max-width: 640px) {
+  .mh-reader { font-family: 'Poppins', Arial, sans-serif; -webkit-font-smoothing: antialiased; grid-template-rows:44px minmax(0,1fr) 64px; }
+  .mh-reader-top { padding:0 15px; }
+  .mh-icon-button { right:14px; width:31px;height:31px; }
+  .mh-stage { padding:5px 8px; }
+  .mh-page-shell { width:min(91vw, calc((100dvh - 116px) * .7073), 760px); }
+  .mh-reader-bottom { gap:12px; padding:0 12px; }
+  .mh-progress-wrap { width:min(350px, 64vw); gap:8px; }
+  .mh-nav-button { width:31px;height:31px; }
+  .mh-page-dots { gap:5px; }
+  .mh-page-dot { width:3px;height:3px; }
+  .mh-page-dot.mh-active { width:13px;height:3px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .mh-reader { font-family: 'Poppins', Arial, sans-serif; -webkit-font-smoothing: antialiased; grid-template-rows:35px minmax(0,1fr) 48px; }
+  .mh-page-shell { width:min(53vw, calc((100dvh - 92px) * .7073), 760px); }
+  .mh-reader-bottom { gap:10px; }
+  .mh-progress-wrap { gap:5px; }
+  .mh-page-dots { display:none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #my-hero-magazine-reader, #my-hero-magazine-reader *, #my-hero-magazine-reader *::before, #my-hero-magazine-reader *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important; }
+}
+
+/* Personalized fifteenth page; the supplied original pages above keep their exact layouts. */
+#my-hero-magazine-reader.mh-reader.mh-is-preview { height: min(100dvh, 900px); }
+#my-hero-magazine-reader .mh-page-shell { max-width: 100%; }
+#my-hero-magazine-reader .mh-magazine-finale { background: #fcf1ec; color: #800000; }
+#my-hero-magazine-reader .mh-closing-page { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; padding:7.3% 8% 5.2%; overflow:hidden; background:#fcf1ec; color:#342920; text-align:center; }
+#my-hero-magazine-reader .mh-closing-kicker { color:#8a7566; font-family:'Poppins',sans-serif; font-size:2.8cqw; font-weight:300; letter-spacing:.22em; }
+#my-hero-magazine-reader .mh-closing-rule { width:100%; height:1px; margin:3.2% 0 2.6%; background:#987e70; }
+#my-hero-magazine-reader .mh-closing-recipient { margin:0 0 1.5%; color:#8a7566; font-family:'Bricolage Grotesque',sans-serif; font-size:2.8cqw; font-weight:600; letter-spacing:.2em; }
+#my-hero-magazine-reader .mh-closing-page h1 { margin:0 0 2.4%; color:#800000; font-family:'Pinyon Script','Great Vibes',cursive; font-size:11.5cqw; font-weight:400; line-height:1; }
+#my-hero-magazine-reader .mh-closing-gallery { width:100%; height:45%; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:1.6%; }
+#my-hero-magazine-reader .mh-closing-gallery img { width:100%; height:100%; min-width:0; min-height:0; object-fit:cover; }
+#my-hero-magazine-reader .mh-closing-gallery.mh-photo-count-1 { grid-template-columns:1fr; grid-template-rows:1fr; }
+#my-hero-magazine-reader .mh-closing-gallery.mh-photo-count-2 { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:1fr; }
+#my-hero-magazine-reader .mh-closing-gallery.mh-photo-count-3 { grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:1fr; }
+#my-hero-magazine-reader .mh-closing-gallery.mh-photo-count-4 { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); }
+#my-hero-magazine-reader .mh-closing-gallery.mh-photo-count-5 img:last-child { display:none; }
+#my-hero-magazine-reader .mh-closing-message { width:88%; margin:3.2% 0 0; color:#30251c; font-family:'Cormorant Garamond',Georgia,serif; font-size:3.25cqw; line-height:1.32; }
+#my-hero-magazine-reader .mh-closing-signature { margin:1.5% 0 0; color:#30251c; font-family:'Poppins',sans-serif; font-size:2.6cqw; font-weight:300; }
+#my-hero-magazine-reader .mh-closing-signature span { color:#800000; font-family:'Pinyon Script','Great Vibes',cursive; font-size:1.7em; }
+#my-hero-magazine-reader .mh-watermark { position:absolute; right:5.5%; bottom:2.2%; left:5.5%; display:flex; justify-content:center; gap:2%; color:#8a7566; font-family:'Poppins',sans-serif; font-size:1.55cqw; font-weight:500; letter-spacing:.1em; }
+#my-hero-magazine-reader .mh-watermark a { color:#8a7566; text-decoration:none; }
+#my-hero-magazine-reader .mh-watermark a:hover { color:#800000; }
+#my-hero-magazine-reader .mh-cover-promises p { white-space:pre-line; }
+#my-hero-magazine-reader .mh-who-title,
+#my-hero-magazine-reader .mh-fav-caption { white-space:pre-line; }
+#my-hero-magazine-reader .mh-thing-copy,
+#my-hero-magazine-reader .mh-mine-cover-note,
+#my-hero-magazine-reader .mh-grateful-copy,
+#my-hero-magazine-reader .mh-amour-taglines,
+#my-hero-magazine-reader .mh-amour-caption,
+#my-hero-magazine-reader .mh-darling-top { white-space:pre-line; }
+@media (max-width: 640px) {
+  #my-hero-magazine-reader .mh-closing-page { padding:8% 6% 6%; }
+  #my-hero-magazine-reader .mh-closing-gallery { height:42%; }
+  #my-hero-magazine-reader .mh-closing-message { width:96%; font-size:3.4cqw; }
+  #my-hero-magazine-reader .mh-watermark { flex-wrap:wrap; row-gap:3px; font-size:1.8cqw; }
+}

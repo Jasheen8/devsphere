@@ -12,6 +12,7 @@
     "db:seed:navratri": "npm run prisma:seed:navratri -w apps/api",
     "db:seed:bloom": "npm run prisma:seed:bloom -w apps/api",
     "db:seed:wedding": "npm run prisma:seed:wedding -w apps/api",
+    "db:seed:magazine": "npm run prisma:seed:magazine -w apps/api",
     "db:seed:cutie": "npm run prisma:seed:cutie -w apps/api",
     "test": "npm run test -w packages/template-engine && npm run test -w apps/api"
   },

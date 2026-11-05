@@ -98,6 +98,7 @@ const TEMPLATE_CARD_DETAILS: Record<string, TemplateCardDetails> = {
     liveDemoCode: "250626",
   },
   "wedding-invitation": { price: 999, usdPrice: 55 },
+  "my-hero-magazine": { price: 510 },
   "navratri-partner-invite": {
     price: 101,
     usdPrice: 10,
@@ -113,6 +114,7 @@ const TEMPLATE_CARD_PRIORITY = [
   "anniversary-romantic-01",
   "wedding-invitation",
   "navratri-partner-invite",
+  "my-hero-magazine",
 ];
 
 function getVisibleTemplateCards(items: Template[]) {
@@ -646,11 +648,14 @@ function TemplateCard({ t }: { t: Template }) {
   const isRoyalMemoryBirthday = t.slug === "birthday-royal-memory";
   const isAnniversary = t.slug === "anniversary-romantic-01";
   const isWeddingInvitation = t.slug === "wedding-invitation";
+  const isMagazine = t.slug === "my-hero-magazine";
   const details = TEMPLATE_CARD_DETAILS[t.slug];
   const inrPrice = details?.price ?? t.price;
   const usdPrice = details?.usdPrice ?? (t.isFree ? 0 : 10);
   const liveDemoUrl = isWeddingInvitation
     ? "https://wedding-invitation-tau-three-37.vercel.app/"
+    : isMagazine
+      ? `/templates/${t.slug}`
     : t.liveDemoUrl || t.previewUrl;
   const cardTags = [
     ...(isAnniversary ? ["romantic", "journey", "cinematic"] : t.tags),
@@ -663,6 +668,8 @@ function TemplateCard({ t }: { t: Template }) {
     ? "/images/anniversary.png"
     : isRoyalMemoryBirthday
       ? "/images/royal-birthday.png"
+      : isMagazine
+        ? "/templates/my-hero-magazine/assets/coverphoto-thumb.jpg"
     : t.thumbnailUrl ||
       "/images/invitation.png";
 
@@ -703,7 +710,7 @@ function TemplateCard({ t }: { t: Template }) {
             <span>({details.uses.toLocaleString("en-IN")})</span>
           </div>
         )}
-        <div className="template-card-price" aria-label="Template pricing in INR and USD">
+        <div className="template-card-price" aria-label={isMagazine ? "Special Magazine pricing" : "Template pricing in INR and USD"}>
           <div className="template-card-price-side">
             <div className="template-card-price-main">
               <strong>{t.isFree ? "Free" : `₹${inrPrice}`}</strong>
@@ -719,11 +726,12 @@ function TemplateCard({ t }: { t: Template }) {
           <span className="template-card-price-separator" aria-hidden="true">or</span>
           <div className="template-card-price-side template-card-price-side-international">
             <div className="template-card-price-main">
-              <strong>{t.isFree ? "Free" : `$${usdPrice}`}</strong>
+              <strong>{isMagazine ? "$50" : t.isFree ? "Free" : `$${usdPrice}`}</strong>
             </div>
-            <span className="template-card-price-caption">USD · International</span>
+            <span className="template-card-price-caption">{isMagazine ? "USD · all included" : "USD · International"}</span>
           </div>
         </div>
+        {isMagazine && <p className="muted" style={{ marginTop: 8, fontSize: ".78rem" }}>Includes your chosen special reveal and watermark removal in the $50 international package.</p>}
         <div className="tags">
           {cardTags.map((tag) => (
             <span className="tag" key={tag}>
@@ -748,11 +756,11 @@ function TemplateCard({ t }: { t: Template }) {
               to={`/templates/${t.slug}`}
               onMouseEnter={() => preloadTemplate(t.slug)}
             >
-              Preview
+              {isMagazine ? "Live Demo" : "Preview"}
             </Link>
           )}
 
-          {!isWeddingInvitation && liveDemoUrl && (
+          {!isWeddingInvitation && !isMagazine && liveDemoUrl && (
             <a
               className="btn btn-primary"
               href={liveDemoUrl}
@@ -811,7 +819,10 @@ function Templates() {
       `${template.name} ${template.description || ""}`
         .toLowerCase()
         .includes(search);
-    const matchesCategory = !cat || template.category?.slug === cat;
+    const matchesCategory =
+      !cat ||
+      template.category?.slug === cat ||
+      (template.slug === "my-hero-magazine" && cat === "birthday");
     const matchesFree = !freeOnly || template.isFree;
     return matchesSearch && matchesCategory && matchesFree;
   });
@@ -1398,88 +1409,69 @@ function MediaField({
     accept = ".mp4,.webm,.mov,.mpeg,video/mp4,video/webm,video/quicktime";
   }
 
-  async function upload(file: File) {
+  async function uploadOne(file: File, kind: "image" | "audio" | "video") {
+    if (!projectId) {
+      throw new Error("Project is not ready for upload.");
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      throw new Error(`${file.name}: max file size is 25MB.`);
+    }
+    if (
+      kind === "image" &&
+      !["image/jpeg", "image/png", "image/webp"].includes(file.type)
+    ) {
+      throw new Error(`${file.name}: only JPG, JPEG, PNG and WebP images are supported.`);
+    }
+    const pres = await api("/media/presign", {
+      method: "POST",
+      body: JSON.stringify({ projectId, kind, mimeType: file.type, size: file.size, originalName: file.name }),
+    });
+    const put = await fetch(pres.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+    if (!put.ok) throw new Error(`${file.name}: upload failed.`);
+    const attached = await api("/media/attach", {
+      method: "POST",
+      body: JSON.stringify({ projectId, kind, url: pres.url, storageKey: pres.key, mimeType: file.type, size: file.size }),
+    });
+    const uploadedUrl = attached?.media?.url || pres.url;
+    if (!uploadedUrl) throw new Error(`${file.name}: upload succeeded but no URL was returned.`);
+    return uploadedUrl as string;
+  }
+
+  async function uploadFiles(files: File[]) {
     if (!projectId) {
       setMsg("Project is not ready for upload.");
       return;
     }
-
-    // Basic client-side validation
-    if (file.size > 25 * 1024 * 1024) {
-      setMsg("Max file size is 25MB");
+    const kind = isMultiple || isSingleImage ? "image" : isAudio ? "audio" : "video";
+    const current = Array.isArray(value) ? value : [];
+    const maxItems = Number(field.maxItems) > 0 ? Number(field.maxItems) : Number.POSITIVE_INFINITY;
+    const selectedFiles = files.slice(0, isMultiple ? Math.max(0, maxItems - current.length) : 1);
+    if (!selectedFiles.length) {
+      setMsg(isMultiple ? `This field already has the maximum of ${maxItems} photos.` : "Choose a file to upload.");
       return;
     }
-
-    if (
-      (isMultiple || isSingleImage) &&
-      !["image/jpeg", "image/png", "image/webp"].includes(file.type)
-    ) {
-      setMsg("Only JPG, JPEG, PNG and WebP images are supported.");
-      return;
-    }
-
     setBusy(true);
-    setMsg("Uploading…");
-
+    setMsg(`Uploading ${selectedFiles.length} ${kind === "image" ? "photo(s)" : "file(s)"}…`);
     try {
-      const kind =
-        isMultiple || isSingleImage ? "image" : isAudio ? "audio" : "video";
-
-      const pres = await api("/media/presign", {
-        method: "POST",
-        body: JSON.stringify({
-          projectId,
-          kind,
-          mimeType: file.type,
-          size: file.size,
-          originalName: file.name,
-        }),
-      });
-
-      const put = await fetch(pres.uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type,
-        },
-        body: file,
-      });
-
-      if (!put.ok) {
-        throw new Error("Upload failed");
+      const uploaded: string[] = [];
+      const failures: string[] = [];
+      for (const file of selectedFiles) {
+        try {
+          uploaded.push(await uploadOne(file, kind));
+        } catch (error: any) {
+          failures.push(error?.message || "Upload failed.");
+        }
       }
-
-      const attached = await api("/media/attach", {
-        method: "POST",
-        body: JSON.stringify({
-          projectId,
-          kind,
-          url: pres.url,
-          storageKey: pres.key,
-          mimeType: file.type,
-          size: file.size,
-        }),
-      });
-
-      const uploadedUrl = attached?.media?.url || pres.url;
-
-      if (!uploadedUrl) {
-        throw new Error("Upload succeeded but no image URL was returned.");
-      }
-
-      // Multiple image gallery
-      if (isMultiple) {
-        const current = Array.isArray(value) ? value : [];
-
-        onChange([...current, uploadedUrl]);
-      } else {
-        // Single image / balloon image
-        onChange(uploadedUrl);
-      }
-
-      setMsg("Uploaded ✓");
-    } catch (e: any) {
-      console.error("Media upload error:", e);
-      setMsg(e?.message || "Upload failed");
+      if (uploaded.length) onChange(isMultiple ? [...current, ...uploaded] : uploaded[0]);
+      setMsg(failures.length
+        ? `${uploaded.length} uploaded; ${failures.length} failed. ${failures[0]}`
+        : selectedFiles.length < files.length
+          ? `${uploaded.length} uploaded. This field holds up to ${maxItems} photos.`
+          : `${uploaded.length} uploaded ✓`);
     } finally {
       setBusy(false);
     }
@@ -1500,16 +1492,21 @@ function MediaField({
           const files = Array.from(e.target.files || []);
 
           if (isMultiple) {
-            files.forEach((file) => {
-              void upload(file);
-            });
+            if (files.length > 0) void uploadFiles(files);
           } else if (files[0]) {
-            void upload(files[0]);
+            void uploadFiles([files[0]]);
           }
 
           e.currentTarget.value = "";
         }}
       />
+
+      {field.templateSlug === "my-hero-magazine" && field.id === "storyPhotos" && (
+        <small className="muted">Photos replace the original pictures in page order. Reorder or remove an image below to change where it appears.</small>
+      )}
+      {isMultiple && Number(field.maxItems) > 0 && (
+        <small className="muted">{Array.isArray(value) ? value.length : 0} / {field.maxItems} photos</small>
+      )}
 
       {busy && <small className="muted">Uploading…</small>}
 
@@ -1549,17 +1546,16 @@ function MediaField({
           }}
         >
           {value.map((url: string, index: number) => (
-            <img
-              key={`${url}-${index}`}
-              src={url}
-              alt={`Uploaded photo ${index + 1}`}
-              style={{
-                width: "100%",
-                height: 80,
-                objectFit: "cover",
-                borderRadius: 8,
-              }}
-            />
+            <div key={`${url}-${index}`} style={{ minWidth: 0 }}>
+              <img src={url} alt={`Uploaded photo ${index + 1}`} style={{ width: "100%", height: 80, objectFit: "cover", borderRadius: 8, display: "block" }} />
+              {field.templateSlug === "my-hero-magazine" && (
+                <div style={{ display: "flex", gap: 3, marginTop: 3 }}>
+                  <button type="button" className="btn btn-soft" disabled={index === 0 || busy} aria-label={`Move photo ${index + 1} earlier`} onClick={() => { const next = [...value]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; onChange(next); }}>←</button>
+                  <button type="button" className="btn btn-soft" disabled={index === value.length - 1 || busy} aria-label={`Move photo ${index + 1} later`} onClick={() => { const next = [...value]; [next[index + 1], next[index]] = [next[index], next[index + 1]]; onChange(next); }}>→</button>
+                  <button type="button" className="btn btn-soft" disabled={busy} aria-label={`Remove photo ${index + 1}`} onClick={() => onChange(value.filter((_: string, itemIndex: number) => itemIndex !== index))}>×</button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -1870,7 +1866,7 @@ function Repeater({
 function getEditorData(template: any, projectData: any) {
   const saved = projectData && typeof projectData === "object" ? projectData : {};
 
-  if (template?.slug === "navratri-partner-invite") {
+  if (template?.slug === "navratri-partner-invite" || template?.slug === "my-hero-magazine") {
     const defaults =
       template.defaultData && typeof template.defaultData === "object"
         ? template.defaultData
@@ -2033,10 +2029,12 @@ function Editor() {
   }
 
   const schema = project.template.schema as TemplateDefinition;
+  const isMyHeroMagazine = project.template.slug === "my-hero-magazine";
   const supportsWatermarkRemoval = [
     "birthday-royal-memory",
     "anniversary-romantic-01",
     "navratri-partner-invite",
+    "my-hero-magazine",
   ].includes(project.template.slug);
   async function finalize() {
     try {
@@ -2045,9 +2043,9 @@ function Editor() {
         body: JSON.stringify({ data, customization }),
       });
 
-      await api(`/projects/${project.id}/finalize`, {
-        method: "POST",
-      });
+      if (!isMyHeroMagazine) {
+        await api(`/projects/${project.id}/finalize`, { method: "POST" });
+      }
 
       nav(
         project.template.isFree
@@ -2091,7 +2089,7 @@ function Editor() {
             onChange={(v) => setData((d: any) => ({ ...d, [f.id]: v }))}
           />
         ))}
-        {!project.template.isFree &&
+        {!project.template.isFree && !isMyHeroMagazine &&
           project.template.slug !== "navratri-partner-invite" && (
           <>
             <div className="field">
@@ -2135,11 +2133,12 @@ function Editor() {
                 }
               />
               <span className="remove-watermark-copy">
-                <strong>Remove watermark · +₹99 / $1</strong>
+                <strong>{isMyHeroMagazine ? "Remove watermark · +₹99 / included in $50" : "Remove watermark · +₹99 / $1"}</strong>
                 <small>
                   Removes the Devsphere credit, Instagram link and “Create your
-                  own” link from the final page. This optional charge is added
-                  to your template price at checkout.
+                  own” link from the final page. {isMyHeroMagazine
+                    ? "It adds ₹99 to INR checkout and is included in the $50 USD package."
+                    : "This optional charge is added to your template price at checkout."}
                 </small>
               </span>
             </label>
@@ -2154,6 +2153,8 @@ function Editor() {
             ? "Save Changes to Live Website"
             : project.template.isFree
               ? "Finalize & Get Free Link"
+              : isMyHeroMagazine
+                ? "Continue to secure checkout"
               : "Finalize & Continue"}
         </button>
         <p className="muted" style={{ fontSize: ".8rem" }}>
@@ -2274,6 +2275,7 @@ function Checkout() {
   const [revealMethod, setRevealMethod] = useState<
     "NORMAL" | "QR" | "PIN" | "LETTER" | "GIFT" | "PUZZLE"
   >("NORMAL");
+  const [unlockPin, setUnlockPin] = useState("");
 
   const [scannerStyle, setScannerStyle] = useState<"HEART" | "SQUARE">("HEART");
 
@@ -2377,6 +2379,7 @@ function Checkout() {
     project?.template?.slug === "anniversary-romantic-01";
   const isNavratri = project?.template?.slug === "navratri-partner-invite";
   const isWeddingInvitation = project?.template?.slug === "wedding-invitation";
+  const isMagazine = project?.template?.slug === "my-hero-magazine";
   const checkoutTemplateName = project?.template?.name || "Digital surprise";
 
   const projectCustomization =
@@ -2385,9 +2388,11 @@ function Checkout() {
     "birthday-royal-memory",
     "anniversary-romantic-01",
     "navratri-partner-invite",
+    "my-hero-magazine",
   ].includes(project?.template?.slug);
   const removeWatermarkSelected =
-    supportsWatermarkRemoval && projectCustomization.removeWatermark === true;
+    supportsWatermarkRemoval &&
+    (isMagazine && currency === "USD" || projectCustomization.removeWatermark === true);
   const movieEnabled = projectData.movieEnabled === true;
 
   /* =========================================================
@@ -2396,8 +2401,9 @@ function Checkout() {
 
   const specialRevealMethods = ["QR", "PIN", "LETTER", "GIFT", "PUZZLE"];
 
-  const specialRevealSelected =
-    !isNavratri && specialRevealMethods.includes(revealMethod);
+  const specialRevealSelected = isMagazine
+    ? revealMethod === "QR" || revealMethod === "PIN"
+    : !isNavratri && specialRevealMethods.includes(revealMethod);
 
   /*
    * ₹99  = Normal
@@ -2413,18 +2419,23 @@ function Checkout() {
     (removeWatermarkSelected ? 99 : 0);
   const navratriPrice = 101 + (removeWatermarkSelected ? 99 : 0);
   const weddingInvitationPrice = 999;
-  const usdBasePrice = isWeddingInvitation ? 55 : isBloomAnniversary ? 30 : 10;
+  const magazinePrice = 510 + (specialRevealSelected ? 9 : 0) + (removeWatermarkSelected ? 99 : 0);
+  const usdBasePrice = isMagazine ? 50 : isWeddingInvitation ? 55 : isBloomAnniversary ? 30 : 10;
   const displayPrice =
     currency === "USD"
-      ? usdBasePrice + (removeWatermarkSelected ? 1 : 0)
-      : isNavratri
+      ? isMagazine ? 50 : usdBasePrice + (removeWatermarkSelected ? 1 : 0)
+      : isMagazine
+        ? magazinePrice
+        : isNavratri
         ? navratriPrice
         : isWeddingInvitation
           ? weddingInvitationPrice
         : isBloomAnniversary
           ? bloomAnniversaryPrice
           : birthdayPrice + (removeWatermarkSelected ? 99 : 0);
-  const priceLabel = isWeddingInvitation
+  const priceLabel = isMagazine
+    ? "SPECIAL MAGAZINE"
+    : isWeddingInvitation
     ? "WEDDING INVITATION"
     : isNavratri
     ? "NAVRATRI PARTNER INVITE"
@@ -2442,7 +2453,9 @@ function Checkout() {
       ? "OUR MOVIE"
       : "BASIC";
 
-  const basePriceDescription = isWeddingInvitation
+  const basePriceDescription = isMagazine
+    ? "A personalized 15-page MY HERO magazine with your photos and closing message."
+    : isWeddingInvitation
     ? `Wedding Invitation website${movieEnabled ? " with your movie/video" : ""}${specialRevealSelected ? " with your chosen sharing method" : ""}.`
     : isNavratri
     ? "Personalized Navratri story, photos, playlist, video and final invitation link."
@@ -2496,6 +2509,7 @@ function Checkout() {
           planId: birthdayPlan.id,
           revealMethod,
           scannerStyle: revealMethod === "QR" ? scannerStyle : null,
+          ...(isMagazine && revealMethod === "PIN" ? { unlockPin } : {}),
           currency: "INR",
         }),
       });
@@ -2660,6 +2674,8 @@ function Checkout() {
             <span className="pill">
               {isWeddingInvitation
                 ? "Wedding Invitation"
+                : isMagazine
+                ? "Special Magazine"
                 : isNavratri
                 ? "Navratri Partner Invite"
                 : isBloomAnniversary
@@ -2670,6 +2686,8 @@ function Checkout() {
             <h2>
               {isWeddingInvitation
                 ? "Your wedding invitation package"
+                : isMagazine
+                ? "Your Special Magazine package"
                 : isNavratri
                 ? "Your Navratri package"
                 : isBloomAnniversary
@@ -2680,6 +2698,8 @@ function Checkout() {
             <p className="muted">
               {isWeddingInvitation
                 ? "Review your Wedding Invitation price and selected options."
+                : isMagazine
+                ? "Review the ₹510 base price and choose your reveal and watermark options."
                 : isNavratri
                 ? "Review your Navratri invitation price and optional credit removal."
                 : isBloomAnniversary
@@ -2712,7 +2732,13 @@ function Checkout() {
               className={`btn ${
                 currency === "USD" ? "btn-primary" : "btn-soft"
               }`}
-              onClick={() => setCurrency("USD")}
+              onClick={() => {
+                setCurrency("USD");
+                if (isMagazine && !["QR", "PIN"].includes(revealMethod)) {
+                  setRevealMethod("QR");
+                  setScannerStyle("HEART");
+                }
+              }}
             >
               🌎 USD $
             </button>
@@ -2723,7 +2749,17 @@ function Checkout() {
             REVEAL STYLE
            =================================================== */}
 
-        {!isNavratri && <div className="checkout-reveal-section">
+        {isMagazine ? (
+          <div className="checkout-reveal-section">
+            <h3>Choose a reveal</h3>
+            <p className="muted">{currency === "USD" ? "Choose the Heart Scanner or Code Lock; both are included in the $50 package." : "Normal sharing is included. Add a Heart Scanner or Code Lock for ₹9."}</p>
+            <div className="actions">
+              {currency === "INR" && <button type="button" className={`btn ${revealMethod === "NORMAL" ? "btn-primary" : "btn-soft"}`} onClick={() => setRevealMethod("NORMAL")}>Normal link</button>}
+              <button type="button" className={`btn ${revealMethod === "QR" ? "btn-primary" : "btn-soft"}`} onClick={() => { setRevealMethod("QR"); setScannerStyle("HEART"); }}>Heart Scanner</button>
+              <button type="button" className={`btn ${revealMethod === "PIN" ? "btn-primary" : "btn-soft"}`} onClick={() => setRevealMethod("PIN")}>Code Lock</button>
+            </div>
+          </div>
+        ) : !isNavratri && <div className="checkout-reveal-section">
           <h3>Choose how to share your surprise</h3>
 
           <p className="muted">            {currency === "USD"
@@ -2771,6 +2807,23 @@ function Checkout() {
           </div>
         </div>}
 
+        {isMagazine && revealMethod === "PIN" && (
+          <div className="field">
+            <label htmlFor="magazine-code-lock-pin">Code Lock PIN</label>
+            <input
+              id="magazine-code-lock-pin"
+              type="password"
+              value={unlockPin}
+              onChange={(event) => setUnlockPin(event.target.value)}
+              minLength={4}
+              maxLength={64}
+              autoComplete="new-password"
+              placeholder="Enter at least 4 characters"
+            />
+            <small className="muted">This PIN is stored as a hash and required to open the finished magazine. Enter at least 4 characters to continue.</small>
+          </div>
+        )}
+
         {/* ===================================================
             MAGICAL SCANNER STYLES
            =================================================== */}
@@ -2778,10 +2831,12 @@ function Checkout() {
         {!isNavratri && revealMethod === "QR" && (
           <div className="scanner-style-section">
             <div className="scanner-style-heading">
-              <h3>Choose your Magical Scanner</h3>
+              <h3>{isMagazine ? "Heart Shape Scanner" : "Choose your Magical Scanner"}</h3>
 
               <p className="muted">
-                {isWeddingInvitation
+                {isMagazine
+                  ? "The heart-shaped scanner is selected for your Special Magazine."
+                  : isWeddingInvitation
                   ? "Choose the style for sharing your wedding invitation."
                   : isBloomAnniversary
                   ? "Choose the style for sharing your anniversary story."
@@ -2820,7 +2875,7 @@ function Checkout() {
           SQUARE SCANNER
          ================================================= */}
 
-              <button
+              {!isMagazine && <button
                 type="button"
                 className={`scanner-style-card ${
                   scannerStyle === "SQUARE" ? "is-selected" : ""
@@ -2844,7 +2899,7 @@ function Checkout() {
                 <strong>Square Scanner</strong>
 
                 <span>Classic square QR design</span>
-              </button>
+              </button>}
             </div>
 
             <div className="scanner-style-price">
@@ -2862,7 +2917,47 @@ function Checkout() {
             THREE PRICE OPTIONS
            =================================================== */}
 
-        {currency === "USD" ? (
+        {isMagazine ? (
+          currency === "USD" ? (
+            <div className="birthday-checkout-pricing bloom-checkout-pricing">
+              <div className="birthday-price-card is-selected">
+                <span className="birthday-price-badge">SPECIAL MAGAZINE · ALL INCLUDED</span>
+                <div className="birthday-price-icon">📖</div>
+                <h3>Personalized 15-page MY HERO magazine</h3>
+                <p>Includes your selected Heart Scanner or Code Lock, watermark removal, uploaded photos and a shareable link.</p>
+                <strong className="birthday-price">$50</strong>
+                <span className="birthday-price-note">One-time international package</span>
+              </div>
+            </div>
+          ) : (
+            <div className="birthday-checkout-pricing bloom-checkout-pricing">
+              <div className="birthday-price-card is-selected">
+                <span className="birthday-price-badge">SPECIAL MAGAZINE</span>
+                <div className="birthday-price-icon">📖</div>
+                <h3>Personalized 15-page MY HERO magazine</h3>
+                <p>Includes the original layouts, editable messages, your uploaded photos and a shareable magazine link.</p>
+                <strong className="birthday-price">₹510</strong>
+                <span className="birthday-price-note">Base package price</span>
+              </div>
+              <div className={`birthday-price-card birthday-price-special ${specialRevealSelected ? "is-selected" : ""}`}>
+                <span className="birthday-price-badge birthday-price-luxury">OPTIONAL SPECIAL REVEAL</span>
+                <div className="birthday-price-icon">💗</div>
+                <h3>Heart Scanner or Code Lock</h3>
+                <p>Choose a heart-shaped scanner or protect the magazine with a code lock.</p>
+                <strong className="birthday-price">+₹9</strong>
+                <span className="birthday-price-note">{specialRevealSelected ? `₹${510 + (removeWatermarkSelected ? 99 : 0) + 9} total` : "Optional · choose a reveal above"}</span>
+              </div>
+              <div className={`birthday-price-card ${removeWatermarkSelected ? "is-selected" : ""}`}>
+                <span className="birthday-price-badge birthday-price-premium">OPTIONAL CREDIT REMOVAL</span>
+                <div className="birthday-price-icon">✨</div>
+                <h3>Remove the final-page watermark</h3>
+                <p>Keep the Devsphere credit on the final page, or remove it with this one-time add-on.</p>
+                <strong className="birthday-price">+₹99</strong>
+                <span className="birthday-price-note">{removeWatermarkSelected ? `₹${510 + (specialRevealSelected ? 9 : 0) + 99} total` : "Optional · selected in the editor"}</span>
+              </div>
+            </div>
+          )
+        ) : currency === "USD" ? (
           <div className="birthday-checkout-pricing bloom-checkout-pricing">
             <div className="birthday-price-card is-selected">
               <span className="birthday-price-badge">INTERNATIONAL PACKAGE</span>
@@ -3062,6 +3157,8 @@ function Checkout() {
           <h3>
             {isWeddingInvitation
               ? "Your Wedding Invitation total: "
+              : isMagazine
+              ? "Your Special Magazine total: "
               : isNavratri
               ? "Your Navratri Partner Invite total: "
               : isBloomAnniversary
@@ -3093,7 +3190,7 @@ function Checkout() {
 
           {specialRevealSelected && (
             <p className="birthday-checkout-note">              {revealMethod === "QR"
-                ? "Magical Scanner selected."
+                ? isMagazine ? "Heart Shape Scanner selected." : "Magical Scanner selected."
                 : revealMethod === "PIN"
                   ? "Code Lock selected."
                   : revealMethod === "LETTER"
@@ -3103,6 +3200,10 @@ function Checkout() {
                       : "Puzzle selected."}{" "}
               {isWeddingInvitation
                 ? "Selected sharing method included in the wedding package. "
+                : isMagazine
+                ? currency === "USD"
+                  ? "Special reveal included in the $50 package. "
+                  : "Special reveal selected (+₹9). "
                 : isBloomAnniversary
                 ? currency === "USD"
                   ? "Selected sharing method included. "
@@ -3113,7 +3214,9 @@ function Checkout() {
           )}
 
           {removeWatermarkSelected && (
-            <p className="birthday-checkout-note">Remove watermark: {currency === "USD" ? "+$1." : "+₹99."}</p>
+            <p className="birthday-checkout-note">{isMagazine
+              ? currency === "USD" ? "Watermark removal included in the $50 package." : "Remove watermark: +₹99."
+              : `Remove watermark: ${currency === "USD" ? "+$1." : "+₹99."}`}</p>
           )}
 
           {checkoutError && (
@@ -3129,7 +3232,8 @@ function Checkout() {
               disabled={
                 !birthdayPlan?.id ||
                 loading === "birthday" ||
-                loading === "verifying"
+                loading === "verifying" ||
+                (isMagazine && revealMethod === "PIN" && unlockPin.trim().length < 4)
               }
             >
               {loading === "birthday"
@@ -3159,6 +3263,7 @@ function Checkout() {
                 planId={birthdayPlan?.id || ""}
                 revealMethod={revealMethod}
                 scannerStyle={revealMethod === "QR" ? scannerStyle : null}
+                unlockPin={isMagazine && revealMethod === "PIN" ? unlockPin : undefined}
                 disabled={!birthdayPlan?.id || loading !== ""}
                 onSuccess={() => {
                   nav(`/published/${id}`);

@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { db } from "../lib/db.js";
 import { auth } from "../lib/auth.js";
 import {
@@ -23,6 +25,7 @@ import {
 import {
   calculateBirthdayPackage,
   calculateBloomAnniversaryPackage,
+  calculateMyHeroMagazinePackage,
   calculateNavratriPartnerInvitePackage,
   calculateWeddingInvitationPackage,
   finalizePaidOrder,
@@ -39,6 +42,7 @@ const checkoutSchema = z.object({
     .enum(["NORMAL", "QR", "PIN", "LETTER", "GIFT", "PUZZLE"])
     .default("NORMAL"),
   scannerStyle: z.enum(["HEART", "SQUARE"]).nullable().optional(),
+  unlockPin: z.string().min(4).max(64).optional(),
 });
 
 function jsonBody(req: any) {
@@ -149,17 +153,48 @@ r.post("/create-order", auth, async (req, res) => {
       return res.status(409).json({ error: "This free template publishes without checkout." });
     }
 
-    if (project.status !== "FINALIZED") {
-      return res.status(409).json({ error: "Finalize the project first" });
-    }
-
     const isBloomAnniversary =
       project.template.slug === "anniversary-romantic-01";
     const isNavratri =
       project.template.slug === "navratri-partner-invite";
     const isWeddingInvitation =
       project.template.slug === "wedding-invitation";
-    const checkoutRevealMethod = isNavratri ? "NORMAL" : data.revealMethod;
+    const isMyHeroMagazine = project.template.slug === "my-hero-magazine";
+    const checkoutRevealMethod = isNavratri
+      ? "NORMAL"
+      : isMyHeroMagazine && data.currency === "USD"
+        ? data.revealMethod === "PIN" ? "PIN" : "QR"
+        : data.revealMethod;
+
+    if (
+      isMyHeroMagazine &&
+      !["NORMAL", "QR", "PIN"].includes(data.revealMethod)
+    ) {
+      return res.status(400).json({
+        error: "Special Magazine supports Normal, Heart Scanner, or Code Lock reveals.",
+      });
+    }
+    if (isMyHeroMagazine && data.revealMethod === "PIN" && !data.unlockPin?.trim()) {
+      return res.status(400).json({ error: "Enter a 4 to 64 character Code Lock PIN." });
+    }
+
+    if (project.status !== "FINALIZED" && !isMyHeroMagazine) {
+      return res.status(409).json({ error: "Finalize the project first" });
+    }
+
+    if (isMyHeroMagazine) {
+      const fields = Array.isArray((project.template.schema as any)?.fields)
+        ? (project.template.schema as any).fields
+        : [];
+      const projectData = (project.data as Record<string, unknown> | null) || {};
+      const missing = fields
+        .filter((field: any) => field.required)
+        .filter((field: any) => String(projectData[field.id] ?? "").trim() === "")
+        .map((field: any) => field.label || field.id);
+      if (missing.length > 0) {
+        return res.status(400).json({ error: `Please complete: ${missing.join(", ")}` });
+      }
+    }
 
     if (data.currency === "USD" && !isPayPalConfigured()) {
       return res
@@ -183,10 +218,19 @@ r.post("/create-order", auth, async (req, res) => {
         "birthday-royal-memory",
         "anniversary-romantic-01",
         "navratri-partner-invite",
+        "my-hero-magazine",
       ].includes(project.template.slug) &&
       projectCustomization.removeWatermark === true;
 
-    const pricing = isWeddingInvitation
+    const magazineRemoveWatermark = isMyHeroMagazine &&
+      (data.currency === "USD" || projectCustomization.removeWatermark === true);
+    const pricing = isMyHeroMagazine
+      ? calculateMyHeroMagazinePackage({
+          currency: data.currency,
+          revealMethod: checkoutRevealMethod,
+          removeWatermark: magazineRemoveWatermark,
+        })
+      : isWeddingInvitation
       ? calculateWeddingInvitationPackage({
           projectData,
           revealMethod: checkoutRevealMethod,
@@ -223,11 +267,23 @@ r.post("/create-order", auth, async (req, res) => {
         checkoutRevealMethod === "QR" ? data.scannerStyle || "HEART" : null,
     };
 
+    const updatedCustomization = { ...projectCustomization };
+    if (isMyHeroMagazine) {
+      if (checkoutRevealMethod === "PIN") {
+        updatedCustomization.magazineUnlockPinHash = await bcrypt.hash(data.unlockPin!.trim(), 12);
+      } else {
+        delete updatedCustomization.magazineUnlockPinHash;
+      }
+    }
+
     await db.project.update({
       where: { id: project.id },
       data: {
         revealMethod: checkoutRevealMethod,
         data: updatedData,
+        ...(isMyHeroMagazine
+          ? { customization: updatedCustomization as Prisma.InputJsonValue }
+          : {}),
       },
     });
 
