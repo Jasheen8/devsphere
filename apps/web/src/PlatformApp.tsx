@@ -110,11 +110,11 @@ const TEMPLATE_CARD_DETAILS: Record<string, TemplateCardDetails> = {
 
 const TEMPLATE_CARD_PRIORITY = [
   "birthday-royal-memory",
+  "my-hero-magazine",
   "cutie-birthday",
   "anniversary-romantic-01",
   "wedding-invitation",
   "navratri-partner-invite",
-  "my-hero-magazine",
 ];
 
 function getVisibleTemplateCards(items: Template[]) {
