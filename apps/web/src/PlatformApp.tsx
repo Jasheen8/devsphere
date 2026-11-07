@@ -33,7 +33,8 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import { TemplateRenderer } from "@memora/template-engine";
 import type { TemplateDefinition } from "@memora/shared";
-import { captureEvent, capturePageview } from "./analytics";
+import { captureEvent, capturePageview, capturePurchaseCompleted } from "./analytics";
+import WhatsAppInsiderOffer, { type InsiderOfferQuote } from "./components/WhatsAppInsiderOffer";
 import { loadPaymentSdk } from "./lib/loadPaymentSdk";
 import {
   api,
@@ -122,6 +123,16 @@ function getVisibleTemplateCards(items: Template[]) {
     items.find((template) => template.slug === slug),
   ).filter((template): template is Template => Boolean(template));
 }
+
+function formatMinorAmount(amountMinor: number, currency: "INR" | "USD") {
+  return new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amountMinor / 100);
+}
+
 const heroMarqueeRows = [
   ["BIRTHDAYS", "LOVE STORIES", "ANNIVERSARIES", "WEDDINGS", "MEMORIES", "LITTLE SURPRISES"],
   ["MADE PERSONAL", "MADE BEAUTIFUL", "MADE WITH HEART", "SHARE THE MOMENT", "CREATE YOUR SURPRISE", "CELEBRATE TOGETHER"],
@@ -644,7 +655,8 @@ function BlankTemplateCard() {
     </article>
   );
 }
-function TemplateCard({ t }: { t: Template }) {
+function TemplateCard({ t, showOffer = true }: { t: Template; showOffer?: boolean }) {
+  const [insiderQuotes, setInsiderQuotes] = useState<InsiderOfferQuote[]>([]);
   const isRoyalMemoryBirthday = t.slug === "birthday-royal-memory";
   const isAnniversary = t.slug === "anniversary-romantic-01";
   const isWeddingInvitation = t.slug === "wedding-invitation";
@@ -652,6 +664,8 @@ function TemplateCard({ t }: { t: Template }) {
   const details = TEMPLATE_CARD_DETAILS[t.slug];
   const inrPrice = details?.price ?? t.price;
   const usdPrice = details?.usdPrice ?? (t.isFree ? 0 : 10);
+  const quotedInrAmount = insiderQuotes.find((quote) => quote.currency === "INR")?.originalAmountMinor;
+  const quotedUsdAmount = insiderQuotes.find((quote) => quote.currency === "USD")?.originalAmountMinor;
   const liveDemoUrl = isWeddingInvitation
     ? "https://wedding-invitation-tau-three-37.vercel.app/"
     : isMagazine
@@ -672,6 +686,25 @@ function TemplateCard({ t }: { t: Template }) {
         ? "/templates/my-hero-magazine/assets/coverphoto-thumb.jpg"
     : t.thumbnailUrl ||
       "/images/invitation.png";
+
+  useEffect(() => {
+    if (t.isFree || !showOffer) return;
+    let cancelled = false;
+    api<any>(`/payments/template-quote/${encodeURIComponent(t.slug)}`, {
+      skipLoader: true,
+    })
+      .then((quote) => {
+        if (!cancelled && Array.isArray(quote?.quotes)) {
+          setInsiderQuotes(quote.quotes);
+        }
+      })
+      .catch((error) => {
+        console.warn("Unable to load Insiders offer:", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [t.slug, t.isFree, showOffer]);
 
   return (
     <article className={`card ${isAnniversary ? "anniversary-card" : ""}`}>
@@ -713,7 +746,7 @@ function TemplateCard({ t }: { t: Template }) {
         <div className="template-card-price" aria-label={isMagazine ? "Special Magazine pricing" : "Template pricing in INR and USD"}>
           <div className="template-card-price-side">
             <div className="template-card-price-main">
-              <strong>{t.isFree ? "Free" : `₹${inrPrice}`}</strong>
+              <strong>{t.isFree ? "Free" : quotedInrAmount !== undefined ? formatMinorAmount(quotedInrAmount, "INR") : `₹${inrPrice}`}</strong>
               {!t.isFree && details?.originalPrice !== undefined && (
                 <del>₹{details.originalPrice}</del>
               )}
@@ -726,11 +759,19 @@ function TemplateCard({ t }: { t: Template }) {
           <span className="template-card-price-separator" aria-hidden="true">or</span>
           <div className="template-card-price-side template-card-price-side-international">
             <div className="template-card-price-main">
-              <strong>{isMagazine ? "$50" : t.isFree ? "Free" : `$${usdPrice}`}</strong>
+              <strong>{t.isFree ? "Free" : quotedUsdAmount !== undefined ? formatMinorAmount(quotedUsdAmount, "USD") : isMagazine ? "$50" : `$${usdPrice}`}</strong>
             </div>
             <span className="template-card-price-caption">{isMagazine ? "USD · all included" : "USD · International"}</span>
           </div>
         </div>
+        {showOffer && !t.isFree && insiderQuotes.length > 0 && (
+          <WhatsAppInsiderOffer
+            quotes={insiderQuotes}
+            templateSlug={t.slug}
+            placement="template_card"
+            compact
+          />
+        )}
         {isMagazine && <p className="muted" style={{ marginTop: 8, fontSize: ".78rem" }}>Includes your chosen special reveal and watermark removal in the $50 international package.</p>}
         <div className="tags">
           {cardTags.map((tag) => (
@@ -879,6 +920,7 @@ function Templates() {
 function TemplatePreview() {
   const { id } = useParams<{ id: string }>();
   const [t, setT] = useState<any>();
+  const [insiderQuotes, setInsiderQuotes] = useState<InsiderOfferQuote[]>([]);
   useEffect(() => {
     if (!id) return;
 
@@ -896,6 +938,22 @@ function TemplatePreview() {
         console.error("Failed to load template:", error);
       });
   }, [id]);
+  useEffect(() => {
+    if (!t?.slug || t.isFree) return;
+    let cancelled = false;
+    api<any>(`/payments/template-quote/${encodeURIComponent(t.slug)}`, {
+      skipLoader: true,
+    })
+      .then((quote) => {
+        if (!cancelled && Array.isArray(quote?.quotes)) {
+          setInsiderQuotes(quote.quotes);
+        }
+      })
+      .catch((error) => console.warn("Unable to load Insiders offer:", error));
+    return () => {
+      cancelled = true;
+    };
+  }, [t?.slug, t?.isFree]);
   if (!t)
     return (
       <>
@@ -919,6 +977,13 @@ function TemplatePreview() {
             {t.isFree ? "Use Free Template" : "Use This Template"}
           </Link>
         </div>
+        {!t.isFree && insiderQuotes.length > 0 && (
+          <WhatsAppInsiderOffer
+            quotes={insiderQuotes}
+            templateSlug={t.slug}
+            placement="template_detail"
+          />
+        )}
         <div className="preview-frame">
           <TemplateRenderer
             template={schema}
@@ -2272,6 +2337,12 @@ function Checkout() {
   const [loading, setLoading] = useState("");
   const [checkoutError, setCheckoutError] = useState("");
   const [currency, setCurrency] = useState<"INR" | "USD">("INR");
+  const [checkoutQuote, setCheckoutQuote] = useState<InsiderOfferQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [couponMessage, setCouponMessage] = useState("");
   const [revealMethod, setRevealMethod] = useState<
     "NORMAL" | "QR" | "PIN" | "LETTER" | "GIFT" | "PUZZLE"
   >("NORMAL");
@@ -2321,6 +2392,7 @@ function Checkout() {
           });
 
           if (resume?.paid) {
+            capturePurchaseCompleted(resume);
             nav(`/published/${id}`);
             return;
           }
@@ -2395,6 +2467,51 @@ function Checkout() {
     (isMagazine && currency === "USD" || projectCustomization.removeWatermark === true);
   const movieEnabled = projectData.movieEnabled === true;
 
+  useEffect(() => {
+    if (!project?.id) return;
+    let cancelled = false;
+    setQuoteLoading(true);
+    setCheckoutQuote(null);
+    api<InsiderOfferQuote>("/payments/quote", {
+      method: "POST",
+      skipLoader: true,
+      body: JSON.stringify({
+        projectId: project.id,
+        currency,
+        revealMethod,
+        ...(appliedCoupon ? { couponCode: appliedCoupon } : {}),
+      }),
+    })
+      .then((quote) => {
+        if (!cancelled) {
+          setCheckoutQuote(quote);
+          if (quote.couponCode) {
+            setCouponError("");
+            setCouponMessage(`10% saved ${formatMinorAmount(quote.discountAmountMinor, currency)}.`);
+          } else {
+            setCouponMessage("");
+          }
+        }
+      })
+      .catch((error: any) => {
+        if (!cancelled) {
+          setCheckoutQuote(null);
+          if (appliedCoupon) {
+            setCouponError(error?.message || "This coupon cannot be applied to this checkout.");
+            setAppliedCoupon("");
+          } else {
+            setCheckoutError(error?.message || "Unable to refresh the server price.");
+          }
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setQuoteLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [project?.id, currency, revealMethod, appliedCoupon]);
+
   /* =========================================================
      REVEAL PRICING
      ========================================================= */
@@ -2421,7 +2538,7 @@ function Checkout() {
   const weddingInvitationPrice = 999;
   const magazinePrice = 510 + (specialRevealSelected ? 9 : 0) + (removeWatermarkSelected ? 99 : 0);
   const usdBasePrice = isMagazine ? 50 : isWeddingInvitation ? 55 : isBloomAnniversary ? 30 : 10;
-  const displayPrice =
+  const fallbackDisplayPrice =
     currency === "USD"
       ? isMagazine ? 50 : usdBasePrice + (removeWatermarkSelected ? 1 : 0)
       : isMagazine
@@ -2433,6 +2550,9 @@ function Checkout() {
         : isBloomAnniversary
           ? bloomAnniversaryPrice
           : birthdayPrice + (removeWatermarkSelected ? 99 : 0);
+  const displayPrice = checkoutQuote
+    ? checkoutQuote.finalAmountMinor / 100
+    : fallbackDisplayPrice;
   const priceLabel = isMagazine
     ? "SPECIAL MAGAZINE"
     : isWeddingInvitation
@@ -2482,6 +2602,52 @@ function Checkout() {
     plans.find((plan) => plan?.id) ||
     null;
 
+  async function applyInsiderCoupon(code: string) {
+    if (!project?.id) return;
+    setCouponBusy(true);
+    setCouponError("");
+    setCouponMessage("");
+    try {
+      const quote = await api<InsiderOfferQuote>("/payments/quote", {
+        method: "POST",
+        skipLoader: true,
+        body: JSON.stringify({
+          projectId: project.id,
+          currency,
+          revealMethod,
+          couponCode: code,
+        }),
+      });
+      if (!quote.couponCode || quote.discountAmountMinor <= 0) {
+        throw new Error("INSIDER10 could not be applied to this checkout.");
+      }
+      setCheckoutQuote(quote);
+      setAppliedCoupon(quote.couponCode);
+      setCouponMessage(`10% saved ${formatMinorAmount(quote.discountAmountMinor, currency)}.`);
+      captureEvent("coupon_applied", {
+        coupon_code: quote.couponCode,
+        template_slug: project.template.slug,
+        currency,
+        discount_amount_minor: quote.discountAmountMinor,
+      });
+    } catch (error: any) {
+      setCouponError(error?.message || "Unable to validate this coupon.");
+    } finally {
+      setCouponBusy(false);
+    }
+  }
+
+  function removeInsiderCoupon() {
+    setAppliedCoupon("");
+    setCouponError("");
+    setCouponMessage("");
+  }
+
+  function completePurchase(result: any) {
+    capturePurchaseCompleted({ ...result, currency: result?.currency || currency });
+    nav(`/published/${id}`);
+  }
+
   /* =========================================================
      PAYMENT
      ========================================================= */
@@ -2510,6 +2676,7 @@ function Checkout() {
           revealMethod,
           scannerStyle: revealMethod === "QR" ? scannerStyle : null,
           ...(isMagazine && revealMethod === "PIN" ? { unlockPin } : {}),
+          ...(appliedCoupon ? { couponCode: appliedCoupon } : {}),
           currency: "INR",
         }),
       });
@@ -2547,7 +2714,7 @@ function Checkout() {
         amount: order.amount,
         currency: "INR",
         name: "Devsphere",
-        description: `${isNavratri ? "Navratri Partner Invite" : isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} — ₹${displayPrice}`,
+        description: `${isNavratri ? "Navratri Partner Invite" : isBloomAnniversary ? "Anniversary Bloom" : "Birthday Website"} — ${formatMinorAmount(Math.round(displayPrice * 100), "INR")}`,
         order_id: order.providerOrderId,
 
         handler: async (response: any) => {
@@ -2556,7 +2723,7 @@ function Checkout() {
           setCheckoutError("");
 
           try {
-            await api<any>("/payments/razorpay/verify", {
+            const result = await api<any>("/payments/razorpay/verify", {
               method: "POST",
               body: JSON.stringify({
                 orderId: order.orderId,
@@ -2566,6 +2733,7 @@ function Checkout() {
               }),
             });
 
+            capturePurchaseCompleted(result);
             nav(`/published/${id}`);
             return;
           } catch (error: any) {
@@ -2581,6 +2749,7 @@ function Checkout() {
                 });
 
                 if (resume?.paid) {
+                  capturePurchaseCompleted(resume);
                   nav(`/published/${id}`);
                   return;
                 }
@@ -2619,6 +2788,7 @@ function Checkout() {
           });
 
           if (resume?.paid) {
+            capturePurchaseCompleted(resume);
             nav(`/published/${id}`);
             return;
           }
@@ -3164,14 +3334,13 @@ function Checkout() {
               : isBloomAnniversary
                 ? "Your Anniversary Bloom total: "
                 : "Your package: "}
-            {currency === "USD" ? "$" : "₹"}{displayPrice}
+            {formatMinorAmount(Math.round(displayPrice * 100), currency)}
           </h3>
 
           <p className="muted">{priceDescription}</p>
 
           <div className="birthday-current-price">
-            {currency === "USD" ? "$" : "₹"}
-            {displayPrice}
+            {formatMinorAmount(Math.round(displayPrice * 100), currency)}
           </div>
 
           {/* MOVIE NOTE */}
@@ -3209,14 +3378,28 @@ function Checkout() {
                   ? "Selected sharing method included. "
                   : "Special reveal selected (+₹10). "
                 : "Your package price is "}
-              {currency === "USD" ? "$" : "₹"}
-              {displayPrice}.</p>
+              {formatMinorAmount(Math.round(displayPrice * 100), currency)}.</p>
           )}
 
           {removeWatermarkSelected && (
             <p className="birthday-checkout-note">{isMagazine
               ? currency === "USD" ? "Watermark removal included in the $50 package." : "Remove watermark: +₹99."
               : `Remove watermark: ${currency === "USD" ? "+$1." : "+₹99."}`}</p>
+          )}
+
+          {checkoutQuote && checkoutQuote.currency === currency && (
+            <WhatsAppInsiderOffer
+              quotes={[checkoutQuote]}
+              templateSlug={project.template.slug}
+              placement="checkout"
+              couponApplied={Boolean(appliedCoupon && checkoutQuote.couponCode)}
+              couponAvailable={checkoutQuote.couponAvailable}
+              couponBusy={couponBusy}
+              couponError={couponError}
+              couponMessage={couponMessage}
+              onApplyCoupon={applyInsiderCoupon}
+              onRemoveCoupon={removeInsiderCoupon}
+            />
           )}
 
           {checkoutError && (
@@ -3231,6 +3414,8 @@ function Checkout() {
               onClick={payRazorpay}
               disabled={
                 !birthdayPlan?.id ||
+                quoteLoading ||
+                couponBusy ||
                 loading === "birthday" ||
                 loading === "verifying" ||
                 (isMagazine && revealMethod === "PIN" && unlockPin.trim().length < 4)
@@ -3241,7 +3426,7 @@ function Checkout() {
                 : loading === "verifying"
                   ? "Confirming payment…"
                   : birthdayPlan?.id
-                    ? `Pay ₹${displayPrice} with Razorpay`
+                    ? `Pay ${formatMinorAmount(Math.round(displayPrice * 100), "INR")} with Razorpay`
                     : "Run db seed to load plan"}
             </button>
           ) : (
@@ -3264,10 +3449,9 @@ function Checkout() {
                 revealMethod={revealMethod}
                 scannerStyle={revealMethod === "QR" ? scannerStyle : null}
                 unlockPin={isMagazine && revealMethod === "PIN" ? unlockPin : undefined}
-                disabled={!birthdayPlan?.id || loading !== ""}
-                onSuccess={() => {
-                  nav(`/published/${id}`);
-                }}
+                disabled={!birthdayPlan?.id || loading !== "" || quoteLoading || couponBusy}
+                couponCode={appliedCoupon || undefined}
+                onSuccess={completePurchase}
                 onError={(error: any) => {
                   console.error("PayPal error:", error);
                   setCheckoutError(
@@ -4315,7 +4499,7 @@ function Admin() {
           <div className="grid">
             {templates.map((t) => (
               <div key={t.id}>
-                <TemplateCard t={t} />
+                <TemplateCard t={t} showOffer={false} />
                 <Link
                   className="btn btn-soft"
                   style={{ marginTop: 8 }}

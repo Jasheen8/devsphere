@@ -3916,6 +3916,305 @@ body {
   letter-spacing: 0.06em;
 }
 
+.whatsapp-insider-offer {
+  position: relative;
+  overflow: hidden;
+  margin: 16px 0;
+  padding: 17px;
+  border: 1px solid rgba(117, 5, 5, 0.18);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 96% 0%, rgba(237, 193, 157, 0.24), transparent 35%),
+    linear-gradient(135deg, #fffaf5 0%, #fff0f3 100%);
+  box-shadow: 0 12px 28px rgba(82, 34, 33, 0.09);
+  animation: insider-offer-appear 420ms ease-out both;
+}
+
+.whatsapp-insider-offer::after {
+  position: absolute;
+  top: -65%;
+  left: -30%;
+  width: 22%;
+  height: 230%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.42), transparent);
+  content: "";
+  pointer-events: none;
+  transform: rotate(25deg);
+  animation: insider-offer-sheen 7s ease-in-out infinite;
+}
+
+.whatsapp-insider-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.whatsapp-insider-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #9c3d48;
+  font-size: 0.69rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.whatsapp-insider-heading p {
+  max-width: 620px;
+  margin: 7px 0 0;
+  color: #584345;
+  font-size: 0.93rem;
+  line-height: 1.5;
+}
+
+.whatsapp-insider-save {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #8c1735;
+  color: #fff9f5;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  box-shadow: 0 5px 12px rgba(117, 5, 5, 0.16);
+}
+
+.whatsapp-insider-prices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 9px;
+  margin: 14px 0;
+}
+
+.whatsapp-insider-price {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 3px 8px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(117, 5, 5, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.whatsapp-insider-price > span {
+  grid-row: span 2;
+  color: #9c3d48;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.whatsapp-insider-price del {
+  justify-self: end;
+  color: #887a78;
+  font-size: 0.78rem;
+}
+
+.whatsapp-insider-price strong {
+  justify-self: end;
+  color: #64162e;
+  font-size: 1.02rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.whatsapp-insider-price small {
+  grid-column: 2;
+  justify-self: end;
+  color: #5b7c50;
+  font-size: 0.67rem;
+  text-align: right;
+}
+
+.whatsapp-insider-join {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 15px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(115deg, #74132f 0%, #a82b4c 55%, #8d1d3b 100%);
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.045em;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: 0 8px 17px rgba(117, 5, 5, 0.19);
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+.whatsapp-insider-join:hover {
+  color: white;
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+  box-shadow: 0 11px 22px rgba(117, 5, 5, 0.22);
+}
+
+.whatsapp-insider-coupon {
+  position: relative;
+  z-index: 1;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(117, 5, 5, 0.12);
+}
+
+.whatsapp-insider-coupon form > label {
+  display: block;
+  margin-bottom: 6px;
+  color: #574448;
+  font-size: 0.77rem;
+  font-weight: 700;
+}
+
+.whatsapp-insider-terms {
+  margin: 0 0 8px;
+  color: #766a68;
+  font-size: 0.69rem;
+  line-height: 1.4;
+}
+
+.whatsapp-insider-code-row {
+  display: flex;
+  gap: 8px;
+}
+
+.whatsapp-insider-code-row input {
+  flex: 1 1 150px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(117, 5, 5, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #3e2d31;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.whatsapp-insider-code-row button,
+.whatsapp-insider-remove {
+  padding: 9px 12px;
+  border: 1px solid rgba(117, 5, 5, 0.2);
+  border-radius: 10px;
+  background: #fff;
+  color: #79213a;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.whatsapp-insider-code-row button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.whatsapp-insider-applied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #3d6d38;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.whatsapp-insider-applied > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.whatsapp-insider-feedback,
+.whatsapp-insider-error {
+  margin: 7px 0 0;
+  font-size: 0.76rem;
+}
+
+.whatsapp-insider-feedback {
+  color: #477344;
+}
+
+.whatsapp-insider-error {
+  color: #9a2635;
+}
+
+.whatsapp-insider-offer.is-compact {
+  margin: 10px 0;
+  padding: 12px;
+  border-radius: 14px;
+  box-shadow: 0 7px 18px rgba(82, 34, 33, 0.07);
+}
+
+.whatsapp-insider-offer.is-compact .whatsapp-insider-heading p {
+  font-size: 0.79rem;
+}
+
+.whatsapp-insider-offer.is-compact .whatsapp-insider-eyebrow {
+  font-size: 0.59rem;
+  letter-spacing: 0.06em;
+}
+
+.whatsapp-insider-offer.is-compact .whatsapp-insider-save {
+  padding: 5px 8px;
+  font-size: 0.65rem;
+}
+
+.whatsapp-insider-offer.is-compact .whatsapp-insider-prices {
+  margin: 9px 0;
+}
+
+.whatsapp-insider-offer.is-compact .whatsapp-insider-price {
+  padding: 7px 8px;
+}
+
+.whatsapp-insider-offer.is-compact .whatsapp-insider-price strong {
+  font-size: 0.9rem;
+}
+
+.whatsapp-insider-offer.is-compact .whatsapp-insider-join {
+  min-height: 39px;
+  padding: 9px 11px;
+  font-size: 0.7rem;
+}
+
+@keyframes insider-offer-appear {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes insider-offer-sheen {
+  0%, 72%, 100% { left: -30%; opacity: 0; }
+  76% { opacity: 0.6; }
+  90% { left: 120%; opacity: 0; }
+}
+
+@media (max-width: 540px) {
+  .whatsapp-insider-offer { padding: 13px; }
+  .whatsapp-insider-heading { gap: 8px; }
+  .whatsapp-insider-eyebrow { font-size: 0.61rem; letter-spacing: 0.05em; }
+  .whatsapp-insider-heading p { font-size: 0.82rem; }
+  .whatsapp-insider-save { padding: 6px 8px; font-size: 0.64rem; }
+  .whatsapp-insider-prices { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); }
+  .whatsapp-insider-code-row { flex-direction: column; }
+  .whatsapp-insider-code-row button { min-height: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whatsapp-insider-offer,
+  .whatsapp-insider-offer::after,
+  .whatsapp-insider-join { animation: none; transition: none; }
+}
+
 .blank-template-art {
   aspect-ratio: 16 / 10;
   display: grid;

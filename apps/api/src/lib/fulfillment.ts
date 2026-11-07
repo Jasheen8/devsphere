@@ -145,6 +145,53 @@ export function calculateMyHeroMagazinePackage(args: {
   };
 }
 
+export function calculateTemplatePackagePricing(args: {
+  templateSlug: string;
+  projectData: Record<string, unknown>;
+  currency: CheckoutCurrency;
+  revealMethod: RevealMethod;
+  removeWatermark?: boolean;
+}) {
+  if (args.templateSlug === "my-hero-magazine") {
+    return calculateMyHeroMagazinePackage({
+      currency: args.currency,
+      revealMethod: args.revealMethod,
+      removeWatermark: args.removeWatermark || args.currency === "USD",
+    });
+  }
+
+  if (args.templateSlug === "wedding-invitation") {
+    return calculateWeddingInvitationPackage({
+      projectData: args.projectData,
+      revealMethod: args.revealMethod,
+      currency: args.currency,
+    });
+  }
+
+  if (args.templateSlug === "navratri-partner-invite") {
+    return calculateNavratriPartnerInvitePackage({
+      currency: args.currency,
+      removeWatermark: args.removeWatermark,
+    });
+  }
+
+  if (args.templateSlug === "anniversary-romantic-01") {
+    return calculateBloomAnniversaryPackage({
+      projectData: args.projectData,
+      revealMethod: args.revealMethod,
+      currency: args.currency,
+      removeWatermark: args.removeWatermark,
+    });
+  }
+
+  return calculateBirthdayPackage({
+    projectData: args.projectData,
+    revealMethod: args.revealMethod,
+    currency: args.currency,
+    removeWatermark: args.removeWatermark,
+  });
+}
+
 async function applyPaidWatermarkSelection(
   tx: any,
   project: any,
@@ -536,6 +583,11 @@ export async function finalizePaidOrder(args: {
         ok: true,
         orderId: paidOrder.id,
         status: "PAID" as const,
+        amount: paidOrder.amount,
+        originalAmountMinor: paidOrder.originalAmount ?? paidOrder.amount,
+        discountAmountMinor: paidOrder.discountAmount ?? 0,
+        couponCode: paidOrder.couponCode ?? null,
+        currency: paidOrder.currency,
         alreadyPaid:
           order.status === "PAID",
         slug: site.slug,

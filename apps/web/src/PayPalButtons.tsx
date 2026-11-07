@@ -49,6 +49,7 @@ type Props = {
     | "SQUARE"
     | null;
   unlockPin?: string;
+  couponCode?: string;
   disabled?: boolean;
   onSuccess: (result: any) => void;
   onError: (error: any) => void;
@@ -60,6 +61,7 @@ export default function PayPalButtons({
   revealMethod,
   scannerStyle,
   unlockPin,
+  couponCode,
   disabled = false,
   onSuccess,
   onError,
@@ -71,6 +73,7 @@ export default function PayPalButtons({
   const successRef = useRef(onSuccess);
   const errorRef = useRef(onError);
   const unlockPinRef = useRef(unlockPin);
+  const couponCodeRef = useRef(couponCode);
 
   useEffect(() => {
     successRef.current = onSuccess;
@@ -83,6 +86,10 @@ export default function PayPalButtons({
   useEffect(() => {
     unlockPinRef.current = unlockPin;
   }, [unlockPin]);
+
+  useEffect(() => {
+    couponCodeRef.current = couponCode;
+  }, [couponCode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,6 +166,9 @@ export default function PayPalButtons({
                   scannerStyle,
                   ...(revealMethod === "PIN" && unlockPinRef.current
                     ? { unlockPin: unlockPinRef.current }
+                    : {}),
+                  ...(couponCodeRef.current
+                    ? { couponCode: couponCodeRef.current }
                     : {}),
                 }),
               },

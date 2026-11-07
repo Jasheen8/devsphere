@@ -285,7 +285,13 @@ model Order {
   userId          String
   projectId       String
   planId          String
+  /// Final payable amount in provider minor units (paise for INR, cents for USD).
   amount          Int
+  /// Price before coupon in provider minor units; null for historical orders.
+  originalAmount  Int?
+  /// Coupon savings in provider minor units.
+  discountAmount  Int         @default(0)
+  couponCode      String?
   currency        String      @default("INR")
   status          OrderStatus @default(PENDING)
   provider        String      @default("razorpay")
@@ -303,6 +309,7 @@ model Order {
   @@index([userId, createdAt])
   @@index([projectId])
   @@index([providerOrderId])
+  @@index([userId, couponCode, status])
 }
 
 model Payment {

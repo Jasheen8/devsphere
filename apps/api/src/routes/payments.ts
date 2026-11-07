@@ -23,14 +23,19 @@ import {
   verifyPayPalWebhook,
 } from "../lib/paypal.js";
 import {
-  calculateBirthdayPackage,
-  calculateBloomAnniversaryPackage,
-  calculateMyHeroMagazinePackage,
-  calculateNavratriPartnerInvitePackage,
-  calculateWeddingInvitationPackage,
+  calculateTemplatePackagePricing,
   finalizePaidOrder,
   publishPaidProject,
 } from "../lib/fulfillment.js";
+import {
+  ACTIVE_COUPON_ORDER_STATUSES,
+  canReuseCouponReservation,
+  calculateCouponAmounts,
+  CouponValidationError,
+  normalizeCouponCode,
+  WHATSAPP_INSIDER_COUPON_CODE,
+  WHATSAPP_INSIDER_DISCOUNT_PERCENT,
+} from "../lib/insider-coupon.js";
 
 const r = Router();
 
@@ -43,7 +48,60 @@ const checkoutSchema = z.object({
     .default("NORMAL"),
   scannerStyle: z.enum(["HEART", "SQUARE"]).nullable().optional(),
   unlockPin: z.string().min(4).max(64).optional(),
+  couponCode: z.string().trim().min(1).max(40).optional(),
 });
+
+const quoteSchema = z.object({
+  projectId: z.string().min(1),
+  currency: z.enum(["INR", "USD"]).default("INR"),
+  revealMethod: z
+    .enum(["NORMAL", "QR", "PIN", "LETTER", "GIFT", "PUZZLE"])
+    .default("NORMAL"),
+  couponCode: z.string().trim().min(1).max(40).optional(),
+});
+
+const REVEAL_METHODS = ["NORMAL", "QR", "PIN", "LETTER", "GIFT", "PUZZLE"] as const;
+
+function getCheckoutRevealMethod(
+  templateSlug: string,
+  currency: "INR" | "USD",
+  requestedRevealMethod: (typeof REVEAL_METHODS)[number],
+) {
+  if (templateSlug === "navratri-partner-invite") return "NORMAL";
+  if (templateSlug === "my-hero-magazine" && currency === "USD") {
+    return requestedRevealMethod === "PIN" ? "PIN" : "QR";
+  }
+  return requestedRevealMethod;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function buildCouponQuote(
+  amountMinor: number,
+  currency: "INR" | "USD",
+  requestedCode: unknown,
+) {
+  const code = normalizeCouponCode(requestedCode);
+  const applied = calculateCouponAmounts(amountMinor, code);
+  const preview = calculateCouponAmounts(
+    amountMinor,
+    WHATSAPP_INSIDER_COUPON_CODE,
+  );
+  return {
+    currency,
+    originalAmountMinor: amountMinor,
+    discountAmountMinor: applied.discountAmountMinor,
+    finalAmountMinor: applied.finalAmountMinor,
+    couponCode: applied.couponCode,
+    couponPreviewDiscountMinor: preview.discountAmountMinor,
+    couponPreviewAmountMinor: preview.finalAmountMinor,
+    couponPercent: WHATSAPP_INSIDER_DISCOUNT_PERCENT,
+  };
+}
 
 function jsonBody(req: any) {
   if (Buffer.isBuffer(req.body)) {
@@ -119,6 +177,127 @@ r.get("/config", auth, (_req, res) => {
   });
 });
 
+r.get("/template-quote/:slug", async (req, res) => {
+  const slug = String(req.params.slug || "");
+  const template = await db.template.findFirst({
+    where: {
+      OR: [{ id: slug }, { slug }],
+      published: true,
+    },
+    select: {
+      id: true,
+      slug: true,
+      isFree: true,
+      defaultData: true,
+    },
+  });
+
+  if (!template) return res.status(404).json({ error: "Template not found" });
+  if (template.isFree) {
+    return res.json({ templateSlug: template.slug, isFree: true, quotes: [] });
+  }
+
+  const projectData = asRecord(template.defaultData);
+  const quotes = (["INR", "USD"] as const).map((currency) => {
+    const pricing = calculateTemplatePackagePricing({
+      templateSlug: template.slug,
+      projectData,
+      currency,
+      revealMethod: "NORMAL",
+      removeWatermark: template.slug === "my-hero-magazine" && currency === "USD",
+    });
+    return buildCouponQuote(pricing.providerAmountMinor, currency, null);
+  });
+
+  res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+  return res.json({ templateSlug: template.slug, isFree: false, quotes });
+});
+
+r.post("/quote", auth, async (req, res) => {
+  const parsed = quoteSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid quote request" });
+
+  const user = (req as any).user;
+  const data = parsed.data;
+
+  try {
+    const project = await db.project.findFirst({
+      where: { id: data.projectId, userId: user.id },
+      include: { template: true },
+    });
+    if (!project) return res.status(404).json({ error: "Project not found" });
+    if (project.template.isFree) {
+      return res.status(409).json({ error: "Free templates do not need a coupon." });
+    }
+
+    const templateSlug = project.template.slug;
+    if (
+      templateSlug === "my-hero-magazine" &&
+      !["NORMAL", "QR", "PIN"].includes(data.revealMethod)
+    ) {
+      return res.status(400).json({ error: "This template does not support that reveal option." });
+    }
+
+    const revealMethod = getCheckoutRevealMethod(
+      templateSlug,
+      data.currency,
+      data.revealMethod,
+    );
+    const customization = asRecord(project.customization);
+    const removeWatermark = [
+      "birthday-royal-memory",
+      "anniversary-romantic-01",
+      "navratri-partner-invite",
+      "my-hero-magazine",
+    ].includes(templateSlug) && customization.removeWatermark === true;
+    const pricing = calculateTemplatePackagePricing({
+      templateSlug,
+      projectData: asRecord(project.data),
+      currency: data.currency,
+      revealMethod,
+      removeWatermark,
+    });
+    const quote = buildCouponQuote(
+      pricing.providerAmountMinor,
+      data.currency,
+      data.couponCode,
+    );
+
+    const activeRedemption = await db.order.findFirst({
+      where: {
+        userId: user.id,
+        couponCode: WHATSAPP_INSIDER_COUPON_CODE,
+        status: { in: [...ACTIVE_COUPON_ORDER_STATUSES] },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    const couponReservationQuote = calculateCouponAmounts(
+      pricing.providerAmountMinor,
+      WHATSAPP_INSIDER_COUPON_CODE,
+    );
+    const couponAvailable = canReuseCouponReservation(activeRedemption, {
+      projectId: project.id,
+      currency: data.currency,
+      finalAmountMinor: couponReservationQuote.finalAmountMinor,
+      originalAmountMinor: couponReservationQuote.originalAmountMinor,
+      discountAmountMinor: couponReservationQuote.discountAmountMinor,
+    });
+    if (quote.couponCode && !couponAvailable) {
+      return res.status(409).json({
+        error: "INSIDER10 has already been used or is reserved by another checkout on this account.",
+      });
+    }
+
+    return res.json({ ...quote, couponAvailable });
+  } catch (error: any) {
+    if (error instanceof CouponValidationError) {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error("Checkout quote failed:", error);
+    return res.status(500).json({ error: "Unable to calculate checkout price." });
+  }
+});
+
 r.post("/create-order", auth, async (req, res) => {
   const parsed = checkoutSchema.safeParse(req.body);
 
@@ -160,11 +339,11 @@ r.post("/create-order", auth, async (req, res) => {
     const isWeddingInvitation =
       project.template.slug === "wedding-invitation";
     const isMyHeroMagazine = project.template.slug === "my-hero-magazine";
-    const checkoutRevealMethod = isNavratri
-      ? "NORMAL"
-      : isMyHeroMagazine && data.currency === "USD"
-        ? data.revealMethod === "PIN" ? "PIN" : "QR"
-        : data.revealMethod;
+    const checkoutRevealMethod = getCheckoutRevealMethod(
+      project.template.slug,
+      data.currency,
+      data.revealMethod,
+    );
 
     if (
       isMyHeroMagazine &&
@@ -224,36 +403,61 @@ r.post("/create-order", auth, async (req, res) => {
 
     const magazineRemoveWatermark = isMyHeroMagazine &&
       (data.currency === "USD" || projectCustomization.removeWatermark === true);
-    const pricing = isMyHeroMagazine
-      ? calculateMyHeroMagazinePackage({
+    const pricing = calculateTemplatePackagePricing({
+      templateSlug: project.template.slug,
+      projectData,
+      revealMethod: checkoutRevealMethod,
+      currency: data.currency,
+      removeWatermark: magazineRemoveWatermark || removeWatermark,
+    });
+    const couponCode = normalizeCouponCode(data.couponCode);
+    const payable = calculateCouponAmounts(pricing.providerAmountMinor, couponCode);
+
+    if (couponCode) {
+      const activeRedemption = await db.order.findFirst({
+        where: {
+          userId: user.id,
+          couponCode,
+          status: { in: [...ACTIVE_COUPON_ORDER_STATUSES] },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (activeRedemption) {
+        const provider = data.currency === "USD" ? "paypal" : "razorpay";
+        const samePendingCheckout = canReuseCouponReservation(activeRedemption, {
+          projectId: project.id,
           currency: data.currency,
-          revealMethod: checkoutRevealMethod,
-          removeWatermark: magazineRemoveWatermark,
-        })
-      : isWeddingInvitation
-      ? calculateWeddingInvitationPackage({
-          projectData,
-          revealMethod: checkoutRevealMethod,
-          currency: data.currency,
-        })
-      : isNavratri
-      ? calculateNavratriPartnerInvitePackage({
-          currency: data.currency,
-          removeWatermark,
-        })
-      : isBloomAnniversary
-      ? calculateBloomAnniversaryPackage({
-          projectData,
-          revealMethod: checkoutRevealMethod,
-          currency: data.currency,
-          removeWatermark,
-        })
-      : calculateBirthdayPackage({
-          projectData,
-          revealMethod: checkoutRevealMethod,
-          currency: data.currency,
-          removeWatermark,
+          finalAmountMinor: payable.finalAmountMinor,
+          originalAmountMinor: payable.originalAmountMinor,
+          discountAmountMinor: payable.discountAmountMinor,
+          provider,
+          planId: plan.id,
         });
+
+        if (samePendingCheckout && activeRedemption.providerOrderId) {
+          return res.status(200).json({
+            orderId: activeRedemption.id,
+            provider: activeRedemption.provider,
+            providerOrderId: activeRedemption.providerOrderId,
+            amount: activeRedemption.provider === "paypal"
+              ? activeRedemption.amount / 100
+              : activeRedemption.amount,
+            currency: activeRedemption.currency,
+            originalAmountMinor: activeRedemption.originalAmount,
+            discountAmountMinor: activeRedemption.discountAmount,
+            couponCode: activeRedemption.couponCode,
+            ...(activeRedemption.provider === "paypal"
+              ? { clientId: getPayPalClientId() }
+              : { keyId: process.env.RAZORPAY_KEY_ID || "" }),
+          });
+        }
+
+        return res.status(409).json({
+          error: "INSIDER10 is already reserved or redeemed by another checkout on this account.",
+        });
+      }
+    }
 
     const updatedData = {
       ...projectData,
@@ -262,7 +466,7 @@ r.post("/create-order", auth, async (req, res) => {
       removeWatermark: pricing.removeWatermark,
       packageCurrency: data.currency,
       packageProvider: data.currency === "USD" ? "paypal" : "razorpay",
-      packageProviderAmount: pricing.providerAmount,
+      packageProviderAmount: payable.finalAmountMinor / 100,
       scannerStyle:
         checkoutRevealMethod === "QR" ? data.scannerStyle || "HEART" : null,
     };
@@ -296,23 +500,37 @@ r.post("/create-order", auth, async (req, res) => {
         status: "PENDING",
         provider,
         planId: plan.id,
-        amount: pricing.providerAmountMinor,
+        amount: payable.finalAmountMinor,
         currency: data.currency,
         removeWatermark: pricing.removeWatermark,
+        ...(couponCode
+          ? {
+              originalAmount: payable.originalAmountMinor,
+              discountAmount: payable.discountAmountMinor,
+            }
+          : {}),
+        couponCode,
       },
       orderBy: { createdAt: "desc" },
     });
 
-    // Reuse pending orders only for PayPal.
-    // For Razorpay, always create a fresh provider order.
-    if (existingPending?.providerOrderId && provider === "paypal") {
+    // Reuse a coupon order so a customer's single-use reservation stays attached
+    // to the same provider order while they retry checkout.
+    if (existingPending?.providerOrderId && (provider === "paypal" || couponCode)) {
       return res.status(200).json({
         orderId: existingPending.id,
         provider: existingPending.provider,
         providerOrderId: existingPending.providerOrderId,
-        amount: existingPending.amount / 100,
+        amount: provider === "paypal"
+          ? existingPending.amount / 100
+          : existingPending.amount,
         currency: existingPending.currency,
-        clientId: getPayPalClientId(),
+        originalAmountMinor: existingPending.originalAmount,
+        discountAmountMinor: existingPending.discountAmount,
+        couponCode: existingPending.couponCode,
+        ...(provider === "paypal"
+          ? { clientId: getPayPalClientId() }
+          : { keyId: process.env.RAZORPAY_KEY_ID || "" }),
       });
     }
 
@@ -321,10 +539,13 @@ r.post("/create-order", auth, async (req, res) => {
         userId: user.id,
         projectId: project.id,
         planId: plan.id,
-        amount: pricing.providerAmountMinor,
+        amount: payable.finalAmountMinor,
         currency: data.currency,
         provider,
         removeWatermark: pricing.removeWatermark,
+        originalAmount: payable.originalAmountMinor,
+        discountAmount: payable.discountAmountMinor,
+        couponCode: payable.couponCode,
       },
     });
 
@@ -333,7 +554,7 @@ r.post("/create-order", auth, async (req, res) => {
     if (provider === "razorpay") {
       providerRequestInFlight = true;
       const razorpayOrder = await createRazorpayOrder(
-        pricing.providerAmountMinor,
+        payable.finalAmountMinor,
         order.id,
       );
       providerRequestInFlight = false;
@@ -351,15 +572,18 @@ r.post("/create-order", auth, async (req, res) => {
         orderId: saved.id,
         provider: "razorpay",
         providerOrderId: razorpayOrder.id,
-        amount: pricing.providerAmountMinor,
+        amount: payable.finalAmountMinor,
         currency: "INR",
+        originalAmountMinor: payable.originalAmountMinor,
+        discountAmountMinor: payable.discountAmountMinor,
+        couponCode: payable.couponCode,
         keyId: process.env.RAZORPAY_KEY_ID || "",
       });
     }
 
     providerRequestInFlight = true;
     const paypalOrder = await createPayPalOrder({
-      amountUsd: pricing.providerAmount,
+      amountUsd: payable.finalAmountMinor / 100,
       referenceId: order.id,
       description: `Devsphere ${isNavratri ? "Navratri Partner Invite" : isBloomAnniversary ? "Anniversary Bloom" : isWeddingInvitation ? "Wedding Invitation" : project.template.name} - ${
         pricing.specialReveal
@@ -384,8 +608,11 @@ r.post("/create-order", auth, async (req, res) => {
       orderId: saved.id,
       provider: "paypal",
       providerOrderId: paypalOrder.id,
-      amount: pricing.providerAmount,
+      amount: payable.finalAmountMinor / 100,
       currency: "USD",
+      originalAmountMinor: payable.originalAmountMinor,
+      discountAmountMinor: payable.discountAmountMinor,
+      couponCode: payable.couponCode,
       clientId: getPayPalClientId(),
     });
   } catch (error: any) {
@@ -404,6 +631,16 @@ r.post("/create-order", auth, async (req, res) => {
         .catch((dbError) => {
           console.error("Failed to mark payment order as FAILED:", dbError);
         });
+    }
+
+    if (error?.code === "P2002" && data.couponCode) {
+      return res.status(409).json({
+        error: "INSIDER10 is already reserved or redeemed by another checkout on this account.",
+      });
+    }
+
+    if (error instanceof CouponValidationError) {
+      return res.status(400).json({ error: error.message });
     }
 
     const providerMessage =
@@ -604,9 +841,20 @@ r.post("/resume/:projectId", auth, async (req, res) => {
     }
 
     if (project.status === "PUBLISHED" && project.website) {
+      const completedOrder = project.orders.find((item) => item.status === "PAID");
       return res.json({
         paid: true,
         url: `${process.env.APP_URL || "http://localhost:5173"}/r/${project.website.slug}`,
+        ...(completedOrder
+          ? {
+              orderId: completedOrder.id,
+              amount: completedOrder.amount,
+              originalAmountMinor: completedOrder.originalAmount ?? completedOrder.amount,
+              discountAmountMinor: completedOrder.discountAmount ?? 0,
+              couponCode: completedOrder.couponCode,
+              currency: completedOrder.currency,
+            }
+          : {}),
       });
     }
 
@@ -614,7 +862,16 @@ r.post("/resume/:projectId", auth, async (req, res) => {
 
     if (paidOrder) {
       const published = await publishPaidProject(project.id, user.id);
-      return res.json({ paid: true, url: published.url });
+      return res.json({
+        paid: true,
+        url: published.url,
+        orderId: paidOrder.id,
+        amount: paidOrder.amount,
+        originalAmountMinor: paidOrder.originalAmount ?? paidOrder.amount,
+        discountAmountMinor: paidOrder.discountAmount ?? 0,
+        couponCode: paidOrder.couponCode,
+        currency: paidOrder.currency,
+      });
     }
 
     const resumableOrders = project.orders.filter(
@@ -660,7 +917,7 @@ r.post("/resume/:projectId", auth, async (req, res) => {
               providerCurrency: "INR",
             });
 
-            return res.json({ paid: true, url: result.url });
+            return res.json({ ...result, paid: true });
           }
         } catch (error) {
           console.warn("Razorpay resume check failed", error);
@@ -694,7 +951,7 @@ r.post("/resume/:projectId", auth, async (req, res) => {
               providerCurrency: "USD",
             });
 
-            return res.json({ paid: true, url: result.url });
+            return res.json({ ...result, paid: true });
           }
         } catch (error) {
           console.warn("PayPal resume check failed", error);
