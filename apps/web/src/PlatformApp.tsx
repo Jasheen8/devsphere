@@ -117,6 +117,8 @@ const TEMPLATE_CARD_PRIORITY = [
   "navratri-partner-invite",
 ];
 
+const SPECIAL_MAGAZINE_LIVE_DEMO_URL = "https://specialmagazine.vercel.app/";
+
 function getVisibleTemplateCards(items: Template[]) {
   return TEMPLATE_CARD_PRIORITY.map((slug) =>
     items.find((template) => template.slug === slug),
@@ -655,7 +657,7 @@ function TemplateCard({ t }: { t: Template }) {
   const liveDemoUrl = isWeddingInvitation
     ? "https://wedding-invitation-tau-three-37.vercel.app/"
     : isMagazine
-      ? `/templates/${t.slug}`
+      ? SPECIAL_MAGAZINE_LIVE_DEMO_URL
     : t.liveDemoUrl || t.previewUrl;
   const cardTags = [
     ...(isAnniversary ? ["romantic", "journey", "cinematic"] : t.tags),
@@ -756,11 +758,11 @@ function TemplateCard({ t }: { t: Template }) {
               to={`/templates/${t.slug}`}
               onMouseEnter={() => preloadTemplate(t.slug)}
             >
-              {isMagazine ? "Live Demo" : "Preview"}
+              Preview
             </Link>
           )}
 
-          {!isWeddingInvitation && !isMagazine && liveDemoUrl && (
+          {!isWeddingInvitation && liveDemoUrl && (
             <a
               className="btn btn-primary"
               href={liveDemoUrl}
@@ -915,9 +917,21 @@ function TemplatePreview() {
             <h2>{t.name}</h2>
             <p className="muted">{t.description}</p>
           </div>
-          <Link className="btn btn-primary" to={`/create/${t.id}`}>
-            {t.isFree ? "Use Free Template" : "Use This Template"}
-          </Link>
+          <div className="actions">
+            {t.slug === "my-hero-magazine" && (
+              <a
+                className="btn btn-soft"
+                href={SPECIAL_MAGAZINE_LIVE_DEMO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Live Demo
+              </a>
+            )}
+            <Link className="btn btn-primary" to={`/create/${t.id}`}>
+              {t.isFree ? "Use Free Template" : "Use This Template"}
+            </Link>
+          </div>
         </div>
         <div className="preview-frame">
           <TemplateRenderer

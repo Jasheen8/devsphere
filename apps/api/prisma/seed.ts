@@ -1302,6 +1302,7 @@ async function main() {
       tags: ["birthday", "magazine", "photo", "memories", "premium"],
       featured: true,
       thumbnailUrl: "/templates/my-hero-magazine/assets/coverphoto-thumb.jpg",
+      liveDemoUrl: "https://specialmagazine.vercel.app/",
       data: {
         recipientName: "Karan",
         senderName: "Anjali",
